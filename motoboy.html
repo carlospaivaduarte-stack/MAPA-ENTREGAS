@@ -546,7 +546,11 @@ async function sendImmediateLocation(){
       if(marker){
         marker.setPosition({lat,lng});
       }else{
-        marker=new google.maps.Marker({position:{lat,lng},map,label:{text:"🏍️",fontSize:"28px",fontWeight:"700"},title:"Localização do motoboy"});
+        marker=new google.maps.Marker({position:{lat,lng},map,icon:{
+  url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52"><text x="26" y="38" text-anchor="middle" font-size="36">🏍️</text></svg>`),
+  scaledSize:new google.maps.Size(52,52),
+  anchor:new google.maps.Point(26,26)
+},title:"Localização do motoboy"});
       }
       map.setCenter({lat,lng});
       btn.textContent="✅ Atualizado";
