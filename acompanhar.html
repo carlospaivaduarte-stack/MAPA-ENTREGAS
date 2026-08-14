@@ -12,7 +12,7 @@
 .stat{background:#f3f4f6;border-radius:12px;padding:9px}.stat b{display:block;font-size:17px;margin-top:2px}
 .last-update{margin-top:9px;border:2px solid #e5e7eb;border-radius:13px;padding:10px;background:#fff}.last-update .label{font-size:11px;color:#666;font-weight:700}.last-update .time{font-size:20px;font-weight:900;margin-top:2px}.last-update.stale .time{color:#dc2626}.last-update.fresh .time{color:#16a34a}
 .bottom{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 20px #0002}
-.status{font-weight:800}.ok{color:#16a34a}.bad{color:#dc2626}.warn{color:#d97706}.small{font-size:12px;color:#666;margin-top:5px}
+.status{font-weight:800}.ok{color:#16a34a}.bad{color:#dc2626}.warn{color:#d97706}.small{font-size:12px;color:#666;margin-top:5px}.contact{width:100%;margin-top:9px;border:0;border-radius:12px;padding:12px;font-weight:800;background:#25D366;color:#071b0d;cursor:pointer}
 .pin{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 7px #0005;font-weight:800}.driver{background:#111827;color:white}.dest{background:#facc15;color:#111}
 @media(min-width:760px){.top,.bottom{width:430px;left:20px;right:auto}}
 </style>
@@ -34,6 +34,7 @@
 <div class="bottom">
   <div id="status" class="status warn">🟡 Entrega pendente</div>
   <div id="detail" class="small">A localização é atualizada aproximadamente a cada 1 minuto.</div>
+  <button id="talkDriver" class="contact" style="display:none">💬 FALAR COM O MOTOQUEIRO</button>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,6 +48,7 @@ let driverMarker=null,destMarker=null;
 const icon=(kind,label)=>L.divIcon({className:"",html:`<div class="pin ${kind}">${label}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
 
 function closeTracking(d){
+  document.getElementById("talkDriver").style.display="none";
   if(driverMarker){map.removeLayer(driverMarker);driverMarker=null}
   document.getElementById("ahead").textContent="—";
   document.getElementById("eta").textContent="—";
@@ -99,6 +101,19 @@ async function refresh(){
     document.getElementById("ahead").textContent="—";document.getElementById("eta").textContent="—";return
   }
   const d=data[0];
+  if(d.status==="awaiting_collection"){
+    if(driverMarker){map.removeLayer(driverMarker);driverMarker=null}
+    if(destMarker){map.removeLayer(destMarker);destMarker=null}
+    document.getElementById("headline").textContent="Seu pedido ainda está aguardando coleta.";
+    document.getElementById("status").className="status warn";
+    document.getElementById("status").textContent="⚪ Aguardando coleta";
+    document.getElementById("ahead").textContent="—";
+    document.getElementById("eta").textContent="Aguardando coleta";
+    document.getElementById("talkDriver").style.display="none";
+    document.getElementById("lastUpdateBig").textContent="Motoqueiro ainda não definido";
+    document.getElementById("detail").textContent="O rastreamento será liberado quando um motoqueiro coletar sua entrega.";
+    return;
+  }
   if(!destMarker)destMarker=L.marker([d.lat,d.lng],{icon:icon("dest","📦")}).addTo(map).bindPopup("Sua entrega");
   if(d.status!=="pending"){closeTracking(d);map.setView([d.lat,d.lng],16);return}
   document.getElementById("status").className="status warn";
@@ -106,6 +121,11 @@ async function refresh(){
   document.getElementById("headline").textContent=d.route_order===1?"🏍️ Você é a próxima entrega":(d.route_order?`Sua entrega está na posição ${d.route_order} da rota.`:"Seu pedido está na rota do motoboy.");
   const {data:drivers}=await sb.from("drivers").select("id,name,lat,lng,last_seen,is_online").eq("id",d.driver_id).limit(1);
   const drv=drivers&&drivers[0];
+  const talk=document.getElementById("talkDriver");
+  if(drv&&drv.phone){
+    talk.style.display="block";
+    talk.onclick=()=>openWhatsApp(drv.phone);
+  }else talk.style.display="none";
   if(drv&&drv.lat!=null){
     const ll=[drv.lat,drv.lng];
     if(!driverMarker)driverMarker=L.marker(ll,{icon:icon("driver","🏍️")}).addTo(map).bindPopup("Motoboy");

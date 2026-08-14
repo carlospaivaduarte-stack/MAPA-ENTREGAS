@@ -1,6 +1,6 @@
 <!doctype html><html lang="pt-BR"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>V7 Motoboy</title>
+<title>RTS — Motoboy</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}#map{position:fixed;inset:0}
@@ -10,13 +10,23 @@ input{width:100%;padding:11px;border:1px solid #ddd;border-radius:11px;margin-bo
 button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.status{font-size:12px;font-weight:bold;margin:3px 0}
 .num-pin{width:30px;height:30px;border-radius:50%;background:#facc15;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:7px 0}.metric{background:#f3f4f6;border-radius:9px;padding:6px;text-align:center;font-size:10px}.metric b{display:block;font-size:15px}
+.route-times{font-size:11px;color:#555;background:#f8fafc;border-radius:10px;padding:7px;margin:6px 0}
 </style></head><body>
 <div id="map"></div>
-<div class="top"><b>🏍️ Motoboy</b> · <span id="state">desconectado</span></div>
+<div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
 <div class="panel">
 <input id="driverName" placeholder="Seu nome">
 <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
 <div class="row"><button class="blue" id="start">📍 Iniciar rastreamento</button><button class="gray" id="stop">⏹ Parar</button></div>
+<div class="row" style="margin-top:6px"><button class="green" id="startRoute">▶️ INICIAR ROTA</button><button class="gray" id="routeTimes">🕐 Horários</button></div>
+<div id="routeTimeInfo" class="route-times" style="display:none">Saída: -- · Início da rota: -- · Conclusão: --</div>
+<div class="metrics">
+  <div class="metric">Total<b id="mTotal">0</b></div>
+  <div class="metric">Pend.<b id="mPending">0</b></div>
+  <div class="metric">Entreg.<b id="mDone">0</b></div>
+  <div class="metric">Não ent.<b id="mFailed">0</b></div>
+</div>
 <div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
 <div class="row" style="margin-bottom:7px">
 <button class="blue" id="centerMe">📍 Centralizar em mim</button>
@@ -30,7 +40,7 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-let currentDeliveries=[],deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+let currentDriver=null,currentDeliveries=[],deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
@@ -40,22 +50,64 @@ async function upsertDriver(pos){
   const name=document.getElementById("driverName").value.trim()||"Motoboy";
   const phone=document.getElementById("driverPhone").value.trim();
   localStorage.setItem("v7_driver_name",name);localStorage.setItem("v7_driver_phone",phone);
-  const row={id:driverId,name,phone,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,is_online:true,last_seen:new Date().toISOString()};
+  const nowIso=new Date().toISOString();
+  const row={id:driverId,name,phone,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,is_online:true,last_seen:nowIso};
+  if(!currentDriver?.is_online)row.tracking_started_at=nowIso;
   const {error}=await sb.from("drivers").upsert(row,{onConflict:"id"});
   if(error){console.error(error);document.getElementById("state").textContent="erro ao enviar localização";return}
   document.getElementById("state").textContent="🟢 online";
+  currentDriver={...(currentDriver||{}),...row};
+  renderRouteTimes();
   const ll=[row.lat,row.lng];
   if(!marker)marker=L.marker(ll).addTo(map).bindPopup("📍 Você");else marker.setLatLng(ll);
   if(!hasCentered){map.setView(ll,17);hasCentered=true;}
 }
 async function loadDeliveries(){
   if(!sb)return;
-  const {data,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).order("created_at",{ascending:true});
+  const {data:assigned,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).order("created_at",{ascending:true});
   if(error){console.error(error);return}
-  renderDeliveries(data||[]);
+  const {data:waiting,error:waitingError}=await sb.from("deliveries").select("*").eq("status","awaiting_collection").is("driver_id",null).order("created_at",{ascending:true});
+  if(waitingError){console.error(waitingError);return}
+  renderCollection(waiting||[]);
+  renderDeliveries((assigned||[]).filter(d=>d.status!=="awaiting_collection"));
 }
+
+function renderCollection(data){
+  const box=document.getElementById("collectionBox");
+  if(!box)return;
+  box.innerHTML=data.length?`<div style="border:2px solid #d1d5db;border-radius:12px;padding:9px;background:#fafafa">
+    <b>⚪ ENTREGAS PARA COLETAR (${data.length})</b>
+    ${data.map(d=>`<div class="delivery" style="margin-top:7px">
+      <b>${esc(d.client_name)}</b>
+      <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}</div>
+      <button class="green" style="width:100%;margin-top:6px" onclick="collectDelivery('${d.id}')">✅ COLETADA</button>
+    </div>`).join("")}
+  </div>`:"";
+}
+window.collectDelivery=async id=>{
+  if(!sb)return alert("Inicie o rastreamento primeiro.");
+  const nowIso=new Date().toISOString();
+  // A coleta só funciona se a entrega ainda estiver aguardando e sem motoqueiro.
+  const {data,error}=await sb.from("deliveries")
+    .update({driver_id:driverId,status:"pending",collected_at:nowIso,updated_at:nowIso})
+    .eq("id",id)
+    .eq("status","awaiting_collection")
+    .is("driver_id",null)
+    .select("id");
+  if(error)return alert("Erro ao coletar: "+error.message);
+  if(!data||!data.length){
+    alert("Essa entrega já foi coletada por outro motoqueiro.");
+    return loadDeliveries();
+  }
+  await loadDeliveries();
+};
+
 function renderDeliveries(data){
   currentDeliveries=data||[];
+  document.getElementById("mTotal").textContent=currentDeliveries.length;
+  document.getElementById("mPending").textContent=currentDeliveries.filter(x=>x.status==="pending").length;
+  document.getElementById("mDone").textContent=currentDeliveries.filter(x=>x.status==="done").length;
+  document.getElementById("mFailed").textContent=currentDeliveries.filter(x=>x.status==="failed").length;
   Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
   const pending=[...data].filter(d=>d.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
   pending.forEach((d,i)=>{
@@ -67,7 +119,7 @@ function renderDeliveries(data){
   box.innerHTML=data.length?data.map(d=>`<div class="delivery"><b>${d.route_order?d.route_order+'. ':''}👤 ${esc(d.client_name)}</b><br>
     <span onclick="openWhatsApp('${esc(d.client_phone)}')" style="color:#128c45;text-decoration:underline;cursor:pointer">📱 ${esc(d.client_phone||"")}</span>
     <div class="status">${d.status==="done"?"✅ ENTREGUE":d.status==="failed"?"❌ NÃO ENTREGUE":"🟡 PENDENTE"}</div>
-    <div class="small">${d.lat}, ${d.lng}</div>
+    <div class="small">${d.lat}, ${d.lng}${d.status!=="pending"?`<br>🕐 ${new Date(d.completed_at||d.updated_at).toLocaleString("pt-BR")}`:""}${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
     <div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
@@ -90,10 +142,52 @@ window.sendTracking=id=>{
 
 async function setStatus(id,status){
   let note="";
-  if(status==="failed")note=prompt("Motivo da não entrega (opcional):")||"";
-  await sb.from("deliveries").update({status,note,updated_at:new Date().toISOString()}).eq("id",id);
+  if(status==="failed"){
+    const choice=prompt("Motivo da não entrega:\n1 - Cliente ausente\n2 - Endereço não localizado\n3 - Cliente recusou\n4 - Outro");
+    if(choice===null)return;
+    if(choice==="1")note="Cliente ausente";
+    else if(choice==="2")note="Endereço não localizado";
+    else if(choice==="3")note="Cliente recusou";
+    else if(choice==="4")note=prompt("Digite o motivo:")||"Outro";
+    else note=choice||"Não informado";
+  }
+  const nowIso=new Date().toISOString();
+  const {error}=await sb.from("deliveries").update({status,note,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
+  if(error)return alert("Erro ao atualizar entrega: "+error.message);
+  const {data:remaining}=await sb.from("deliveries").select("id").eq("driver_id",driverId).eq("status","pending").limit(1);
+  if(!remaining||remaining.length===0){
+    await sb.from("drivers").update({route_finished_at:nowIso}).eq("id",driverId);
+    if(currentDriver)currentDriver.route_finished_at=nowIso;
+    renderRouteTimes();
+  }
   loadDeliveries();
 }
+
+function ft(v){return v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--"}
+function renderRouteTimes(){
+  document.getElementById("routeTimeInfo").textContent=`Saída / GPS: ${ft(currentDriver?.tracking_started_at)} · Início da rota: ${ft(currentDriver?.route_started_at)} · Conclusão: ${ft(currentDriver?.route_finished_at)}`;
+}
+async function loadDriverInfo(){
+  if(!sb)return;
+  const {data}=await sb.from("drivers").select("*").eq("id",driverId).limit(1);
+  currentDriver=data&&data[0]?data[0]:null;
+  renderRouteTimes();
+}
+document.getElementById("routeTimes").onclick=()=>{
+  const e=document.getElementById("routeTimeInfo");
+  e.style.display=e.style.display==="none"?"block":"none";
+};
+document.getElementById("startRoute").onclick=async()=>{
+  if(!sb)return alert("Inicie o rastreamento primeiro.");
+  const nowIso=new Date().toISOString();
+  const {error}=await sb.from("drivers").update({route_started_at:nowIso,route_finished_at:null}).eq("id",driverId);
+  if(error)return alert("Erro ao iniciar rota: "+error.message);
+  currentDriver={...(currentDriver||{}),route_started_at:nowIso,route_finished_at:null};
+  renderRouteTimes();
+  document.getElementById("routeTimeInfo").style.display="block";
+  alert("Rota iniciada. O horário foi enviado para a Central.");
+};
+
 document.getElementById("centerMe").onclick=()=>{
   if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");
   map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
@@ -106,6 +200,7 @@ document.getElementById("toggleDeliveries").onclick=()=>{
 };
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
+  await loadDriverInfo();
   if(!navigator.geolocation)return alert("GPS não suportado.");
   navigator.geolocation.getCurrentPosition(upsertDriver,()=>alert("Permita acesso à localização."),{enableHighAccuracy:true,timeout:20000});
   if(watch===null)watch=navigator.geolocation.watchPosition(upsertDriver,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
