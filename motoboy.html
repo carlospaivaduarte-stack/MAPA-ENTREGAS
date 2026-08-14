@@ -31,6 +31,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <div class="panel">
 <div class="panel-header" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:6px">
   <button class="blue" id="refreshMotoboy" title="Atualizar dados" style="padding:6px 10px">🔄</button>
+  <button class="green" id="updateLocationNow" title="Atualizar localização agora" style="padding:6px 10px">📍 GPS AGORA</button>
   <button class="gray" id="panelToggle" aria-label="Minimizar painel" title="Minimizar painel" style="padding:6px 10px;font-size:18px;line-height:1">⬇️</button>
 </div>
 <div id="panelContent">
@@ -158,6 +159,7 @@ window.collectDelivery=async id=>{
   await loadDeliveries();
 };
 
+function fmtDateTime(v){return v?new Date(v).toLocaleString("pt-BR"):"--"}
 function renderDeliveries(data){
   currentDeliveries=(data||[]).sort((a,b)=>{
     const af=(a.status==="done"||a.status==="failed"),bf=(b.status==="done"||b.status==="failed");
@@ -180,7 +182,7 @@ function renderDeliveries(data){
   if(currentMotoboyTab==="active"){
     pending.forEach((d,i)=>{
       const n=d.route_order||i+1;
-      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:String(n),title:d.client_name});
+      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:{text:"📦",fontSize:"20px"},title:`${n}. ${d.client_name}`});
     });
   }
 
@@ -192,7 +194,7 @@ function renderDeliveries(data){
   box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.status!=="pending"?`<br>🕐 ${new Date(d.completed_at||d.updated_at).toLocaleString("pt-BR")}`:""}
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
       ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
     ${d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
@@ -485,6 +487,51 @@ document.getElementById("refreshMotoboy").onclick=async()=>{
     btn.disabled=false; btn.textContent=old;
   }
 };
+
+
+async function sendImmediateLocation(){
+  if(!navigator.geolocation)return alert("GPS não suportado.");
+  if(!sb)sb=getSupabaseClient();
+  if(!sb)return;
+  const btn=document.getElementById("updateLocationNow");
+  const old=btn.textContent;btn.disabled=true;btn.textContent="⏳ GPS...";
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      lastPosition=pos;
+      const nowIso=new Date().toISOString();
+      const lat=pos.coords.latitude,lng=pos.coords.longitude;
+      const row={
+        id:driverId,
+        name:document.getElementById("name").value.trim()||"Motoboy",
+        phone:document.getElementById("phone").value.trim(),
+        lat,lng,
+        accuracy:pos.coords.accuracy,
+        is_online:true,
+        last_seen:nowIso
+      };
+      const {error}=await sb.from("drivers").upsert(row,{onConflict:"id"});
+      if(error)throw error;
+      currentDriver={...(currentDriver||{}),...row};
+      if(marker){
+        marker.setPosition({lat,lng});
+      }else{
+        marker=new google.maps.Marker({position:{lat,lng},map,label:{text:"🏍️",fontSize:"22px"},title:"Você"});
+      }
+      map.setCenter({lat,lng});
+      btn.textContent="✅ Atualizado";
+      setTimeout(()=>btn.textContent=old,1200);
+    }catch(e){
+      alert("Erro ao atualizar localização: "+(e.message||e));
+      btn.textContent=old;
+    }finally{
+      btn.disabled=false;
+    }
+  },err=>{
+    alert("Não foi possível obter a localização: "+err.message);
+    btn.disabled=false;btn.textContent=old;
+  },{enableHighAccuracy:true,timeout:12000,maximumAge:0});
+}
+document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;

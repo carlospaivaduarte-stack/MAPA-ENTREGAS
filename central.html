@@ -232,7 +232,9 @@ function renderDeliveries(){
     return `<div class="delivery">
       <b>${currentDeliveryTab==="finished"?(d.status==="done"?"🟢 ":"🔴 "):""}${order}${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>🏍️ ${esc(driverText)}
-      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><b>🕐 Conclusão: ${fmtDateTime(d.completed_at||d.updated_at)}</b>`:""}
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}
+      ${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}
+      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
       ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
       <div class="row" style="margin-top:6px">
         ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">💬 RASTREAMENTO</button>`:"<button class='gray' disabled>⚪ Aguardando coleta</button>"}
@@ -252,7 +254,7 @@ function renderDeliveries(){
   Object.values(deliveryMarkers).forEach(m=>m.setMap(null));deliveryMarkers={};
   if(currentDeliveryTab==="active"){
     rows.filter(d=>d.status==="pending").forEach((d,i)=>{
-      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:String(d.route_order||i+1),title:d.client_name});
+      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:{text:"📦",fontSize:"20px"},title:`${d.route_order||i+1}. ${d.client_name}`});
     });
   }
 }
