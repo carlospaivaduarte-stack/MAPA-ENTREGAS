@@ -12,10 +12,23 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 .num-pin{width:30px;height:30px;border-radius:50%;background:#facc15;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:7px 0}.metric{background:#f3f4f6;border-radius:9px;padding:6px;text-align:center;font-size:10px}.metric b{display:block;font-size:15px}
 .route-times{font-size:11px;color:#555;background:#f8fafc;border-radius:10px;padding:7px;margin:6px 0}
+
+.panel.panel-collapsed{padding:8px 10px;max-height:none;overflow:hidden}
+.panel.panel-collapsed #panelContent{display:none}
+.panel.panel-collapsed .panel-header{margin-bottom:0}
+.panel.panel-collapsed #panelToggle{font-size:18px}
+
+.modal{position:fixed;z-index:3000;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:18px}
+.modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;padding:16px;width:min(430px,100%);box-shadow:0 8px 30px #0004}
+.modalbox h3{margin-top:0}.modalbox textarea{min-height:70px}
 </style></head><body>
 <div id="map"></div>
 <div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
 <div class="panel">
+<div class="panel-header" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:6px">
+  <button class="gray" id="panelToggle" aria-label="Minimizar painel" title="Minimizar painel" style="padding:6px 10px;font-size:18px;line-height:1">⬇️</button>
+</div>
+<div id="panelContent">
 <input id="driverName" placeholder="Seu nome">
 <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
 <div class="row"><button class="blue" id="start">📍 Iniciar rastreamento</button><button class="gray" id="stop">⏹ Parar</button></div>
@@ -30,7 +43,7 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
 <div class="row" style="margin-bottom:7px">
 <button class="blue" id="centerMe">📍 Centralizar em mim</button>
-<button class="gray" id="toggleDeliveries">⬇️ Minimizar entregas</button>
+<button class="gray" id="togglePanel" style="display:none">⬇️</button>
 </div>
 <div class="row" style="margin-bottom:7px">
 <button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
@@ -40,13 +53,29 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <div id="collectionBox" style="margin:8px 0"></div>
 <div id="deliveries"></div>
 </div>
+</div>
+
+<div class="modal" id="editModal">
+  <div class="modalbox">
+    <h3>✏️ Editar entrega</h3>
+    <input id="editClient" placeholder="Nome do cliente">
+    <input id="editPhone" inputmode="tel" placeholder="Telefone / WhatsApp">
+    <textarea id="editLocation" placeholder="Link do Google Maps ou coordenadas"></textarea>
+    <textarea id="editNote" placeholder="Observação"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="green" id="saveEdit">💾 Salvar</button>
+      <button class="gray" id="cancelEdit">❌ Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script><script src="shared.js"></script>
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-let currentDriver=null,currentDeliveries=[],deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+let currentDriver=null,currentDeliveries=[],waitingDeliveries=[],deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
@@ -74,7 +103,7 @@ async function loadDeliveries(){
   if(error){console.error(error);return}
   const {data:waiting,error:waitingError}=await sb.from("deliveries").select("*").eq("status","awaiting_collection").is("driver_id",null).order("created_at",{ascending:true});
   if(waitingError){console.error(waitingError);return}
-  renderCollection(waiting||[]);
+  waitingDeliveries=waiting||[]; renderCollection(waitingDeliveries);
   renderDeliveries((assigned||[]).filter(d=>d.status!=="awaiting_collection"));
 }
 
@@ -86,7 +115,10 @@ function renderCollection(data){
     ${data.map(d=>`<div class="delivery" style="margin-top:7px">
       <b>${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}</div>
-      <button class="green" style="width:100%;margin-top:6px" onclick="collectDelivery('${d.id}')">✅ COLETADA</button>
+      <div class="row" style="margin-top:6px">
+        <button class="green" onclick="collectDelivery('${d.id}')">✅ COLETADA</button>
+        <button class="gray" onclick="editWaitingDelivery('${d.id}')">✏️ EDITAR</button>
+      </div>
     </div>`).join("")}
   </div>`:"";
 }
@@ -130,6 +162,7 @@ function renderDeliveries(data){
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
       <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">🧭 Navegar</button>
+      <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
       ${d.status==="pending"?`<button class="green" onclick="setStatus('${d.id}','done')">✅ Entregue</button><button class="red" onclick="setStatus('${d.id}','failed')">❌ Não entregue</button>`:""}
     </div></div>`).join(""):"<div class='small'>Nenhuma entrega atribuída.</div>";
 }
@@ -144,6 +177,51 @@ window.sendTracking=id=>{
   if(n.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
   const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
   window.open(`https://wa.me/${n}?text=${encodeURIComponent(msg)}`,"_blank");
+};
+
+
+let editingId=null;
+let editingSource="assigned";
+
+function openEditModal(d,source){
+  if(!d)return;
+  editingId=d.id;
+  editingSource=source;
+  document.getElementById("editClient").value=d.client_name||"";
+  document.getElementById("editPhone").value=d.client_phone||"";
+  document.getElementById("editLocation").value=`${d.lat},${d.lng}`;
+  document.getElementById("editNote").value=d.note||"";
+  document.getElementById("editModal").classList.add("open");
+}
+window.editDelivery=id=>{
+  const d=currentDeliveries.find(x=>x.id===id);
+  openEditModal(d,"assigned");
+};
+window.editWaitingDelivery=id=>{
+  const d=waitingDeliveries.find(x=>x.id===id);
+  openEditModal(d,"waiting");
+};
+document.getElementById("cancelEdit").onclick=()=>{
+  editingId=null;
+  document.getElementById("editModal").classList.remove("open");
+};
+document.getElementById("saveEdit").onclick=async()=>{
+  if(!sb||!editingId)return;
+  const p=extractCoords(document.getElementById("editLocation").value.trim());
+  if(!p)return alert("Localização inválida. Cole coordenadas ou um link completo do Google Maps.");
+  const patch={
+    client_name:document.getElementById("editClient").value.trim()||"Cliente",
+    client_phone:document.getElementById("editPhone").value.trim(),
+    lat:p.lat,
+    lng:p.lng,
+    note:document.getElementById("editNote").value.trim(),
+    updated_at:new Date().toISOString()
+  };
+  const {error}=await sb.from("deliveries").update(patch).eq("id",editingId);
+  if(error)return alert("Erro ao editar entrega: "+error.message);
+  document.getElementById("editModal").classList.remove("open");
+  editingId=null;
+  await loadDeliveries();
 };
 
 async function setStatus(id,status){
@@ -248,12 +326,20 @@ document.getElementById("centerMe").onclick=()=>{
   if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");
   map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
 };
-document.getElementById("toggleDeliveries").onclick=()=>{
-  const panel=document.querySelector(".panel");
-  const collapsed=panel.classList.toggle("collapsed");
-  document.getElementById("toggleDeliveries").textContent=collapsed?"⬆️ Mostrar entregas":"⬇️ Minimizar entregas";
-  setTimeout(()=>map.invalidateSize(),100);
-};
+
+
+const panelEl=document.querySelector(".panel");
+const panelToggle=document.getElementById("panelToggle");
+if(panelEl&&panelToggle){
+  panelToggle.onclick=()=>{
+    const collapsed=panelEl.classList.toggle("panel-collapsed");
+    panelToggle.textContent=collapsed?"⬆️":"⬇️";
+    panelToggle.setAttribute("aria-label",collapsed?"Maximizar painel":"Minimizar painel");
+    panelToggle.title=collapsed?"Maximizar painel":"Minimizar painel";
+    setTimeout(()=>map.invalidateSize(),100);
+  };
+}
+
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
   await loadDriverInfo();
