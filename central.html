@@ -1,9 +1,9 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RTS â€” Central</title>
+<title>RTS — Central</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
 .layout{display:grid;grid-template-columns:430px 1fr;height:100vh}.side{background:#fff;padding:14px;overflow:auto}.map{height:100vh}#map{height:100%;width:100%}
@@ -21,85 +21,85 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
 .transfer-row{display:grid;grid-template-columns:1fr auto;gap:5px;margin-top:6px}
 </style>
 <script>
-window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
+window.GOOGLE_MAPS_API_KEY="SUA_CHAVE_GOOGLE_MAPS_AQUI";
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_GOOGLE_MAPS_AQUI&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
 <div class="layout">
   <div class="side">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-  <h2 style="margin:0">ðŸ’» RTS â€” Central</h2>
-  <button class="blue" id="refreshCentral">ðŸ”„ ATUALIZAR</button>
+  <h2 style="margin:0">💻 RTS — Central</h2>
+  <button class="blue" id="refreshCentral">🔄 ATUALIZAR</button>
 </div>
     <div id="connection" class="small">Conectando...</div>
 
     <div class="metrics">
-      <div class="metric">ðŸ“¦ Total<b id="mTotal">0</b></div>
-      <div class="metric">ðŸŸ¡ Pendentes<b id="mPending">0</b></div>
-      <div class="metric">ðŸŸ¢ Entregues<b id="mDone">0</b></div>
-      <div class="metric">ðŸ”´ NÃ£o ent.<b id="mFailed">0</b></div>
+      <div class="metric">📦 Total<b id="mTotal">0</b></div>
+      <div class="metric">🟡 Pendentes<b id="mPending">0</b></div>
+      <div class="metric">🟢 Entregues<b id="mDone">0</b></div>
+      <div class="metric">🔴 Não ent.<b id="mFailed">0</b></div>
     </div>
 
-    <h3>ðŸï¸ Motoqueiros</h3>
+    <h3>🏍️ Motoqueiros</h3>
     <div id="drivers"><div class="small">Carregando...</div></div>
 
     <div class="day-panel">
-      <b>ðŸ“Š Painel do dia</b>
+      <b>📊 Painel do dia</b>
       <div class="day-grid" style="margin-top:7px">
-        <div class="day-box">âœ… ConclusÃ£o<b id="dayPercent">0%</b></div>
-        <div class="day-box">ðŸï¸ Primeira saÃ­da<b id="dayFirstStart">--</b></div>
-        <div class="day-box">ðŸ“¦ Ãšltima entrega<b id="dayLastDelivery">--</b></div>
-        <div class="day-box">â±ï¸ OperaÃ§Ã£o<b id="dayDuration">--</b></div>
+        <div class="day-box">✅ Conclusão<b id="dayPercent">0%</b></div>
+        <div class="day-box">🏍️ Primeira saída<b id="dayFirstStart">--</b></div>
+        <div class="day-box">📦 Última entrega<b id="dayLastDelivery">--</b></div>
+        <div class="day-box">⏱️ Operação<b id="dayDuration">--</b></div>
       </div>
     </div>
 
-    <h3>âž• Nova venda</h3>
+    <h3>➕ Nova venda</h3>
     <input id="client" placeholder="Nome do cliente">
     <input id="phone" placeholder="Telefone / WhatsApp">
     <textarea id="location" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
-<textarea id="saleNote" placeholder="ObservaÃ§Ã£o / informaÃ§Ã£o adicional"></textarea>
+<textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
     <div class="row">
-      <button class="gray" id="resolveLocation">ðŸ“ LER LOCALIZAÃ‡ÃƒO</button>
+      <button class="gray" id="resolveLocation">📍 LER LOCALIZAÇÃO</button>
       <div id="locationResult" class="small" style="padding:10px">Aceita links curtos do Google Maps.</div>
     </div>
     <div class="small" style="padding:8px;background:#f3f4f6;border-radius:10px;margin:5px 0">
-      âšª A venda serÃ¡ cadastrada como <b>AGUARDANDO COLETA</b>. O motoqueiro serÃ¡ vinculado automaticamente quando tocar em <b>COLETADA</b> no celular.
+      ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>. O motoqueiro será vinculado automaticamente quando tocar em <b>COLETADA</b> no celular.
     </div>
-    <button class="green" id="addDelivery" style="width:100%">âž• ADICIONAR VENDA</button>
+    <button class="green" id="addDelivery" style="width:100%">➕ ADICIONAR VENDA</button>
 
     <div class="row" style="align-items:center;margin-top:12px">
-      <h3 style="margin:0">ðŸ“¦ Entregas</h3>
-      <button class="red" id="clearDeliveries">ðŸ—‘ï¸ LIMPAR ENTREGAS</button>
+      <h3 style="margin:0">📦 Entregas</h3>
+      <button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
     </div>
     <div class="tabs">
-      <button class="tabbtn active" id="tabActive">ðŸ“¦ COLETAS / PENDENTES</button>
-      <button class="tabbtn" id="tabFinished">âœ… ENTREGUES / NÃƒO ENTREGUES</button>
+      <button class="tabbtn active" id="tabActive">📦 COLETAS / PENDENTES</button>
+      <button class="tabbtn" id="tabFinished">✅ ENTREGUES / NÃO ENTREGUES</button>
     </div>
 
     <div class="toolbar">
-      <input id="deliverySearch" placeholder="ðŸ”Ž Buscar cliente ou telefone">
+      <input id="deliverySearch" placeholder="🔎 Buscar cliente ou telefone">
       <select id="statusFilter">
         <option value="all">Todos os status</option>
-        <option value="awaiting_collection">âšª Aguardando coleta</option>
-        <option value="pending">ðŸŸ¡ Pendentes</option>
-        <option value="done">ðŸŸ¢ Entregues</option>
-        <option value="failed">ðŸ”´ NÃ£o entregues</option>
+        <option value="awaiting_collection">⚪ Aguardando coleta</option>
+        <option value="pending">🟡 Pendentes</option>
+        <option value="done">🟢 Entregues</option>
+        <option value="failed">🔴 Não entregues</option>
       </select>
     </div>
 
     <div class="row">
-      <button class="gray" id="exportReport">ðŸ“„ EXPORTAR</button>
-      <button class="gray" id="fitMap">ðŸ—ºï¸ VER TUDO</button>
+      <button class="gray" id="exportReport">📄 EXPORTAR</button>
+      <button class="gray" id="fitMap">🗺️ VER TUDO</button>
     </div>
 
-    <div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">âšª Aguardando coleta: 0</div>
+    <div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">⚪ Aguardando coleta: 0</div>
     <div id="filteredInfo" class="small"></div>
     <div id="deliveries"></div>
 
-    <h3>ðŸ“š HistÃ³rico de entregas â€” Ãºltimos 7 dias</h3>
-<div id="history7" class="history"><div class="small">Carregando histÃ³rico...</div></div>
-<h3>ðŸ• HistÃ³rico do dia</h3>
+    <h3>📚 Histórico de entregas — últimos 7 dias</h3>
+<div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
+<h3>🕐 Histórico do dia</h3>
     <div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
   </div>
 
@@ -108,14 +108,14 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
 <div class="modal" id="editModal">
   <div class="modalbox">
-    <h3>âœï¸ Editar entrega</h3>
+    <h3>✏️ Editar entrega</h3>
     <input id="editClient" placeholder="Nome do cliente">
     <input id="editPhone" placeholder="Telefone / WhatsApp">
     <textarea id="editLocation" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
-    <textarea id="editNote" placeholder="ObservaÃ§Ã£o"></textarea>
+    <textarea id="editNote" placeholder="Observação"></textarea>
     <div class="row" style="margin-top:8px">
-      <button class="green" id="saveEdit">ðŸ’¾ Salvar</button>
-      <button class="gray" id="cancelEdit">âŒ Cancelar</button>
+      <button class="green" id="saveEdit">💾 Salvar</button>
+      <button class="gray" id="cancelEdit">❌ Cancelar</button>
     </div>
   </div>
 </div>
@@ -145,25 +145,25 @@ function fresh(d){return !!(d.last_seen&&Date.now()-new Date(d.last_seen).getTim
 
 async function resolveGoogleLocation(raw){
   raw=String(raw||"").trim();
-  if(!raw)throw new Error("Cole uma localizaÃ§Ã£o.");
+  if(!raw)throw new Error("Cole uma localização.");
 
   const direct=extractCoords(raw);
   if(direct)return direct;
 
   let u;
-  try{u=new URL(raw)}catch(e){throw new Error("Link ou coordenadas invÃ¡lidos.");}
+  try{u=new URL(raw)}catch(e){throw new Error("Link ou coordenadas inválidos.");}
   const host=u.hostname.toLowerCase();
   const allowed=host==="maps.app.goo.gl"||host==="goo.gl"||host==="maps.google.com"||host==="www.google.com"||host==="google.com";
   if(!allowed)throw new Error("Use um link do Google Maps ou coordenadas.");
 
   const {data,error}=await sb.functions.invoke("resolve-google-maps",{body:{url:raw}});
-  if(error)throw new Error("NÃ£o consegui resolver esse link curto do Google Maps.");
-  if(!data||typeof data.lat!=="number"||typeof data.lng!=="number")throw new Error(data?.error||"NÃ£o encontrei as coordenadas nesse link.");
+  if(error)throw new Error("Não consegui resolver esse link curto do Google Maps.");
+  if(!data||typeof data.lat!=="number"||typeof data.lng!=="number")throw new Error(data?.error||"Não encontrei as coordenadas nesse link.");
   return {lat:data.lat,lng:data.lng};
 }
 
-function statusIcon(d){return d.status==="done"?"ðŸŸ¢":d.status==="failed"?"ðŸ”´":d.status==="awaiting_collection"?"âšª":"ðŸŸ¡"}
-function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃƒO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
+function statusIcon(d){return d.status==="done"?"🟢":d.status==="failed"?"🔴":d.status==="awaiting_collection"?"⚪":"🟡"}
+function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
 function pinIcon(d,index){
   const cls=d.status==="done"?"pin-done":d.status==="failed"?"pin-failed":"pin-pending";
   const n=d.route_order||index+1;
@@ -178,17 +178,17 @@ async function loadDrivers(){
 
   document.getElementById("drivers").innerHTML=allDrivers.length?allDrivers.map(d=>`
     <div class="driver">
-      <b>${d.is_online&&fresh(d)?"ðŸŸ¢":"ðŸ”´"} ${esc(d.name)}</b>
-      <div class="small">${esc(d.phone||"")}<br><b>LocalizaÃ§Ã£o Atualizada ${fmtTime(d.last_seen)}</b></div>
+      <b>${d.is_online&&fresh(d)?"🟢":"🔴"} ${esc(d.name)}</b>
+      <div class="small">${esc(d.phone||"")}<br><b>Localização Atualizada ${fmtTime(d.last_seen)}</b></div>
       <div class="driver-actions">
-        <button class="blue" onclick="centerDriver('${d.id}')">ðŸ“ CENTRALIZAR</button>
-        <button class="red" onclick="deleteDriver('${d.id}')">ðŸ—‘ï¸ EXCLUIR</button>
+        <button class="blue" onclick="centerDriver('${d.id}')">📍 CENTRALIZAR</button>
+        <button class="red" onclick="deleteDriver('${d.id}')">🗑️ EXCLUIR</button>
       </div>
     </div>`).join(""):'<div class="small">Nenhum motoqueiro cadastrado.</div>';
 
   allDrivers.forEach(d=>{
     if(d.lat==null||d.lng==null)return;
-    const ll=[d.lat,d.lng],label=`<b>ðŸï¸ ${esc(d.name)}</b><br>${d.is_online&&fresh(d)?"Online":"Offline"}<br>LocalizaÃ§Ã£o Atualizada ${fmtTime(d.last_seen)}`;
+    const ll=[d.lat,d.lng],label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online&&fresh(d)?"Online":"Offline"}<br>Localização Atualizada ${fmtTime(d.last_seen)}`;
     if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);
     else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
   });
@@ -232,23 +232,23 @@ function renderDeliveries(){
   document.getElementById("deliveries").innerHTML=rows.length?rows.map(d=>{
     const driver=allDrivers.find(x=>x.id===d.driver_id);
     const order=(d.status==="pending"&&d.route_order)?`${d.route_order}. `:"";
-    const driverText=d.status==="awaiting_collection"?"Ainda sem motoqueiro":(driver?driver.name:"Motoqueiro nÃ£o encontrado");
+    const driverText=d.status==="awaiting_collection"?"Ainda sem motoqueiro":(driver?driver.name:"Motoqueiro não encontrado");
     return `<div class="delivery">
-      <b>${currentDeliveryTab==="finished"?(d.status==="done"?"ðŸŸ¢ ":"ðŸ”´ "):""}${order}${esc(d.client_name)}</b>
-      <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>ðŸï¸ ${esc(driverText)}
-      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><b>ðŸ• ConclusÃ£o: ${fmtDateTime(d.completed_at||d.updated_at)}</b>`:""}
-      ${d.note?`<br>ðŸ“ ${esc(d.note)}`:""}</div>
+      <b>${currentDeliveryTab==="finished"?(d.status==="done"?"🟢 ":"🔴 "):""}${order}${esc(d.client_name)}</b>
+      <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>🏍️ ${esc(driverText)}
+      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><b>🕐 Conclusão: ${fmtDateTime(d.completed_at||d.updated_at)}</b>`:""}
+      ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
       <div class="row" style="margin-top:6px">
-        ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">ðŸ’¬ RASTREAMENTO</button>`:"<button class='gray' disabled>âšª Aguardando coleta</button>"}
-        <button class="gray" onclick="editDelivery('${d.id}')">âœï¸ EDITAR</button>
-        <button class="red" onclick="removeDelivery('${d.id}')">ðŸ—‘ï¸ REMOVER</button>
+        ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">💬 RASTREAMENTO</button>`:"<button class='gray' disabled>⚪ Aguardando coleta</button>"}
+        <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
+        <button class="red" onclick="removeDelivery('${d.id}')">🗑️ REMOVER</button>
       </div>
       ${d.status==="pending"?`<div class="transfer-row">
         <select id="transfer_${d.id}">
           <option value="">Mudar entregador...</option>
           ${allDrivers.map(x=>`<option value="${x.id}" ${x.id===d.driver_id?"selected":""}>${esc(x.name)}</option>`).join("")}
         </select>
-        <button class="blue" onclick="changeDriver('${d.id}')">ðŸ” MUDAR</button>
+        <button class="blue" onclick="changeDriver('${d.id}')">🔁 MUDAR</button>
       </div>`:""}
     </div>`;
   }).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
@@ -267,14 +267,14 @@ async function loadHistory7(){
   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
   const {data,error}=await sb.from("deliveries").select("*").gte("created_at",since).order("created_at",{ascending:false});
   const box=document.getElementById("history7");
-  if(error){box.innerHTML=`<div class="small">Erro ao carregar histÃ³rico: ${esc(error.message)}</div>`;return}
+  if(error){box.innerHTML=`<div class="small">Erro ao carregar histórico: ${esc(error.message)}</div>`;return}
   const rows=data||[];
   box.innerHTML=rows.length?rows.map(d=>{
-    const removed=d.deleted_at?` Â· ðŸ—‘ï¸ Removida ${fmtDateTime(d.deleted_at)}`:"";
-    const complete=d.completed_at?` Â· ðŸ• ${fmtDateTime(d.completed_at)}`:"";
+    const removed=d.deleted_at?` · 🗑️ Removida ${fmtDateTime(d.deleted_at)}`:"";
+    const complete=d.completed_at?` · 🕐 ${fmtDateTime(d.completed_at)}`:"";
     return `<div class="history-item"><b>${statusIcon(d)} ${esc(d.client_name)}</b><br>
-      <span class="small">${statusText(d)}${complete}${removed}${d.note?` Â· ðŸ“ ${esc(d.note)}`:""}</span></div>`;
-  }).join(""):'<div class="small">Nenhuma entrega nos Ãºltimos 7 dias.</div>';
+      <span class="small">${statusText(d)}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}</span></div>`;
+  }).join(""):'<div class="small">Nenhuma entrega nos últimos 7 dias.</div>';
 }
 
 async function loadDeliveries(){
@@ -286,7 +286,7 @@ async function loadDeliveries(){
   document.getElementById("mPending").textContent=allDeliveries.filter(x=>x.status==="pending").length;
   document.getElementById("mDone").textContent=allDeliveries.filter(x=>x.status==="done").length;
   document.getElementById("mFailed").textContent=allDeliveries.filter(x=>x.status==="failed").length;
-  document.getElementById("awaitingCount").textContent="âšª Aguardando coleta: "+allDeliveries.filter(x=>x.status==="awaiting_collection").length;
+  document.getElementById("awaitingCount").textContent="⚪ Aguardando coleta: "+allDeliveries.filter(x=>x.status==="awaiting_collection").length;
   renderDeliveries();renderDayPanel();renderHistory();
 }
 
@@ -304,21 +304,21 @@ function renderDayPanel(){
 function renderHistory(){
   const events=[];
   allDrivers.forEach(d=>{
-    if(sameDay(d.tracking_started_at))events.push({t:d.tracking_started_at,text:`ðŸï¸ ${d.name} iniciou GPS/saÃ­da`});
-    if(sameDay(d.route_started_at))events.push({t:d.route_started_at,text:`â–¶ï¸ ${d.name} iniciou a rota`});
-    if(sameDay(d.route_finished_at))events.push({t:d.route_finished_at,text:`ðŸ ${d.name} concluiu a rota`});
+    if(sameDay(d.tracking_started_at))events.push({t:d.tracking_started_at,text:`🏍️ ${d.name} iniciou GPS/saída`});
+    if(sameDay(d.route_started_at))events.push({t:d.route_started_at,text:`▶️ ${d.name} iniciou a rota`});
+    if(sameDay(d.route_finished_at))events.push({t:d.route_finished_at,text:`🏁 ${d.name} concluiu a rota`});
   });
   allDeliveries.forEach(d=>{
     const t=d.completed_at||(d.status==="done"||d.status==="failed"?d.updated_at:null);
-    if(t&&sameDay(t))events.push({t,text:`${d.status==="done"?"âœ…":"âŒ"} ${d.client_name} â€” ${statusText(d)}${d.note?" â€” "+d.note:""}`});
+    if(t&&sameDay(t))events.push({t,text:`${d.status==="done"?"✅":"❌"} ${d.client_name} — ${statusText(d)}${d.note?" — "+d.note:""}`});
   });
   events.sort((a,b)=>new Date(b.t)-new Date(a.t));
-  document.getElementById("history").innerHTML=events.length?events.map(e=>`<div class="history-item"><b>${fmtTime(e.t)}</b> Â· ${esc(e.text)}</div>`).join(""):'<div class="small">Nenhum evento hoje.</div>';
+  document.getElementById("history").innerHTML=events.length?events.map(e=>`<div class="history-item"><b>${fmtTime(e.t)}</b> · ${esc(e.text)}</div>`).join(""):'<div class="small">Nenhum evento hoje.</div>';
 }
 
 window.centerDriver=id=>{
   const d=allDrivers.find(x=>x.id===id);
-  if(!d||d.lat==null)return alert("Esse motoqueiro ainda nÃ£o enviou localizaÃ§Ã£o.");
+  if(!d||d.lat==null)return alert("Esse motoqueiro ainda não enviou localização.");
   map.setView([d.lat,d.lng],17);
   driverMarkers[id]?.openPopup();
 };
@@ -326,7 +326,7 @@ window.centerDriver=id=>{
 window.deleteDriver=async id=>{
   const d=allDrivers.find(x=>x.id===id);if(!d)return;
   const pending=allDeliveries.filter(x=>x.driver_id===id&&x.status==="pending").length;
-  if(pending)return alert(`NÃ£o Ã© possÃ­vel excluir ${d.name}. Existem ${pending} entrega(s) pendente(s).`);
+  if(pending)return alert(`Não é possível excluir ${d.name}. Existem ${pending} entrega(s) pendente(s).`);
   if(!confirm(`Excluir o motoqueiro ${d.name}?`))return;
   const {error}=await sb.from("drivers").delete().eq("id",id);
   if(error)return alert("Erro ao excluir: "+error.message);
@@ -340,7 +340,7 @@ window.changeDriver=async id=>{
   const sel=document.getElementById(`transfer_${id}`);
   const newDriver=sel?.value;
   if(!newDriver)return alert("Selecione o novo motoqueiro.");
-  if(newDriver===d.driver_id)return alert("Essa entrega jÃ¡ estÃ¡ com esse motoqueiro.");
+  if(newDriver===d.driver_id)return alert("Essa entrega já está com esse motoqueiro.");
   const newName=allDrivers.find(x=>x.id===newDriver)?.name||"novo motoqueiro";
   if(!confirm(`Mudar a entrega de ${d.client_name} para ${newName}?`))return;
   const {error}=await sb.from("deliveries").update({
@@ -356,7 +356,7 @@ function trackingUrl(d){
   return `${location.origin}${location.pathname.replace(/central\.html$/,"")}acompanhar.html?t=${encodeURIComponent(d.tracking_token||"")}`;
 }
 window.sendTracking=id=>{
-  const d=allDeliveries.find(x=>x.id===id);if(!d||!d.tracking_token)return alert("Esta entrega ainda nÃ£o possui link de rastreamento.");
+  const d=allDeliveries.find(x=>x.id===id);if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
   const phone=normalizePhone(d.client_phone);if(phone.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
   const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
@@ -364,7 +364,7 @@ window.sendTracking=id=>{
 
 document.getElementById("addDelivery").onclick=async()=>{
   const btn=document.getElementById("addDelivery");
-  btn.disabled=true; const old=btn.textContent; btn.textContent="ðŸ“ Localizando...";
+  btn.disabled=true; const old=btn.textContent; btn.textContent="📍 Localizando...";
   try{
     const p=await resolveGoogleLocation(document.getElementById("location").value);
     const row={
@@ -385,7 +385,7 @@ document.getElementById("addDelivery").onclick=async()=>{
     document.getElementById("locationResult").textContent="Venda cadastrada.";
     await loadDeliveries();
   }catch(e){
-    alert(e.message||"NÃ£o foi possÃ­vel localizar.");
+    alert(e.message||"Não foi possível localizar.");
   }finally{
     btn.disabled=false;btn.textContent=old;
   }
@@ -396,8 +396,8 @@ window.removeDelivery=async id=>{
   const d=allDeliveries.find(x=>x.id===id);
   if(!d)return;
   if(!confirm(`Remover a entrega de ${d.client_name}?`))return;
-  const confirmText=prompt('Para confirmar a remoÃ§Ã£o, digite REMOVER');
-  if(confirmText!=="REMOVER")return alert("RemoÃ§Ã£o cancelada.");
+  const confirmText=prompt('Para confirmar a remoção, digite REMOVER');
+  if(confirmText!=="REMOVER")return alert("Remoção cancelada.");
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({deleted_at:nowIso,updated_at:nowIso}).eq("id",id);
   if(error)return alert("Erro ao remover entrega: "+error.message);
@@ -418,7 +418,7 @@ document.getElementById("cancelEdit").onclick=()=>{editingDeliveryId=null;docume
 document.getElementById("saveEdit").onclick=async()=>{
   const d=allDeliveries.find(x=>x.id===editingDeliveryId);if(!d)return;
   const btn=document.getElementById("saveEdit");
-  btn.disabled=true; const old=btn.textContent; btn.textContent="ðŸ“ Localizando...";
+  btn.disabled=true; const old=btn.textContent; btn.textContent="📍 Localizando...";
   try{
     const p=await resolveGoogleLocation(document.getElementById("editLocation").value);
     const patch={
@@ -433,7 +433,7 @@ document.getElementById("saveEdit").onclick=async()=>{
     document.getElementById("editModal").classList.remove("open");
     editingDeliveryId=null;
     await loadDeliveries();
-  }catch(e){alert(e.message||"NÃ£o foi possÃ­vel localizar.");}
+  }catch(e){alert(e.message||"Não foi possível localizar.");}
   finally{btn.disabled=false;btn.textContent=old;}
 };
 
@@ -453,10 +453,10 @@ document.getElementById("resolveLocation").onclick=async()=>{
   box.textContent="Localizando...";
   try{
     const p=await resolveGoogleLocation(document.getElementById("location").value);
-    box.textContent=`âœ… ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
+    box.textContent=`✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
     map.setView([p.lat,p.lng],17);
-    L.popup().setLatLng([p.lat,p.lng]).setContent("<b>ðŸ“ LocalizaÃ§Ã£o encontrada</b>").openOn(map);
-  }catch(e){box.textContent="âŒ "+(e.message||"NÃ£o foi possÃ­vel localizar.");}
+    L.popup().setLatLng([p.lat,p.lng]).setContent("<b>📍 Localização encontrada</b>").openOn(map);
+  }catch(e){box.textContent="❌ "+(e.message||"Não foi possível localizar.");}
 };
 
 
@@ -477,7 +477,7 @@ document.getElementById("fitMap").onclick=()=>{
   const pts=[];
   allDrivers.forEach(d=>{if(d.lat!=null)pts.push([d.lat,d.lng])});
   allDeliveries.filter(d=>d.status!=="awaiting_collection").forEach(d=>pts.push([d.lat,d.lng]));
-  if(!pts.length)return alert("NÃ£o hÃ¡ pontos no mapa.");
+  if(!pts.length)return alert("Não há pontos no mapa.");
   map.fitBounds(L.latLngBounds(pts),{padding:[35,35]});
 };
 
@@ -493,7 +493,7 @@ document.getElementById("exportReport").onclick=()=>{
 
 document.getElementById("refreshCentral").onclick=async()=>{
   const btn=document.getElementById("refreshCentral");
-  const old=btn.textContent; btn.disabled=true; btn.textContent="ðŸ”„ Atualizando...";
+  const old=btn.textContent; btn.disabled=true; btn.textContent="🔄 Atualizando...";
   try{
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
   }finally{
@@ -502,7 +502,7 @@ document.getElementById("refreshCentral").onclick=async()=>{
 };
 
 if(sb){
-  document.getElementById("connection").textContent="ðŸŸ¢ Supabase conectado";
+  document.getElementById("connection").textContent="🟢 Supabase conectado";
   loadDrivers();loadDeliveries();loadHistory7();
   sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
   sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>{loadDeliveries();loadHistory7()}).subscribe();

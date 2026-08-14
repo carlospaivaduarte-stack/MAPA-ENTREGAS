@@ -1,9 +1,9 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>RTS â€” Acompanhar entrega</title>
+<title>RTS — Acompanhar entrega</title>
 <style>
 *{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#f3f4f6}
 #map{position:fixed;inset:0}.top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 20px #0002}
@@ -16,37 +16,37 @@
 @media(min-width:760px){.top,.bottom{width:430px;left:20px;right:auto}}
 </style>
 <script>
-window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
+window.GOOGLE_MAPS_API_KEY="SUA_CHAVE_GOOGLE_MAPS_AQUI";
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_GOOGLE_MAPS_AQUI&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
 <div id="map"></div>
 <div class="top">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-  <div class="title">RTS â€” Acompanhe sua entrega</div>
-  <button id="refreshClient" style="border:0;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer">ðŸ”„ ATUALIZAR</button>
+  <div class="title">RTS — Acompanhe sua entrega</div>
+  <button id="refreshClient" style="border:0;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer">🔄 ATUALIZAR</button>
 </div>
-  <div id="headline" class="sub">Carregando informaÃ§Ãµes...</div>
+  <div id="headline" class="sub">Carregando informações...</div>
   <div class="stats">
-    <div class="stat"><span>ðŸ“¦ Entregas antes da sua</span><b id="ahead">--</b></div>
-    <div class="stat"><span>â±ï¸ PrevisÃ£o aproximada</span><b id="eta">--</b></div>
+    <div class="stat"><span>📦 Entregas antes da sua</span><b id="ahead">--</b></div>
+    <div class="stat"><span>⏱️ Previsão aproximada</span><b id="eta">--</b></div>
   </div>
   <div id="lastUpdateCard" class="last-update">
-    <div class="label">ðŸ“ ÃšLTIMA ATUALIZAÃ‡ÃƒO DO MOTOBOY</div>
-    <div id="lastUpdateBig" class="time">LocalizaÃ§Ã£o Atualizada --:--</div>
+    <div class="label">📍 ÚLTIMA ATUALIZAÇÃO DO MOTOBOY</div>
+    <div id="lastUpdateBig" class="time">Localização Atualizada --:--</div>
   </div>
 </div>
 <div class="bottom">
-  <div id="status" class="status warn">ðŸŸ¡ Entrega pendente</div>
-  <div id="detail" class="small">A localizaÃ§Ã£o Ã© atualizada aproximadamente a cada 1 minuto.</div>
-  <button id="talkDriver" class="contact" style="display:none">ðŸ’¬ FALAR COM O MOTOQUEIRO</button>
+  <div id="status" class="status warn">🟡 Entrega pendente</div>
+  <div id="detail" class="small">A localização é atualizada aproximadamente a cada 1 minuto.</div>
+  <button id="talkDriver" class="contact" style="display:none">💬 FALAR COM O MOTOQUEIRO</button>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script><script src="shared.js"></script>
 <script>
 const map=L.map("map",{zoomControl:true}).setView([-9.6658,-35.7353],13);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"Â© OpenStreetMap"}).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
 const sb=getSupabaseClient();
 const token=new URLSearchParams(location.search).get("t");
 let driverMarker=null,destMarker=null;
@@ -55,26 +55,26 @@ const icon=(kind,label)=>L.divIcon({className:"",html:`<div class="pin ${kind}">
 function closeTracking(d){
   document.getElementById("talkDriver").style.display="none";
   if(driverMarker){driverMarker.setMap(null);driverMarker=null}
-  document.getElementById("ahead").textContent="â€”";
-  document.getElementById("eta").textContent="â€”";
+  document.getElementById("ahead").textContent="—";
+  document.getElementById("eta").textContent="—";
 
   const card=document.getElementById("lastUpdateCard");
   const big=document.getElementById("lastUpdateBig");
 
   if(d.status==="done"){
     document.getElementById("status").className="status ok";
-    document.getElementById("status").textContent="âœ… Entrega realizada";
-    document.getElementById("headline").textContent="Sua entrega foi concluÃ­da.";
+    document.getElementById("status").textContent="✅ Entrega realizada";
+    document.getElementById("headline").textContent="Sua entrega foi concluída.";
     card.className="last-update fresh";
-    big.textContent=`${d.client_name||"Cliente"}, sua entrega jÃ¡ foi recolhida`;
-    document.getElementById("detail").textContent=`O rastreamento da localizaÃ§Ã£o do motoboy foi encerrado.${d.completed_at?" ConclusÃ£o: "+new Date(d.completed_at).toLocaleString("pt-BR"):""}`;
+    big.textContent=`${d.client_name||"Cliente"}, sua entrega já foi recolhida`;
+    document.getElementById("detail").textContent=`O rastreamento da localização do motoboy foi encerrado.${d.completed_at?" Conclusão: "+new Date(d.completed_at).toLocaleString("pt-BR"):""}`;
   }else{
     document.getElementById("status").className="status bad";
-    document.getElementById("status").textContent="âŒ Entrega nÃ£o realizada";
+    document.getElementById("status").textContent="❌ Entrega não realizada";
     document.getElementById("headline").textContent="A entrega foi encerrada.";
     card.className="last-update stale";
-    big.textContent="Entrega nÃ£o realizada";
-    document.getElementById("detail").textContent=`O rastreamento da localizaÃ§Ã£o do motoboy foi encerrado.${d.completed_at?" ConclusÃ£o: "+new Date(d.completed_at).toLocaleString("pt-BR"):""}`;
+    big.textContent="Entrega não realizada";
+    document.getElementById("detail").textContent=`O rastreamento da localização do motoboy foi encerrado.${d.completed_at?" Conclusão: "+new Date(d.completed_at).toLocaleString("pt-BR"):""}`;
   }
 }
 async function estimate(d,drv){
@@ -83,7 +83,7 @@ async function estimate(d,drv){
   const ordered=(pending||[]).filter(x=>x.route_order!=null).sort((a,b)=>a.route_order-b.route_order);
   const pos=ordered.findIndex(x=>x.id===d.id);
   const ahead=pos<0?0:pos;
-  document.getElementById("ahead").textContent=ahead===0?"VocÃª Ã© o prÃ³ximo":String(ahead);
+  document.getElementById("ahead").textContent=ahead===0?"Você é o próximo":String(ahead);
 
   if(ahead>0){
     document.getElementById("eta").textContent="Aguardando sua vez";
@@ -103,36 +103,36 @@ async function estimate(d,drv){
     const mins=Math.max(1,Math.round(j.routes[0].duration/60));
     document.getElementById("eta").textContent=`~${mins} min`;
   }catch(e){
-    document.getElementById("eta").textContent="IndisponÃ­vel";
+    document.getElementById("eta").textContent="Indisponível";
   }
 }
 async function refresh(){
-  if(!sb||!token){document.getElementById("headline").textContent="Link de rastreamento invÃ¡lido.";return}
+  if(!sb||!token){document.getElementById("headline").textContent="Link de rastreamento inválido.";return}
   const {data,error}=await sb.from("deliveries").select("*").eq("tracking_token",token).is("deleted_at",null).limit(1);
   if(error||!data||!data.length){
-    document.getElementById("headline").textContent="Este link nÃ£o Ã© vÃ¡lido ou expirou.";
-    document.getElementById("status").textContent="Rastreamento indisponÃ­vel";
-    document.getElementById("ahead").textContent="â€”";document.getElementById("eta").textContent="â€”";return
+    document.getElementById("headline").textContent="Este link não é válido ou expirou.";
+    document.getElementById("status").textContent="Rastreamento indisponível";
+    document.getElementById("ahead").textContent="—";document.getElementById("eta").textContent="—";return
   }
   const d=data[0];
   if(d.status==="awaiting_collection"){
     if(driverMarker){driverMarker.setMap(null);driverMarker=null}
     if(destMarker){map.removeLayer(destMarker);destMarker=null}
-    document.getElementById("headline").textContent="Seu pedido ainda estÃ¡ aguardando coleta.";
+    document.getElementById("headline").textContent="Seu pedido ainda está aguardando coleta.";
     document.getElementById("status").className="status warn";
-    document.getElementById("status").textContent="âšª Aguardando coleta";
-    document.getElementById("ahead").textContent="â€”";
+    document.getElementById("status").textContent="⚪ Aguardando coleta";
+    document.getElementById("ahead").textContent="—";
     document.getElementById("eta").textContent="Aguardando coleta";
     document.getElementById("talkDriver").style.display="none";
-    document.getElementById("lastUpdateBig").textContent="Motoqueiro ainda nÃ£o definido";
-    document.getElementById("detail").textContent="O rastreamento serÃ¡ liberado quando um motoqueiro coletar sua entrega.";
+    document.getElementById("lastUpdateBig").textContent="Motoqueiro ainda não definido";
+    document.getElementById("detail").textContent="O rastreamento será liberado quando um motoqueiro coletar sua entrega.";
     return;
   }
-  if(!destMarker)destMarker=L.marker([d.lat,d.lng],{icon:icon("dest","ðŸ“¦")}).addTo(map).bindPopup("Sua entrega");
+  if(!destMarker)destMarker=L.marker([d.lat,d.lng],{icon:icon("dest","📦")}).addTo(map).bindPopup("Sua entrega");
   if(d.status!=="pending"){closeTracking(d);map.setView([d.lat,d.lng],16);return}
   document.getElementById("status").className="status warn";
-  document.getElementById("status").textContent="ðŸŸ¡ Entrega pendente";
-  document.getElementById("headline").textContent=d.route_order===1?"ðŸï¸ VocÃª Ã© a prÃ³xima entrega":(d.route_order?`Sua entrega estÃ¡ na posiÃ§Ã£o ${d.route_order} da rota.`:"Seu pedido estÃ¡ na rota do motoboy.");
+  document.getElementById("status").textContent="🟡 Entrega pendente";
+  document.getElementById("headline").textContent=d.route_order===1?"🏍️ Você é a próxima entrega":(d.route_order?`Sua entrega está na posição ${d.route_order} da rota.`:"Seu pedido está na rota do motoboy.");
   const {data:drivers}=await sb.from("drivers").select("id,name,lat,lng,last_seen,is_online").eq("id",d.driver_id).limit(1);
   const drv=drivers&&drivers[0];
   const talk=document.getElementById("talkDriver");
@@ -142,7 +142,7 @@ async function refresh(){
   }else talk.style.display="none";
   if(drv&&drv.lat!=null){
     const ll=[drv.lat,drv.lng];
-    if(!driverMarker)driverMarker=L.marker(ll,{icon:icon("driver","ðŸï¸")}).addTo(map).bindPopup("Motoboy");
+    if(!driverMarker)driverMarker=L.marker(ll,{icon:icon("driver","🏍️")}).addTo(map).bindPopup("Motoboy");
     else driverMarker.setLatLng(ll);
     map.fitBounds(L.latLngBounds([[d.lat,d.lng],ll]),{padding:[55,55]});
     const last=drv.last_seen?new Date(drv.last_seen):null;
@@ -150,15 +150,15 @@ async function refresh(){
     const fresh=last && Date.now()-last.getTime()<180000;
     const card=document.getElementById("lastUpdateCard");
     card.className="last-update "+(fresh?"fresh":"stale");
-    document.getElementById("lastUpdateBig").textContent=`LocalizaÃ§Ã£o Atualizada ${lastText}`;
-    document.getElementById("detail").textContent=fresh?"A localizaÃ§Ã£o do motoboy Ã© atualizada aproximadamente a cada 1 minuto.":"âš ï¸ A localizaÃ§Ã£o do motoboy estÃ¡ hÃ¡ mais de 3 minutos sem atualizaÃ§Ã£o.";
+    document.getElementById("lastUpdateBig").textContent=`Localização Atualizada ${lastText}`;
+    document.getElementById("detail").textContent=fresh?"A localização do motoboy é atualizada aproximadamente a cada 1 minuto.":"⚠️ A localização do motoboy está há mais de 3 minutos sem atualização.";
   }
   await estimate(d,drv);
 }
 
 document.getElementById("refreshClient").onclick=async()=>{
   const btn=document.getElementById("refreshClient");
-  const old=btn.textContent; btn.disabled=true; btn.textContent="â³";
+  const old=btn.textContent; btn.disabled=true; btn.textContent="⏳";
   try{await refresh();}
   finally{btn.disabled=false; btn.textContent=old;}
 };
