@@ -21,6 +21,7 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 .modal{position:fixed;z-index:3000;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:18px}
 .modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;padding:16px;width:min(430px,100%);box-shadow:0 8px 30px #0004}
 .modalbox h3{margin-top:0}.modalbox textarea{min-height:70px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 0}.tabbtn{background:#e5e7eb;color:#111827}.tabbtn.active{background:#2563eb;color:#fff}
 </style></head><body>
 <div id="map"></div>
 <div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
@@ -51,6 +52,10 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
 </div>
 <div id="routeInfo" class="small" style="margin:5px 0">A rota usa somente suas entregas coletadas e pendentes.</div>
+<div class="tabs">
+  <button class="tabbtn active" id="tabMotoboyActive">📦 COLETAS / PENDENTES</button>
+  <button class="tabbtn" id="tabMotoboyFinished">✅ FINALIZADAS</button>
+</div>
 <div id="collectionBox" style="margin:8px 0"></div>
 <div id="deliveries"></div>
 </div>
@@ -76,7 +81,7 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-let currentDriver=null,currentDeliveries=[],waitingDeliveries=[],deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+let currentDriver=null,currentDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
@@ -110,6 +115,7 @@ async function loadDeliveries(){
 
 function renderCollection(data){
   const box=document.getElementById("collectionBox");
+  if(currentMotoboyTab!=="active"){box.innerHTML="";return;}
   if(!box)return;
   box.innerHTML=data.length?`<div style="border:2px solid #d1d5db;border-radius:12px;padding:9px;background:#fafafa">
     <b>⚪ ENTREGAS PARA COLETAR (${data.length})</b>
@@ -142,30 +148,56 @@ window.collectDelivery=async id=>{
 };
 
 function renderDeliveries(data){
-  currentDeliveries=data||[];
+  currentDeliveries=(data||[]).sort((a,b)=>{
+    const af=(a.status==="done"||a.status==="failed"),bf=(b.status==="done"||b.status==="failed");
+    if(af!==bf)return af?1:-1;
+    if(!af){
+      const ao=a.route_order??999999,bo=b.route_order??999999;
+      if(ao!==bo)return ao-bo;
+    }
+    return new Date(b.completed_at||b.updated_at||b.created_at)-new Date(a.completed_at||a.updated_at||a.created_at);
+  });
+
   document.getElementById("mTotal").textContent=currentDeliveries.length;
   document.getElementById("mPending").textContent=currentDeliveries.filter(x=>x.status==="pending").length;
   document.getElementById("mDone").textContent=currentDeliveries.filter(x=>x.status==="done").length;
   document.getElementById("mFailed").textContent=currentDeliveries.filter(x=>x.status==="failed").length;
-  Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
-  const pending=[...data].filter(d=>d.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
-  pending.forEach((d,i)=>{
-    const n=d.route_order||i+1;
-    const icon=L.divIcon({className:"",html:`<div class="num-pin">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
-    deliveryMarkers[d.id]=L.marker([d.lat,d.lng],{icon}).addTo(map).bindPopup(`<b>${n}. ${esc(d.client_name)}</b><br>PENDENTE`);
-  });
+
+  Object.values(deliveryMarkers).forEach(mm=>map.removeLayer(mm));deliveryMarkers={};
+
+  const pending=currentDeliveries.filter(d=>d.status==="pending").sort((a,b)=>(a.route_order??999999)-(b.route_order??999999));
+  if(currentMotoboyTab==="active"){
+    pending.forEach((d,i)=>{
+      const n=d.route_order||i+1;
+      const icon=L.divIcon({className:"",html:`<div class="num-pin">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+      deliveryMarkers[d.id]=L.marker([d.lat,d.lng],{icon}).addTo(map).bindPopup(`<b>${n}. ${esc(d.client_name)}</b><br>PENDENTE`);
+    });
+  }
+
+  const rows=currentMotoboyTab==="active"
+    ? pending
+    : currentDeliveries.filter(d=>d.status==="done"||d.status==="failed");
+
   const box=document.getElementById("deliveries");
-  box.innerHTML=data.length?data.map(d=>`<div class="delivery"><b>${d.route_order?d.route_order+'. ':''}👤 ${esc(d.client_name)}</b><br>
-    <span onclick="openWhatsApp('${esc(d.client_phone)}')" style="color:#128c45;text-decoration:underline;cursor:pointer">📱 ${esc(d.client_phone||"")}</span>
-    <div class="status">${d.status==="done"?"✅ ENTREGUE":d.status==="failed"?"❌ NÃO ENTREGUE":"🟡 PENDENTE"}</div>
-    <div class="small">${d.lat}, ${d.lng}${d.status!=="pending"?`<br>🕐 ${new Date(d.completed_at||d.updated_at).toLocaleString("pt-BR")}`:""}${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
-    <div class="row" style="margin-top:6px">
+  box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
+    <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
+    <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
+      ${d.status!=="pending"?`<br>🕐 ${new Date(d.completed_at||d.updated_at).toLocaleString("pt-BR")}`:""}
+      ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
+    ${d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
       <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">🧭 Navegar</button>
       <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
-      ${d.status==="pending"?`<button class="green" onclick="setStatus('${d.id}','done')">✅ Entregue</button><button class="red" onclick="setStatus('${d.id}','failed')">❌ Não entregue</button>`:""}
-    </div></div>`).join(""):"<div class='small'>Nenhuma entrega atribuída.</div>";
+      <button class="green" onclick="setStatus('${d.id}','done')">✅ ENTREGUE</button>
+      <button class="red" onclick="setStatus('${d.id}','failed')">❌ NÃO ENTREGUE</button>
+    </div>`:
+    `<div class="row" style="margin-top:6px">
+      <button class="green" onclick="switchFinalStatus('${d.id}','done')">✅ ENTREGUE</button>
+      <button class="red" onclick="switchFinalStatus('${d.id}','failed')">❌ NÃO ENTREGUE</button>
+      <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
+    </div>`}
+  </div>`).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
 }
 
 function trackingUrl(d){
@@ -222,6 +254,34 @@ document.getElementById("saveEdit").onclick=async()=>{
   if(error)return alert("Erro ao editar entrega: "+error.message);
   document.getElementById("editModal").classList.remove("open");
   editingId=null;
+  await loadDeliveries();
+};
+
+
+window.switchFinalStatus=async(id,status)=>{
+  const d=currentDeliveries.find(x=>x.id===id);
+  if(!d)return;
+  if(d.status===status)return alert(status==="done"?"Já está marcado como ENTREGUE.":"Já está marcado como NÃO ENTREGUE.");
+  let note=d.note||"";
+  if(status==="failed"){
+    const choice=prompt("Motivo da não entrega:\n1 - Cliente ausente\n2 - Endereço não localizado\n3 - Cliente recusou\n4 - Outro");
+    if(choice===null)return;
+    if(choice==="1")note="Cliente ausente";
+    else if(choice==="2")note="Endereço não localizado";
+    else if(choice==="3")note="Cliente recusou";
+    else if(choice==="4")note=prompt("Digite o motivo:")||"Outro";
+    else note=choice||"Não informado";
+  }else{
+    note="";
+  }
+  const nowIso=new Date().toISOString();
+  const {error}=await sb.from("deliveries").update({
+    status,
+    note,
+    completed_at:nowIso,
+    updated_at:nowIso
+  }).eq("id",id).eq("driver_id",driverId);
+  if(error)return alert("Erro ao alterar status: "+error.message);
   await loadDeliveries();
 };
 
@@ -328,6 +388,17 @@ document.getElementById("centerMe").onclick=()=>{
   map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
 };
 
+
+
+function setMotoboyTab(tab){
+  currentMotoboyTab=tab;
+  document.getElementById("tabMotoboyActive").classList.toggle("active",tab==="active");
+  document.getElementById("tabMotoboyFinished").classList.toggle("active",tab==="finished");
+  renderCollection(waitingDeliveries);
+  renderDeliveries(currentDeliveries);
+}
+document.getElementById("tabMotoboyActive").onclick=()=>setMotoboyTab("active");
+document.getElementById("tabMotoboyFinished").onclick=()=>setMotoboyTab("finished");
 
 const panelEl=document.querySelector(".panel");
 const panelToggle=document.getElementById("panelToggle");
