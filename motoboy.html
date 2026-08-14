@@ -7,7 +7,7 @@
 .top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:14px;box-shadow:0 3px 18px #0002}
 .panel{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:18px;padding:12px;box-shadow:0 5px 25px #0003;max-height:58vh;overflow:auto}.panel.collapsed #deliveries,.panel.collapsed .delivery-help{display:none}
 input{width:100%;padding:11px;border:1px solid #ddd;border-radius:11px;margin-bottom:7px}
-button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
+button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.status{font-size:12px;font-weight:bold;margin:3px 0}
 .num-pin{width:30px;height:30px;border-radius:50%;background:#facc15;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:7px 0}.metric{background:#f3f4f6;border-radius:9px;padding:6px;text-align:center;font-size:10px}.metric b{display:block;font-size:15px}
@@ -50,6 +50,9 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <div class="row" style="margin-bottom:7px">
 <button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
 <button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
+</div>
+<div style="margin-bottom:7px">
+  <button class="green" id="nextDelivery" style="width:100%">➡️ PRÓXIMA ENTREGA</button>
 </div>
 <div id="routeInfo" class="small" style="margin:5px 0">A rota usa somente suas entregas coletadas e pendentes.</div>
 <div class="tabs">
@@ -195,6 +198,7 @@ function renderDeliveries(data){
     `<div class="row" style="margin-top:6px">
       <button class="green" onclick="switchFinalStatus('${d.id}','done')">✅ ENTREGUE</button>
       <button class="red" onclick="switchFinalStatus('${d.id}','failed')">❌ NÃO ENTREGUE</button>
+      <button class="yellow" onclick="returnToPending('${d.id}')">🟡 PENDENTE</button>
       <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
     </div>`}
   </div>`).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
@@ -257,6 +261,37 @@ document.getElementById("saveEdit").onclick=async()=>{
   await loadDeliveries();
 };
 
+
+
+window.returnToPending=async id=>{
+  const d=currentDeliveries.find(x=>x.id===id);
+  if(!d)return;
+  if(d.status==="pending")return alert("Essa entrega já está pendente.");
+  if(!confirm(`Voltar a entrega de ${d.client_name} para PENDENTE?`))return;
+
+  const nowIso=new Date().toISOString();
+  const {error}=await sb.from("deliveries").update({
+    status:"pending",
+    completed_at:null,
+    note:"",
+    route_order:null,
+    updated_at:nowIso
+  }).eq("id",id).eq("driver_id",driverId);
+
+  if(error)return alert("Erro ao voltar para PENDENTE: "+error.message);
+
+  if(currentDriver?.route_finished_at){
+    await sb.from("drivers").update({route_finished_at:null}).eq("id",driverId);
+    currentDriver.route_finished_at=null;
+    if(typeof renderRouteTimes==="function")renderRouteTimes();
+  }
+
+  currentMotoboyTab="active";
+  document.getElementById("tabMotoboyActive").classList.add("active");
+  document.getElementById("tabMotoboyFinished").classList.remove("active");
+  await loadDeliveries();
+  alert("Entrega voltou para PENDENTE. Organize a rota novamente.");
+};
 
 window.switchFinalStatus=async(id,status)=>{
   const d=currentDeliveries.find(x=>x.id===id);
@@ -339,6 +374,23 @@ function km(a,b){
   const x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;
   return 2*R*Math.asin(Math.sqrt(x));
 }
+
+function getNextPendingDelivery(){
+  return currentDeliveries
+    .filter(d=>d.status==="pending"&&d.driver_id===driverId)
+    .sort((a,b)=>(a.route_order??999999)-(b.route_order??999999))[0]||null;
+}
+document.getElementById("nextDelivery").onclick=()=>{
+  const next=getNextPendingDelivery();
+  if(!next)return alert("Você não possui entregas pendentes.");
+  if(next.route_order==null){
+    alert("Organize a rota primeiro para definir a sequência.");
+    return;
+  }
+  const url=`https://www.google.com/maps/dir/?api=1&destination=${next.lat},${next.lng}&travelmode=driving`;
+  window.open(url,"_blank");
+};
+
 async function organizeMyRoute(){
   if(!sb)return alert("Inicie o rastreamento primeiro.");
   if(!lastPosition)return alert("Aguarde o GPS localizar você.");
