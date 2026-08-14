@@ -1,6 +1,6 @@
 <!doctype html><html lang="pt-BR"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>V7 Central</title>
+<title>RTS — Central</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6}.layout{display:grid;grid-template-columns:380px 1fr;height:100vh}
@@ -8,12 +8,26 @@
 input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
 .num-pin{width:30px;height:30px;border-radius:50%;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}.pin-pending{background:#facc15}.pin-done{background:#22c55e;color:white}.pin-failed{background:#ef4444;color:white}
 .driver,.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:9px 0}.metric{background:#f3f4f6;border-radius:10px;padding:8px;text-align:center;font-size:11px}.metric b{display:block;font-size:17px;margin-top:2px}
+.update-card{border:2px solid #e5e7eb;border-radius:13px;padding:11px;margin:8px 0;background:#fafafa}.update-card .big{font-size:18px;font-weight:800}.stale{color:#dc2626}.fresh{color:#16a34a}
+.time-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:7px}.time-box{background:#f3f4f6;border-radius:9px;padding:7px;font-size:11px}.time-box b{display:block;margin-top:2px;font-size:13px}
+@media(max-width:520px){.metrics{grid-template-columns:1fr 1fr}.time-grid{grid-template-columns:1fr}}
+.modal{position:fixed;z-index:3000;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.modalbox{background:white;border-radius:16px;padding:16px;width:min(460px,100%)}.modalbox h3{margin-top:0}
 @media(max-width:760px){.layout{grid-template-columns:1fr}.map{height:55vh}.side{height:45vh;order:2}.map{order:1}}
 </style></head><body>
 <div class="layout"><div class="side">
-<h2>💻 Central V7</h2>
+<h2>💻 RTS — Central</h2>
 <div id="connection" class="small">Conectando...</div>
+<div class="metrics">
+  <div class="metric">📦 Total<b id="mTotal">0</b></div>
+  <div class="metric">🟡 Pendentes<b id="mPending">0</b></div>
+  <div class="metric">🟢 Entregues<b id="mDone">0</b></div>
+  <div class="metric">🔴 Não entregues<b id="mFailed">0</b></div>
+</div>
 <h3>🏍️ Motoboys</h3><div id="drivers"></div>
+<div id="driverStatusCard" class="update-card">
+  <div class="small">Selecione um motoboy para ver os horários da rota.</div>
+</div>
 <h3>➕ Nova entrega</h3>
 <input id="client" placeholder="Nome do cliente"><input id="phone" placeholder="Telefone / WhatsApp">
 <textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
@@ -31,30 +45,68 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 </div>
 <div id="deliveries"></div>
 </div><div class="map"><div id="map"></div></div></div>
+<div class="modal" id="editModal">
+  <div class="modalbox">
+    <h3>✏️ Editar entrega</h3>
+    <input id="editClient" placeholder="Nome do cliente">
+    <input id="editPhone" placeholder="Telefone / WhatsApp">
+    <textarea id="editLocation" placeholder="Link do Google Maps ou coordenadas"></textarea>
+    <select id="editDriver"></select>
+    <textarea id="editNote" placeholder="Observação"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="green" id="saveEdit">💾 Salvar alterações</button>
+      <button class="gray" id="cancelEdit">❌ Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script><script src="shared.js"></script>
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-const sb=getSupabaseClient(); let driverMarkers={},deliveryMarkers={};
+const sb=getSupabaseClient(); let driverMarkers={},deliveryMarkers={},allDrivers=[];
+function fmtTime(v){return v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--"}
+function fmtDateTime(v){return v?new Date(v).toLocaleString("pt-BR"):"--"}
+function driverFresh(d){
+  return !!(d.last_seen && Date.now()-new Date(d.last_seen).getTime()<180000);
+}
+function renderDriverStatus(){
+  const id=document.getElementById("driverSelect")?.value;
+  const d=allDrivers.find(x=>x.id===id);
+  const box=document.getElementById("driverStatusCard");
+  if(!box)return;
+  if(!d){box.innerHTML='<div class="small">Selecione um motoboy para ver os horários da rota.</div>';return}
+  const fresh=driverFresh(d), last=fmtTime(d.last_seen);
+  box.innerHTML=`<div class="${fresh?"fresh":"stale"}"><div class="small">📍 ÚLTIMA ATUALIZAÇÃO DO MOTOBOY</div><div class="big">Localização Atualizada ${last}</div></div>
+  <div class="time-grid">
+    <div class="time-box">🏍️ Saída / GPS<b>${fmtTime(d.tracking_started_at)}</b></div>
+    <div class="time-box">▶️ Início da rota<b>${fmtTime(d.route_started_at)}</b></div>
+    <div class="time-box">🏁 Conclusão da rota<b>${fmtTime(d.route_finished_at)}</b></div>
+  </div>
+  ${fresh?"":'<div class="small stale" style="margin-top:6px">⚠️ Localização sem atualização há mais de 3 minutos.</div>'}`;
+}
 async function loadDrivers(){
   if(!sb)return;
   const {data,error}=await sb.from("drivers").select("*").order("name");
   if(error){console.error(error);return}
-  const now=Date.now();
-  document.getElementById("drivers").innerHTML=(data||[]).map(d=>{
-    const fresh=d.last_seen && now-new Date(d.last_seen).getTime()<30000;
-    const online=d.is_online&&fresh;
-    return `<div class="driver"><b>${online?"🟢":"🔴"} ${esc(d.name)}</b><div class="small">${esc(d.phone||"")}<br>Última atualização: ${d.last_seen?new Date(d.last_seen).toLocaleTimeString("pt-BR"):"--"}</div></div>`;
+  allDrivers=data||[];
+  document.getElementById("drivers").innerHTML=allDrivers.map(d=>{
+    const fresh=driverFresh(d),online=d.is_online&&fresh;
+    return `<div class="driver"><b>${online?"🟢":"🔴"} ${esc(d.name)}</b>
+      <div class="small">${esc(d.phone||"")}<br>
+      <b>Localização Atualizada ${fmtTime(d.last_seen)}</b>
+      ${fresh?"":'<br><span class="stale">⚠️ localização desatualizada</span>'}</div></div>`;
   }).join("")||"<div class='small'>Nenhum motoboy conectado.</div>";
   const sel=document.getElementById("driverSelect"),current=sel.value;
   sel.innerHTML='<option value="">Selecione o motoboy</option>'+(data||[]).map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
   sel.value=current;
-  (data||[]).forEach(d=>{
+  renderDriverStatus();
+  allDrivers.forEach(d=>{
     if(d.lat==null||d.lng==null)return;
     const ll=[d.lat,d.lng];
-    const label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online?"Online":"Offline"}<br>${d.last_seen?new Date(d.last_seen).toLocaleTimeString("pt-BR"):""}`;
+    const label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online&&driverFresh(d)?"Online":"Offline"}<br>Localização Atualizada ${fmtTime(d.last_seen)}`;
     if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
   });
 }
@@ -68,12 +120,19 @@ async function loadDeliveries(){
   const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:true});
   if(error){console.error(error);return}
   allDeliveries=data||[];
+  document.getElementById("mTotal").textContent=allDeliveries.length;
+  document.getElementById("mPending").textContent=allDeliveries.filter(x=>x.status==="pending").length;
+  document.getElementById("mDone").textContent=allDeliveries.filter(x=>x.status==="done").length;
+  document.getElementById("mFailed").textContent=allDeliveries.filter(x=>x.status==="failed").length;
   document.getElementById("deliveries").innerHTML=allDeliveries.map((d,i)=>`<div class="delivery">
   <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}${esc(d.client_name)}</b>
-  <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>${d.note?esc(d.note):""}</div>
+  <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
+    ${d.status!=="pending"?`<br><b>🕐 Conclusão: ${fmtDateTime(d.completed_at||d.updated_at)}</b>`:""}
+    ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
   <div class="row" style="margin-top:6px">
     <button class="wa" onclick="sendTracking('${d.id}')">💬 ENVIAR RASTREAMENTO</button>
     <button class="gray" onclick="copyTracking('${d.id}')">🔗 LINK DO CLIENTE</button>
+    <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
   </div>
 </div>`).join("")||"<div class='small'>Nenhuma entrega.</div>";
   Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
@@ -138,6 +197,49 @@ window.sendTracking=id=>{
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
 };
 
+document.getElementById("driverSelect").addEventListener("change",renderDriverStatus);
+
+
+let editingDeliveryId=null;
+window.editDelivery=id=>{
+  const d=allDeliveries.find(x=>x.id===id);
+  if(!d)return;
+  editingDeliveryId=id;
+  document.getElementById("editClient").value=d.client_name||"";
+  document.getElementById("editPhone").value=d.client_phone||"";
+  document.getElementById("editLocation").value=`${d.lat},${d.lng}`;
+  document.getElementById("editNote").value=d.note||"";
+  const sel=document.getElementById("editDriver");
+  sel.innerHTML='<option value="">Selecione o motoboy</option>'+allDrivers.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");
+  sel.value=d.driver_id||"";
+  document.getElementById("editModal").classList.add("open");
+};
+document.getElementById("cancelEdit").onclick=()=>{
+  editingDeliveryId=null;
+  document.getElementById("editModal").classList.remove("open");
+};
+document.getElementById("saveEdit").onclick=async()=>{
+  const d=allDeliveries.find(x=>x.id===editingDeliveryId);
+  if(!d)return;
+  const p=extractCoords(document.getElementById("editLocation").value.trim());
+  if(!p)return alert("Localização inválida. Cole coordenadas ou link completo do Google Maps.");
+  const driverId=document.getElementById("editDriver").value;
+  if(!driverId)return alert("Selecione o motoboy.");
+  const patch={
+    client_name:document.getElementById("editClient").value.trim()||"Cliente",
+    client_phone:document.getElementById("editPhone").value.trim(),
+    lat:p.lat,lng:p.lng,
+    driver_id:driverId,
+    note:document.getElementById("editNote").value.trim(),
+    updated_at:new Date().toISOString()
+  };
+  const {error}=await sb.from("deliveries").update(patch).eq("id",d.id);
+  if(error)return alert("Erro ao editar: "+error.message);
+  document.getElementById("editModal").classList.remove("open");
+  editingDeliveryId=null;
+  await loadDeliveries();
+};
+
 document.getElementById("addDelivery").onclick=async()=>{
   const p=extractCoords(document.getElementById("location").value.trim());
   const driverId=document.getElementById("driverSelect").value;
@@ -157,7 +259,8 @@ document.getElementById("clearDeliveries").onclick=async()=>{
   if(typed!=="LIMPAR")return alert("Limpeza cancelada.");
   const {error}=await sb.from("deliveries").delete().neq("id","00000000-0000-0000-0000-000000000000");
   if(error)return alert("Erro: "+error.message);
-  await loadDeliveries();
+  await sb.from("drivers").update({route_started_at:null,route_finished_at:null});
+  await loadDeliveries(); await loadDrivers();
   alert("Entregas apagadas. Os celulares conectados serão atualizados automaticamente.");
 };
 if(sb){
