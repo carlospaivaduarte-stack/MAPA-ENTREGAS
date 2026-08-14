@@ -94,7 +94,7 @@ async function estimate(d,drv){
 }
 async function refresh(){
   if(!sb||!token){document.getElementById("headline").textContent="Link de rastreamento inválido.";return}
-  const {data,error}=await sb.from("deliveries").select("*").eq("tracking_token",token).limit(1);
+  const {data,error}=await sb.from("deliveries").select("*").eq("tracking_token",token).is("deleted_at",null).limit(1);
   if(error||!data||!data.length){
     document.getElementById("headline").textContent="Este link não é válido ou expirou.";
     document.getElementById("status").textContent="Rastreamento indisponível";

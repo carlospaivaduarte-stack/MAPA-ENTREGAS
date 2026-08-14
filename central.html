@@ -49,7 +49,12 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
     <h3>➕ Nova venda</h3>
     <input id="client" placeholder="Nome do cliente">
     <input id="phone" placeholder="Telefone / WhatsApp">
-    <textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
+    <textarea id="location" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
+<textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
+    <div class="row">
+      <button class="gray" id="resolveLocation">📍 LER LOCALIZAÇÃO</button>
+      <div id="locationResult" class="small" style="padding:10px">Aceita links curtos do Google Maps.</div>
+    </div>
     <div class="small" style="padding:8px;background:#f3f4f6;border-radius:10px;margin:5px 0">
       ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>. O motoqueiro será vinculado automaticamente quando tocar em <b>COLETADA</b> no celular.
     </div>
@@ -80,7 +85,9 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
     <div id="filteredInfo" class="small"></div>
     <div id="deliveries"></div>
 
-    <h3>🕐 Histórico do dia</h3>
+    <h3>📚 Histórico de entregas — últimos 7 dias</h3>
+<div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
+<h3>🕐 Histórico do dia</h3>
     <div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
   </div>
 
@@ -92,7 +99,7 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
     <h3>✏️ Editar entrega</h3>
     <input id="editClient" placeholder="Nome do cliente">
     <input id="editPhone" placeholder="Telefone / WhatsApp">
-    <textarea id="editLocation" placeholder="Link do Google Maps ou coordenadas"></textarea>
+    <textarea id="editLocation" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
     <textarea id="editNote" placeholder="Observação"></textarea>
     <div class="row" style="margin-top:8px">
       <button class="green" id="saveEdit">💾 Salvar</button>
@@ -118,6 +125,26 @@ function sameDay(v){if(!v)return false;const d=new Date(v),n=new Date();return d
 function mins(a,b){return a&&b?Math.max(0,Math.round((new Date(b)-new Date(a))/60000)):null}
 function fmtMins(m){if(m==null)return"--";const h=Math.floor(m/60),x=m%60;return h?`${h}h ${x}min`:`${x} min`}
 function fresh(d){return !!(d.last_seen&&Date.now()-new Date(d.last_seen).getTime()<180000)}
+
+
+async function resolveGoogleLocation(raw){
+  raw=String(raw||"").trim();
+  if(!raw)throw new Error("Cole uma localização.");
+
+  const direct=extractCoords(raw);
+  if(direct)return direct;
+
+  let u;
+  try{u=new URL(raw)}catch(e){throw new Error("Link ou coordenadas inválidos.");}
+  const host=u.hostname.toLowerCase();
+  const allowed=host==="maps.app.goo.gl"||host==="goo.gl"||host==="maps.google.com"||host==="www.google.com"||host==="google.com";
+  if(!allowed)throw new Error("Use um link do Google Maps ou coordenadas.");
+
+  const {data,error}=await sb.functions.invoke("resolve-google-maps",{body:{url:raw}});
+  if(error)throw new Error("Não consegui resolver esse link curto do Google Maps.");
+  if(!data||typeof data.lat!=="number"||typeof data.lng!=="number")throw new Error(data?.error||"Não encontrei as coordenadas nesse link.");
+  return {lat:data.lat,lng:data.lng};
+}
 
 function statusIcon(d){return d.status==="done"?"🟢":d.status==="failed"?"🔴":d.status==="awaiting_collection"?"⚪":"🟡"}
 function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
@@ -180,6 +207,7 @@ function renderDeliveries(){
       <div class="row" style="margin-top:6px">
         ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">💬 RASTREAMENTO</button>`:"<button class='gray' disabled>⚪ Aguardando coleta</button>"}
         <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
+<button class="red" onclick="removeDelivery('${d.id}')">🗑️ REMOVER</button>
       </div>
     </div>`).join(""):'<div class="small">Nenhuma entrega com esses filtros.</div>';
 
@@ -190,9 +218,25 @@ function renderDeliveries(){
   });
 }
 
+
+async function loadHistory7(){
+  if(!sb)return;
+  const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
+  const {data,error}=await sb.from("deliveries").select("*").gte("created_at",since).order("created_at",{ascending:false});
+  const box=document.getElementById("history7");
+  if(error){box.innerHTML=`<div class="small">Erro ao carregar histórico: ${esc(error.message)}</div>`;return}
+  const rows=data||[];
+  box.innerHTML=rows.length?rows.map(d=>{
+    const removed=d.deleted_at?` · 🗑️ Removida ${fmtDateTime(d.deleted_at)}`:"";
+    const complete=d.completed_at?` · 🕐 ${fmtDateTime(d.completed_at)}`:"";
+    return `<div class="history-item"><b>${statusIcon(d)} ${esc(d.client_name)}</b><br>
+      <span class="small">${statusText(d)}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}</span></div>`;
+  }).join(""):'<div class="small">Nenhuma entrega nos últimos 7 dias.</div>';
+}
+
 async function loadDeliveries(){
   if(!sb)return;
-  const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:true});
+  const {data,error}=await sb.from("deliveries").select("*").is("deleted_at",null).order("created_at",{ascending:true});
   if(error){console.error(error);alert("Erro ao carregar entregas: "+error.message);return}
   allDeliveries=data||[];
   document.getElementById("mTotal").textContent=allDeliveries.length;
@@ -257,22 +301,46 @@ window.sendTracking=id=>{
 };
 
 document.getElementById("addDelivery").onclick=async()=>{
-  const p=extractCoords(document.getElementById("location").value.trim());
-  if(!p)return alert("Não encontrei coordenadas nesse link/localização.");
-  const row={
-    driver_id:null,
-    client_name:document.getElementById("client").value.trim()||"Cliente",
-    client_phone:document.getElementById("phone").value.trim(),
-    lat:p.lat,lng:p.lng,
-    status:"awaiting_collection",
-    route_order:null
-  };
-  const {error}=await sb.from("deliveries").insert(row);
-  if(error)return alert("Erro ao adicionar venda: "+error.message);
-  document.getElementById("client").value="";
-  document.getElementById("phone").value="";
-  document.getElementById("location").value="";
+  const btn=document.getElementById("addDelivery");
+  btn.disabled=true; const old=btn.textContent; btn.textContent="📍 Localizando...";
+  try{
+    const p=await resolveGoogleLocation(document.getElementById("location").value);
+    const row={
+      driver_id:null,
+      client_name:document.getElementById("client").value.trim()||"Cliente",
+      client_phone:document.getElementById("phone").value.trim(),
+      lat:p.lat,lng:p.lng,
+      status:"awaiting_collection",
+      route_order:null,
+      note:document.getElementById("saleNote").value.trim()
+    };
+    const {error}=await sb.from("deliveries").insert(row);
+    if(error)throw new Error("Erro ao adicionar venda: "+error.message);
+    document.getElementById("client").value="";
+    document.getElementById("phone").value="";
+    document.getElementById("location").value="";
+    document.getElementById("saleNote").value="";
+    document.getElementById("locationResult").textContent="Venda cadastrada.";
+    await loadDeliveries();
+  }catch(e){
+    alert(e.message||"Não foi possível localizar.");
+  }finally{
+    btn.disabled=false;btn.textContent=old;
+  }
+};
+
+
+window.removeDelivery=async id=>{
+  const d=allDeliveries.find(x=>x.id===id);
+  if(!d)return;
+  if(!confirm(`Remover a entrega de ${d.client_name}?`))return;
+  const confirmText=prompt('Para confirmar a remoção, digite REMOVER');
+  if(confirmText!=="REMOVER")return alert("Remoção cancelada.");
+  const nowIso=new Date().toISOString();
+  const {error}=await sb.from("deliveries").update({deleted_at:nowIso,updated_at:nowIso}).eq("id",id);
+  if(error)return alert("Erro ao remover entrega: "+error.message);
   await loadDeliveries();
+  await loadHistory7();
 };
 
 window.editDelivery=id=>{
@@ -287,27 +355,46 @@ window.editDelivery=id=>{
 document.getElementById("cancelEdit").onclick=()=>{editingDeliveryId=null;document.getElementById("editModal").classList.remove("open")};
 document.getElementById("saveEdit").onclick=async()=>{
   const d=allDeliveries.find(x=>x.id===editingDeliveryId);if(!d)return;
-  const p=extractCoords(document.getElementById("editLocation").value.trim());
-  if(!p)return alert("Localização inválida.");
-  const patch={
-    client_name:document.getElementById("editClient").value.trim()||"Cliente",
-    client_phone:document.getElementById("editPhone").value.trim(),
-    lat:p.lat,lng:p.lng,
-    note:document.getElementById("editNote").value.trim(),
-    updated_at:new Date().toISOString()
-  };
-  const {error}=await sb.from("deliveries").update(patch).eq("id",d.id);
-  if(error)return alert("Erro ao editar: "+error.message);
-  document.getElementById("editModal").classList.remove("open");editingDeliveryId=null;await loadDeliveries();
+  const btn=document.getElementById("saveEdit");
+  btn.disabled=true; const old=btn.textContent; btn.textContent="📍 Localizando...";
+  try{
+    const p=await resolveGoogleLocation(document.getElementById("editLocation").value);
+    const patch={
+      client_name:document.getElementById("editClient").value.trim()||"Cliente",
+      client_phone:document.getElementById("editPhone").value.trim(),
+      lat:p.lat,lng:p.lng,
+      note:document.getElementById("editNote").value.trim(),
+      updated_at:new Date().toISOString()
+    };
+    const {error}=await sb.from("deliveries").update(patch).eq("id",d.id);
+    if(error)throw new Error("Erro ao editar: "+error.message);
+    document.getElementById("editModal").classList.remove("open");
+    editingDeliveryId=null;
+    await loadDeliveries();
+  }catch(e){alert(e.message||"Não foi possível localizar.");}
+  finally{btn.disabled=false;btn.textContent=old;}
 };
 
 document.getElementById("clearDeliveries").onclick=async()=>{
-  if(!confirm("Apagar TODAS as entregas da Central e dos celulares?"))return;
+  if(!confirm("Remover TODAS as entregas ativas da Central e dos celulares?"))return;
   if(prompt("Digite LIMPAR para confirmar:")!=="LIMPAR")return;
-  const {error}=await sb.from("deliveries").delete().neq("id","00000000-0000-0000-0000-000000000000");
+  const nowIso=new Date().toISOString();
+  const {error}=await sb.from("deliveries").update({deleted_at:nowIso,updated_at:nowIso}).is("deleted_at",null);
   if(error)return alert("Erro: "+error.message);
   await sb.from("drivers").update({route_started_at:null,route_finished_at:null});
-  await loadDeliveries();await loadDrivers();
+  await loadDeliveries();await loadDrivers();await loadHistory7();
+};
+
+
+document.getElementById("resolveLocation").onclick=async()=>{
+  const box=document.getElementById("locationResult");
+  box.textContent="Localizando...";
+  try{
+    const p=await resolveGoogleLocation(document.getElementById("location").value);
+    box.textContent=`✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
+    map.setView([p.lat,p.lng],17);
+    L.popup().setLatLng([p.lat,p.lng]).setContent("<b>📍 Localização encontrada</b>").openOn(map);
+  }catch(e){box.textContent="❌ "+(e.message||"Não foi possível localizar.");}
 };
 
 document.getElementById("deliverySearch").addEventListener("input",renderDeliveries);
@@ -332,9 +419,9 @@ document.getElementById("exportReport").onclick=()=>{
 
 if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";
-  loadDrivers();loadDeliveries();
+  loadDrivers();loadDeliveries();loadHistory7();
   sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
-  sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>loadDeliveries()).subscribe();
+  sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>{loadDeliveries();loadHistory7()}).subscribe();
   setInterval(loadDrivers,10000);
 }
 </script>

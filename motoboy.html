@@ -99,9 +99,9 @@ async function upsertDriver(pos){
 }
 async function loadDeliveries(){
   if(!sb)return;
-  const {data:assigned,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).order("created_at",{ascending:true});
+  const {data:assigned,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).is("deleted_at",null).order("created_at",{ascending:true});
   if(error){console.error(error);return}
-  const {data:waiting,error:waitingError}=await sb.from("deliveries").select("*").eq("status","awaiting_collection").is("driver_id",null).order("created_at",{ascending:true});
+  const {data:waiting,error:waitingError}=await sb.from("deliveries").select("*").eq("status","awaiting_collection").is("driver_id",null).is("deleted_at",null).order("created_at",{ascending:true});
   if(waitingError){console.error(waitingError);return}
   waitingDeliveries=waiting||[]; renderCollection(waitingDeliveries);
   renderDeliveries((assigned||[]).filter(d=>d.status!=="awaiting_collection"));
