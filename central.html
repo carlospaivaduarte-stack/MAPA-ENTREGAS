@@ -5,7 +5,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6}.layout{display:grid;grid-template-columns:380px 1fr;height:100vh}
 .side{background:white;padding:14px;overflow:auto}.map{height:100vh}#map{height:100%;width:100%}
-input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.gray{background:#eee}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
 .num-pin{width:30px;height:30px;border-radius:50%;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}.pin-pending{background:#facc15}.pin-done{background:#22c55e;color:white}.pin-failed{background:#ef4444;color:white}
 .driver,.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 @media(max-width:760px){.layout{grid-template-columns:1fr}.map{height:55vh}.side{height:45vh;order:2}.map{order:1}}
@@ -68,7 +68,14 @@ async function loadDeliveries(){
   const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:true});
   if(error){console.error(error);return}
   allDeliveries=data||[];
-  document.getElementById("deliveries").innerHTML=allDeliveries.map((d,i)=>`<div class="delivery"><b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}${esc(d.client_name)}</b><div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>${d.note?esc(d.note):""}</div></div>`).join("")||"<div class='small'>Nenhuma entrega.</div>";
+  document.getElementById("deliveries").innerHTML=allDeliveries.map((d,i)=>`<div class="delivery">
+  <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}${esc(d.client_name)}</b>
+  <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>${d.note?esc(d.note):""}</div>
+  <div class="row" style="margin-top:6px">
+    <button class="wa" onclick="sendTracking('${d.id}')">💬 ENVIAR RASTREAMENTO</button>
+    <button class="gray" onclick="copyTracking('${d.id}')">🔗 LINK DO CLIENTE</button>
+  </div>
+</div>`).join("")||"<div class='small'>Nenhuma entrega.</div>";
   Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
   allDeliveries.forEach((d,i)=>{
     const ll=[d.lat,d.lng],label=`<b>${d.route_order||i+1}. ${esc(d.client_name)}</b><br>${d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":"PENDENTE"}`;
@@ -111,6 +118,26 @@ function openRoute(){
   window.open(u,"_blank");
   if(list.length>10) alert(`A primeira rota abriu com 10 entregas. Restam ${list.length-10}; marque as realizadas e abra a próxima rota.`);
 }
+
+function trackingUrl(d){
+  return `${location.origin}${location.pathname.replace(/central\.html$/,"")}acompanhar.html?t=${encodeURIComponent(d.tracking_token||"")}`;
+}
+window.copyTracking=async id=>{
+  const d=allDeliveries.find(x=>x.id===id);
+  if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento. Execute a atualização V7.3 no Supabase.");
+  const url=trackingUrl(d);
+  try{await navigator.clipboard.writeText(url);alert("Link copiado.");}
+  catch(e){prompt("Copie o link:",url);}
+};
+window.sendTracking=id=>{
+  const d=allDeliveries.find(x=>x.id===id);
+  if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
+  const phone=normalizePhone(d.client_phone);
+  if(phone.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
+  const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
+};
+
 document.getElementById("addDelivery").onclick=async()=>{
   const p=extractCoords(document.getElementById("location").value.trim());
   const driverId=document.getElementById("driverSelect").value;
