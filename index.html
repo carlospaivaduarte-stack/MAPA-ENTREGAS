@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Meu Mapa V7</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
+header{background:#111827;color:white;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+header h1{margin:0;font-size:19px}.wrap{padding:14px;max-width:950px;margin:auto}.mode{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px}
+.card{background:white;border-radius:18px;padding:18px;box-shadow:0 5px 20px #0001}.card h2{margin:0 0 8px}.card p{color:#6b7280}
+button,a.btn{display:block;width:100%;border:0;border-radius:12px;padding:13px;font-weight:700;font-size:15px;text-decoration:none;text-align:center;cursor:pointer}
+.blue{background:#2563eb;color:#fff}.green{background:#16a34a;color:#fff}.gray{background:#e5e7eb;color:#111827}.config{margin-top:16px}
+input{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:11px;margin:6px 0}
+.note{font-size:12px;color:#6b7280;line-height:1.45}
+@media(max-width:650px){.mode{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>📍 Meu Mapa V7</h1><span>Entregas em tempo real</span></header>
+<div class="wrap">
+  <div class="mode">
+    <div class="card">
+      <h2>📱 Motoboy</h2>
+      <p>Use no celular para enviar localização, ver entregas e atualizar status.</p>
+      <a class="btn green" href="motoboy.html">Abrir modo Motoboy</a>
+    </div>
+    <div class="card">
+      <h2>💻 Central</h2>
+      <p>Use no PC para acompanhar motoboys e entregas no mapa em tempo real.</p>
+      <a class="btn blue" href="central.html">Abrir Central</a>
+    </div>
+  </div>
+  <div class="card config">
+    <h2>⚙️ Antes de usar</h2>
+    <p class="note">Configure o Supabase nos arquivos <b>config.js</b> e execute o arquivo <b>supabase_setup.sql</b> no SQL Editor do seu projeto Supabase. O site precisa estar publicado em HTTPS para o GPS funcionar bem no celular.</p>
+  </div>
+</div>
+</body></html>

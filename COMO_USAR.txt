@@ -1,0 +1,30 @@
+MEU MAPA V7 — MOTOboys EM TEMPO REAL
+
+ARQUIVOS
+- index.html ........ tela inicial
+- motoboy.html ...... celular do motoboy
+- central.html ...... painel no PC
+- config.js ......... coloque URL e anon key do Supabase
+- shared.js ......... funções compartilhadas
+- supabase_setup.sql  execute no SQL Editor do Supabase
+
+PASSO A PASSO
+1. Crie um projeto gratuito no Supabase.
+2. Abra o SQL Editor e execute supabase_setup.sql.
+3. No Supabase, copie:
+   - Project URL
+   - anon/public key
+4. Abra config.js e cole esses dois valores.
+5. Publique todos os arquivos em HTTPS (GitHub Pages, Netlify etc.).
+6. No celular do motoboy, abra motoboy.html.
+7. Informe nome e telefone e toque "Iniciar rastreamento".
+8. No PC, abra central.html.
+9. O marcador do motoboy deve aparecer e atualizar conforme ele se movimenta.
+10. Na Central, cadastre uma entrega, cole localização/coordenadas e atribua ao motoboy.
+11. A entrega aparece no celular dele quase imediatamente.
+
+IMPORTANTE
+- Em navegador móvel, o GPS funciona melhor enquanto a página estiver aberta.
+- Se o navegador bloquear/hibernar a página em segundo plano, o rastreamento pode parar.
+- Para rastreamento real com tela apagada ou app fechado, a etapa seguinte é transformar em aplicativo/PWA com suporte apropriado a localização em segundo plano.
+- As políticas SQL desta versão são abertas para facilitar o protótipo. Não use assim em produção com dados sensíveis; depois devemos adicionar login e permissões.

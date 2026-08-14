@@ -1,0 +1,77 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V7 Central</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6}.layout{display:grid;grid-template-columns:380px 1fr;height:100vh}
+.side{background:white;padding:14px;overflow:auto}.map{height:100vh}#map{height:100%;width:100%}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.gray{background:#eee}
+.driver,.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.map{height:55vh}.side{height:45vh;order:2}.map{order:1}}
+</style></head><body>
+<div class="layout"><div class="side">
+<h2>💻 Central V7</h2>
+<div id="connection" class="small">Conectando...</div>
+<h3>🏍️ Motoboys</h3><div id="drivers"></div>
+<h3>➕ Nova entrega</h3>
+<input id="client" placeholder="Nome do cliente"><input id="phone" placeholder="Telefone / WhatsApp">
+<textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
+<select id="driverSelect"><option value="">Selecione o motoboy</option></select>
+<button class="green" id="addDelivery" style="width:100%;margin-top:5px">Adicionar entrega</button>
+<h3>📦 Entregas</h3><div id="deliveries"></div>
+</div><div class="map"><div id="map"></div></div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="shared.js"></script>
+<script>
+const map=L.map("map").setView([-9.6658,-35.7353],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+const sb=getSupabaseClient(); let driverMarkers={},deliveryMarkers={};
+async function loadDrivers(){
+  if(!sb)return;
+  const {data,error}=await sb.from("drivers").select("*").order("name");
+  if(error){console.error(error);return}
+  const now=Date.now();
+  document.getElementById("drivers").innerHTML=(data||[]).map(d=>{
+    const fresh=d.last_seen && now-new Date(d.last_seen).getTime()<30000;
+    const online=d.is_online&&fresh;
+    return `<div class="driver"><b>${online?"🟢":"🔴"} ${esc(d.name)}</b><div class="small">${esc(d.phone||"")}<br>Última atualização: ${d.last_seen?new Date(d.last_seen).toLocaleTimeString("pt-BR"):"--"}</div></div>`;
+  }).join("")||"<div class='small'>Nenhum motoboy conectado.</div>";
+  const sel=document.getElementById("driverSelect"),current=sel.value;
+  sel.innerHTML='<option value="">Selecione o motoboy</option>'+(data||[]).map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
+  sel.value=current;
+  (data||[]).forEach(d=>{
+    if(d.lat==null||d.lng==null)return;
+    const ll=[d.lat,d.lng];
+    const label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online?"Online":"Offline"}<br>${d.last_seen?new Date(d.last_seen).toLocaleTimeString("pt-BR"):""}`;
+    if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
+  });
+}
+async function loadDeliveries(){
+  const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:false});
+  if(error){console.error(error);return}
+  document.getElementById("deliveries").innerHTML=(data||[]).map(d=>`<div class="delivery"><b>${d.status==="done"?"✅":d.status==="failed"?"❌":"🟡"} ${esc(d.client_name)}</b><div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>${d.note?esc(d.note):""}</div></div>`).join("")||"<div class='small'>Nenhuma entrega.</div>";
+  (data||[]).forEach(d=>{
+    const ll=[d.lat,d.lng],label=`<b>${esc(d.client_name)}</b><br>${d.status}`;
+    if(!deliveryMarkers[d.id])deliveryMarkers[d.id]=L.circleMarker(ll,{radius:7}).addTo(map).bindPopup(label);else deliveryMarkers[d.id].setLatLng(ll).setPopupContent(label);
+  });
+}
+document.getElementById("addDelivery").onclick=async()=>{
+  const p=extractCoords(document.getElementById("location").value.trim());
+  const driverId=document.getElementById("driverSelect").value;
+  if(!p)return alert("Não encontrei coordenadas nesse link/localização.");
+  if(!driverId)return alert("Selecione um motoboy.");
+  const row={driver_id:driverId,client_name:document.getElementById("client").value.trim()||"Cliente",client_phone:document.getElementById("phone").value.trim(),lat:p.lat,lng:p.lng,status:"pending"};
+  const {error}=await sb.from("deliveries").insert(row);
+  if(error)return alert("Erro ao adicionar entrega: "+error.message);
+  document.getElementById("client").value="";document.getElementById("phone").value="";document.getElementById("location").value="";
+  loadDeliveries();
+};
+if(sb){
+  document.getElementById("connection").textContent="🟢 Supabase conectado";
+  loadDrivers();loadDeliveries();
+  sb.channel("central-drivers").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
+  sb.channel("central-deliveries").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>loadDeliveries()).subscribe();
+  setInterval(loadDrivers,10000);
+}
+</script></body></html>
