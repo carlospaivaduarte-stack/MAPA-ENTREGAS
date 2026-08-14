@@ -5,7 +5,7 @@
 <style>
 *{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}#map{position:fixed;inset:0}
 .top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:14px;box-shadow:0 3px 18px #0002}
-.panel{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:18px;padding:12px;box-shadow:0 5px 25px #0003;max-height:58vh;overflow:auto}
+.panel{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:18px;padding:12px;box-shadow:0 5px 25px #0003;max-height:58vh;overflow:auto}.panel.collapsed #deliveries,.panel.collapsed .delivery-help{display:none}
 input{width:100%;padding:11px;border:1px solid #ddd;border-radius:11px;margin-bottom:7px}
 button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:6px}.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.status{font-size:12px;font-weight:bold;margin:3px 0}
@@ -17,7 +17,11 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <input id="driverName" placeholder="Seu nome">
 <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
 <div class="row"><button class="blue" id="start">📍 Iniciar rastreamento</button><button class="gray" id="stop">⏹ Parar</button></div>
-<div class="small" style="margin:7px 0">Sua localização será enviada à central enquanto esta página estiver aberta e o GPS ativo.</div>
+<div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
+<div class="row" style="margin-bottom:7px">
+<button class="blue" id="centerMe">📍 Centralizar em mim</button>
+<button class="gray" id="toggleDeliveries">⬇️ Minimizar entregas</button>
+</div>
 <div id="deliveries"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -26,13 +30,13 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-let deliveryMarkers={},sb=null,watch=null,marker=null,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+let deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
 
 async function upsertDriver(pos){
-  const now=Date.now(); if(now-lastSend<3000)return; lastSend=now;
+  const now=Date.now(); lastPosition=pos; if(now-lastSend<60000 && marker)return; lastSend=now;
   const name=document.getElementById("driverName").value.trim()||"Motoboy";
   const phone=document.getElementById("driverPhone").value.trim();
   localStorage.setItem("v7_driver_name",name);localStorage.setItem("v7_driver_phone",phone);
@@ -42,7 +46,7 @@ async function upsertDriver(pos){
   document.getElementById("state").textContent="🟢 online";
   const ll=[row.lat,row.lng];
   if(!marker)marker=L.marker(ll).addTo(map).bindPopup("📍 Você");else marker.setLatLng(ll);
-  map.setView(ll,17);
+  if(!hasCentered){map.setView(ll,17);hasCentered=true;}
 }
 async function loadDeliveries(){
   if(!sb)return;
@@ -75,6 +79,16 @@ async function setStatus(id,status){
   await sb.from("deliveries").update({status,note,updated_at:new Date().toISOString()}).eq("id",id);
   loadDeliveries();
 }
+document.getElementById("centerMe").onclick=()=>{
+  if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");
+  map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
+};
+document.getElementById("toggleDeliveries").onclick=()=>{
+  const panel=document.querySelector(".panel");
+  const collapsed=panel.classList.toggle("collapsed");
+  document.getElementById("toggleDeliveries").textContent=collapsed?"⬆️ Mostrar entregas":"⬇️ Minimizar entregas";
+  setTimeout(()=>map.invalidateSize(),100);
+};
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
   if(!navigator.geolocation)return alert("GPS não suportado.");
