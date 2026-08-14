@@ -166,6 +166,29 @@ function statusIcon(d){return d.status==="done"?"🟢":d.status==="failed"?"🔴
 function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
 function pinIcon(d,index){ return String(d.route_order||index+1); }
 
+
+async function renumberActiveRoute(driverId){
+  if(!sb||!driverId)return;
+  const {data,error}=await sb.from("deliveries")
+    .select("id,route_order,created_at")
+    .eq("driver_id",driverId)
+    .eq("status","pending")
+    .is("deleted_at",null)
+    .order("route_order",{ascending:true,nullsFirst:false})
+    .order("created_at",{ascending:true});
+  if(error){console.error("Erro ao renumerar rota:",error);return}
+  const rows=data||[];
+  for(let i=0;i<rows.length;i++){
+    const wanted=i+1;
+    if(rows[i].route_order!==wanted){
+      const {error:updateError}=await sb.from("deliveries")
+        .update({route_order:wanted,updated_at:new Date().toISOString()})
+        .eq("id",rows[i].id);
+      if(updateError)console.error("Erro ao atualizar sequência:",updateError);
+    }
+  }
+}
+
 async function loadDrivers(){
   if(!sb)return;
   const {data,error}=await sb.from("drivers").select("*").order("name");
@@ -254,7 +277,14 @@ function renderDeliveries(){
   Object.values(deliveryMarkers).forEach(m=>m.setMap(null));deliveryMarkers={};
   if(currentDeliveryTab==="active"){
     rows.filter(d=>d.status==="pending").forEach((d,i)=>{
-      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:{text:"📦",fontSize:"20px"},title:`${d.route_order||i+1}. ${d.client_name}`});
+      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,icon:{
+  path:google.maps.SymbolPath.CIRCLE,
+  scale:16,
+  fillColor:"#FFD400",
+  fillOpacity:1,
+  strokeColor:"#8A6D00",
+  strokeWeight:2
+},label:{text:String(d.route_order||i+1),color:"#111",fontSize:"13px",fontWeight:"700"},title:d.client_name});
     });
   }
 }

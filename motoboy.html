@@ -115,6 +115,29 @@ async function upsertDriver(pos){
   if(!marker)marker=new google.maps.Marker({position:posMap,map,title:"📍 Você"});else marker.setPosition(posMap);
   if(!hasCentered){map.setCenter(posMap);map.setZoom(17);hasCentered=true;}
 }
+
+async function renumberActiveRoute(driverId){
+  if(!sb||!driverId)return;
+  const {data,error}=await sb.from("deliveries")
+    .select("id,route_order,created_at")
+    .eq("driver_id",driverId)
+    .eq("status","pending")
+    .is("deleted_at",null)
+    .order("route_order",{ascending:true,nullsFirst:false})
+    .order("created_at",{ascending:true});
+  if(error){console.error("Erro ao renumerar rota:",error);return}
+  const rows=data||[];
+  for(let i=0;i<rows.length;i++){
+    const wanted=i+1;
+    if(rows[i].route_order!==wanted){
+      const {error:updateError}=await sb.from("deliveries")
+        .update({route_order:wanted,updated_at:new Date().toISOString()})
+        .eq("id",rows[i].id);
+      if(updateError)console.error("Erro ao atualizar sequência:",updateError);
+    }
+  }
+}
+
 async function loadDeliveries(){
   if(!sb)return;
   const {data:assigned,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).is("deleted_at",null).order("created_at",{ascending:true});
@@ -182,7 +205,14 @@ function renderDeliveries(data){
   if(currentMotoboyTab==="active"){
     pending.forEach((d,i)=>{
       const n=d.route_order||i+1;
-      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:{text:"📦",fontSize:"20px"},title:`${n}. ${d.client_name}`});
+      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,icon:{
+  path:google.maps.SymbolPath.CIRCLE,
+  scale:16,
+  fillColor:"#FFD400",
+  fillOpacity:1,
+  strokeColor:"#8A6D00",
+  strokeWeight:2
+},label:{text:String(n),color:"#111",fontSize:"13px",fontWeight:"700"},title:d.client_name});
     });
   }
 
@@ -342,6 +372,7 @@ async function setStatus(id,status){
   }
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({status,note,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
+  if(status==="done"||status==="failed")await renumberActiveRoute((allDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
   if(error)return alert("Erro ao atualizar entrega: "+error.message);
   const {data:remaining}=await sb.from("deliveries").select("id").eq("driver_id",driverId).eq("status","pending").limit(1);
   if(!remaining||remaining.length===0){
@@ -515,7 +546,7 @@ async function sendImmediateLocation(){
       if(marker){
         marker.setPosition({lat,lng});
       }else{
-        marker=new google.maps.Marker({position:{lat,lng},map,label:{text:"🏍️",fontSize:"22px"},title:"Você"});
+        marker=new google.maps.Marker({position:{lat,lng},map,label:{text:"🏍️",fontSize:"28px",fontWeight:"700"},title:"Localização do motoboy"});
       }
       map.setCenter({lat,lng});
       btn.textContent="✅ Atualizado";
