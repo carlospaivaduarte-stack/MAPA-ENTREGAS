@@ -138,18 +138,51 @@ async function renumberActiveRoute(driverId){
   }
 }
 
+function normalizeDigits(v){return String(v||"").replace(/\D/g,"")}
+
+async function resolveMyDriverIds(){
+  const ids=new Set([driverId]);
+  const savedPhone=normalizeDigits(document.getElementById("driverPhone").value||localStorage.getItem("v7_driver_phone"));
+  const savedName=String(document.getElementById("driverName").value||localStorage.getItem("v7_driver_name")||"").trim().toLowerCase();
+
+  const {data,error}=await sb.from("drivers").select("id,name,phone");
+  if(error){console.error("Erro ao localizar histórico do motoqueiro:",error);return [...ids]}
+
+  (data||[]).forEach(d=>{
+    const phone=normalizeDigits(d.phone);
+    const name=String(d.name||"").trim().toLowerCase();
+    if(savedPhone && phone && phone===savedPhone)ids.add(d.id);
+    else if(!savedPhone && savedName && name===savedName)ids.add(d.id);
+  });
+  return [...ids];
+}
+
+function isTodayLocal(v){
+  if(!v)return false;
+  const d=new Date(v),now=new Date();
+  return d.getFullYear()===now.getFullYear() &&
+         d.getMonth()===now.getMonth() &&
+         d.getDate()===now.getDate();
+}
+
 async function loadDeliveries(){
   if(!sb)return;
 
-  const {data:assigned,error}=await sb.from("deliveries")
+  const myIds=await resolveMyDriverIds();
+
+  let assigned=[];
+  const {data:assignedData,error}=await sb.from("deliveries")
     .select("*")
-    .eq("driver_id",driverId)
+    .in("driver_id",myIds)
     .is("deleted_at",null)
     .order("created_at",{ascending:true});
+
   if(error){
-    console.error("Erro ao carregar entregas do motoboy:",error);
+    console.error("Erro ao carregar entregas do motoqueiro:",error);
+    document.getElementById("deliveries").innerHTML='<div class="small">Erro ao carregar entregas. Toque em 🔄 e tente novamente.</div>';
     return;
   }
+  assigned=assignedData||[];
 
   const {data:waiting,error:waitingError}=await sb.from("deliveries")
     .select("*")
@@ -157,21 +190,22 @@ async function loadDeliveries(){
     .is("driver_id",null)
     .is("deleted_at",null)
     .order("created_at",{ascending:true});
+
   if(waitingError){
     console.error("Erro ao carregar coletas:",waitingError);
     return;
   }
 
   waitingDeliveries=waiting||[];
-  const mine=assigned||[];
-  finishedDeliveries=mine
-    .filter(d=>d.status==="done"||d.status==="failed")
-    .sort((a,b)=>new Date(b.completed_at||b.updated_at||b.created_at)-new Date(a.completed_at||a.updated_at||a.created_at));
 
+  finishedDeliveries=assigned
+    .filter(d=>(d.status==="done"||d.status==="failed") && isTodayLocal(d.completed_at||d.updated_at))
+    .sort((a,b)=>new Date(b.completed_at||b.updated_at)-new Date(a.completed_at||a.updated_at));
+
+  const activeAssigned=assigned.filter(d=>d.status!=="awaiting_collection");
   renderCollection(waitingDeliveries);
-  renderDeliveries(mine.filter(d=>d.status!=="awaiting_collection"));
+  renderDeliveries(activeAssigned);
 }
-
 function renderCollection(data){
   const box=document.getElementById("collectionBox");
   if(currentMotoboyTab!=="active"){box.innerHTML="";return;}
@@ -329,7 +363,7 @@ document.getElementById("saveEdit").onclick=async()=>{
 
 
 window.returnToPending=async id=>{
-  const d=currentDeliveries.find(x=>x.id===id);
+  const d=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
   if(!d)return;
   if(d.status==="pending")return alert("Essa entrega já está pendente.");
   if(!confirm(`Voltar a entrega de ${d.client_name} para PENDENTE?`))return;
@@ -341,7 +375,7 @@ window.returnToPending=async id=>{
     note:"",
     route_order:null,
     updated_at:nowIso
-  }).eq("id",id).eq("driver_id",driverId);
+  }).eq("id",id);
 
   if(error)return alert("Erro ao voltar para PENDENTE: "+error.message);
 
@@ -359,7 +393,7 @@ window.returnToPending=async id=>{
 };
 
 window.switchFinalStatus=async(id,status)=>{
-  const d=currentDeliveries.find(x=>x.id===id);
+  const d=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
   if(!d)return;
   if(d.status===status)return alert(status==="done"?"Já está marcado como ENTREGUE.":"Já está marcado como NÃO ENTREGUE.");
   let note=d.note||"";
@@ -380,7 +414,7 @@ window.switchFinalStatus=async(id,status)=>{
     note,
     completed_at:nowIso,
     updated_at:nowIso
-  }).eq("id",id).eq("driver_id",driverId);
+  }).eq("id",id);
   if(error)return alert("Erro ao alterar status: "+error.message);
   await loadDeliveries();
 };
@@ -508,15 +542,14 @@ document.getElementById("centerMe").onclick=()=>{
 
 
 
-function setMotoboyTab(tab){
+async function setMotoboyTab(tab){
   currentMotoboyTab=tab;
   document.getElementById("tabMotoboyActive").classList.toggle("active",tab==="active");
   document.getElementById("tabMotoboyFinished").classList.toggle("active",tab==="finished");
-  renderCollection(waitingDeliveries);
-  renderDeliveries(currentDeliveries);
+  await loadDeliveries();
 }
-document.getElementById("tabMotoboyActive").onclick=async()=>{setMotoboyTab("active");await loadDeliveries();};
-document.getElementById("tabMotoboyFinished").onclick=async()=>{currentMotoboyTab="finished";await loadDeliveries();setMotoboyTab("finished");};
+document.getElementById("tabMotoboyActive").onclick=()=>setMotoboyTab("active");
+document.getElementById("tabMotoboyFinished").onclick=()=>setMotoboyTab("finished");
 
 const panelEl=document.querySelector(".panel");
 const panelToggle=document.getElementById("panelToggle");
@@ -526,7 +559,7 @@ if(panelEl&&panelToggle){
     panelToggle.textContent=collapsed?"⬆️":"⬇️";
     panelToggle.setAttribute("aria-label",collapsed?"Maximizar painel":"Minimizar painel");
     panelToggle.title=collapsed?"Maximizar painel":"Minimizar painel";
-    setTimeout(()=>map.invalidateSize(),100);
+    setTimeout(()=>google.maps.event.trigger(map,"resize"),100);
   };
 }
 
@@ -559,8 +592,8 @@ async function sendImmediateLocation(){
       const lat=pos.coords.latitude,lng=pos.coords.longitude;
       const row={
         id:driverId,
-        name:document.getElementById("name").value.trim()||"Motoboy",
-        phone:document.getElementById("phone").value.trim(),
+        name:document.getElementById("driverName").value.trim()||"Motoboy",
+        phone:document.getElementById("driverPhone").value.trim(),
         lat,lng,
         accuracy:pos.coords.accuracy,
         is_online:true,
@@ -594,6 +627,19 @@ async function sendImmediateLocation(){
 }
 document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 
+
+async function initializeMotoboyApp(){
+  if(!sb)sb=getSupabaseClient();
+  if(!sb)return;
+  try{
+    await loadDriverInfo();
+    await loadDeliveries();
+  }catch(e){
+    console.error("Erro ao iniciar aplicativo:",e);
+  }
+}
+window.addEventListener("load",initializeMotoboyApp);
+
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
   await loadDriverInfo();
@@ -603,6 +649,17 @@ document.getElementById("start").onclick=async()=>{
   loadDeliveries();
   sb.channel("motoboy-deliveries-"+driverId).on("postgres_changes",{event:"*",schema:"public",table:"deliveries",filter:"driver_id=eq."+driverId},()=>loadDeliveries()).subscribe();
 };
+
+if(!window.__rtsGlobalDeliveryChannel){
+  window.__rtsGlobalDeliveryChannel=true;
+  setTimeout(()=>{
+    if(!sb)sb=getSupabaseClient();
+    if(sb)sb.channel("motoboy-global-refresh-"+driverId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>loadDeliveries())
+      .subscribe();
+  },500);
+}
+
 document.getElementById("stop").onclick=async()=>{
   if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
   if(sb)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
