@@ -1,7 +1,6 @@
-<!doctype html><html lang="pt-BR"><head>
+﻿<!doctype html><html lang="pt-BR"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>RTS — Motoboy</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>RTS â€” Motoboy</title>
 <style>
 *{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}#map{position:fixed;inset:0}
 .top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:14px;box-shadow:0 3px 18px #0002}
@@ -22,42 +21,46 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 .modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;padding:16px;width:min(430px,100%);box-shadow:0 8px 30px #0004}
 .modalbox h3{margin-top:0}.modalbox textarea{min-height:70px}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 0}.tabbtn{background:#e5e7eb;color:#111827}.tabbtn.active{background:#2563eb;color:#fff}
-</style></head><body>
+</style><script>
+window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
+</script>
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
+</head><body>
 <div id="map"></div>
-<div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
+<div class="top"><b>ðŸï¸ RTS â€” Motoboy</b> Â· <span id="state">desconectado</span></div>
 <div class="panel">
 <div class="panel-header" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:6px">
-  <button class="blue" id="refreshMotoboy" title="Atualizar dados" style="padding:6px 10px">🔄</button>
-  <button class="gray" id="panelToggle" aria-label="Minimizar painel" title="Minimizar painel" style="padding:6px 10px;font-size:18px;line-height:1">⬇️</button>
+  <button class="blue" id="refreshMotoboy" title="Atualizar dados" style="padding:6px 10px">ðŸ”„</button>
+  <button class="gray" id="panelToggle" aria-label="Minimizar painel" title="Minimizar painel" style="padding:6px 10px;font-size:18px;line-height:1">â¬‡ï¸</button>
 </div>
 <div id="panelContent">
 <input id="driverName" placeholder="Seu nome">
 <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
-<div class="row"><button class="blue" id="start">📍 Iniciar rastreamento</button><button class="gray" id="stop">⏹ Parar</button></div>
-<div class="row" style="margin-top:6px"><button class="green" id="startRoute">▶️ INICIAR ROTA</button><button class="gray" id="routeTimes">🕐 Horários</button></div>
-<div id="routeTimeInfo" class="route-times" style="display:none">Saída: -- · Início da rota: -- · Conclusão: --</div>
+<div class="row"><button class="blue" id="start">ðŸ“ Iniciar rastreamento</button><button class="gray" id="stop">â¹ Parar</button></div>
+<div class="row" style="margin-top:6px"><button class="green" id="startRoute">â–¶ï¸ INICIAR ROTA</button><button class="gray" id="routeTimes">ðŸ• HorÃ¡rios</button></div>
+<div id="routeTimeInfo" class="route-times" style="display:none">SaÃ­da: -- Â· InÃ­cio da rota: -- Â· ConclusÃ£o: --</div>
 <div class="metrics">
   <div class="metric">Total<b id="mTotal">0</b></div>
   <div class="metric">Pend.<b id="mPending">0</b></div>
   <div class="metric">Entreg.<b id="mDone">0</b></div>
-  <div class="metric">Não ent.<b id="mFailed">0</b></div>
+  <div class="metric">NÃ£o ent.<b id="mFailed">0</b></div>
 </div>
-<div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
+<div class="small delivery-help" style="margin:7px 0">Sua localizaÃ§Ã£o serÃ¡ enviada Ã  central aproximadamente a cada 60 segundos enquanto esta pÃ¡gina estiver aberta e o GPS ativo.</div>
 <div class="row" style="margin-bottom:7px">
-<button class="blue" id="centerMe">📍 Centralizar em mim</button>
-<button class="gray" id="togglePanel" style="display:none">⬇️</button>
+<button class="blue" id="centerMe">ðŸ“ Centralizar em mim</button>
+<button class="gray" id="togglePanel" style="display:none">â¬‡ï¸</button>
 </div>
 <div class="row" style="margin-bottom:7px">
-<button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
-<button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
+<button class="blue" id="organizeRoute">ðŸ§  ORGANIZAR ROTA</button>
+<button class="gray" id="openRoute">ðŸ—ºï¸ ABRIR ROTA</button>
 </div>
 <div style="margin-bottom:7px">
-  <button class="green" id="nextDelivery" style="width:100%">➡️ PRÓXIMA ENTREGA</button>
+  <button class="green" id="nextDelivery" style="width:100%">âž¡ï¸ PRÃ“XIMA ENTREGA</button>
 </div>
 <div id="routeInfo" class="small" style="margin:5px 0">A rota usa somente suas entregas coletadas e pendentes.</div>
 <div class="tabs">
-  <button class="tabbtn active" id="tabMotoboyActive">📦 COLETAS / PENDENTES</button>
-  <button class="tabbtn" id="tabMotoboyFinished">✅ FINALIZADAS</button>
+  <button class="tabbtn active" id="tabMotoboyActive">ðŸ“¦ COLETAS / PENDENTES</button>
+  <button class="tabbtn" id="tabMotoboyFinished">âœ… FINALIZADAS</button>
 </div>
 <div id="collectionBox" style="margin:8px 0"></div>
 <div id="deliveries"></div>
@@ -66,24 +69,29 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 
 <div class="modal" id="editModal">
   <div class="modalbox">
-    <h3>✏️ Editar entrega</h3>
+    <h3>âœï¸ Editar entrega</h3>
     <input id="editClient" placeholder="Nome do cliente">
     <input id="editPhone" inputmode="tel" placeholder="Telefone / WhatsApp">
     <textarea id="editLocation" placeholder="Link do Google Maps ou coordenadas"></textarea>
-    <textarea id="editNote" placeholder="Observação"></textarea>
+    <textarea id="editNote" placeholder="ObservaÃ§Ã£o"></textarea>
     <div class="row" style="margin-top:8px">
-      <button class="green" id="saveEdit">💾 Salvar</button>
-      <button class="gray" id="cancelEdit">❌ Cancelar</button>
+      <button class="green" id="saveEdit">ðŸ’¾ Salvar</button>
+      <button class="gray" id="cancelEdit">âŒ Cancelar</button>
     </div>
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script><script src="shared.js"></script>
 <script>
-const map=L.map("map").setView([-9.6658,-35.7353],13);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+let map;
+function initGoogleMap(){
+  map=new google.maps.Map(document.getElementById("map"),{
+    center:{lat:-9.6498,lng:-35.7089},zoom:13,
+    mapTypeControl:true,streetViewControl:false,fullscreenControl:true
+  });
+  window.dispatchEvent(new Event("google-map-ready"));
+}
 let currentDriver=null,currentDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
@@ -98,12 +106,12 @@ async function upsertDriver(pos){
   const row={id:driverId,name,phone,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,is_online:true,last_seen:nowIso};
   if(!currentDriver?.is_online)row.tracking_started_at=nowIso;
   const {error}=await sb.from("drivers").upsert(row,{onConflict:"id"});
-  if(error){console.error(error);document.getElementById("state").textContent="erro ao enviar localização";return}
-  document.getElementById("state").textContent="🟢 online";
+  if(error){console.error(error);document.getElementById("state").textContent="erro ao enviar localizaÃ§Ã£o";return}
+  document.getElementById("state").textContent="ðŸŸ¢ online";
   currentDriver={...(currentDriver||{}),...row};
   renderRouteTimes();
   const ll=[row.lat,row.lng];
-  if(!marker)marker=L.marker(ll).addTo(map).bindPopup("📍 Você");else marker.setLatLng(ll);
+  if(!marker)marker=L.marker(ll).addTo(map).bindPopup("ðŸ“ VocÃª");else marker.setLatLng(ll);
   if(!hasCentered){map.setView(ll,17);hasCentered=true;}
 }
 async function loadDeliveries(){
@@ -121,13 +129,13 @@ function renderCollection(data){
   if(currentMotoboyTab!=="active"){box.innerHTML="";return;}
   if(!box)return;
   box.innerHTML=data.length?`<div style="border:2px solid #d1d5db;border-radius:12px;padding:9px;background:#fafafa">
-    <b>⚪ ENTREGAS PARA COLETAR (${data.length})</b>
+    <b>âšª ENTREGAS PARA COLETAR (${data.length})</b>
     ${data.map(d=>`<div class="delivery" style="margin-top:7px">
       <b>${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}</div>
       <div class="row" style="margin-top:6px">
-        <button class="green" onclick="collectDelivery('${d.id}')">✅ COLETADA</button>
-        <button class="gray" onclick="editWaitingDelivery('${d.id}')">✏️ EDITAR</button>
+        <button class="green" onclick="collectDelivery('${d.id}')">âœ… COLETADA</button>
+        <button class="gray" onclick="editWaitingDelivery('${d.id}')">âœï¸ EDITAR</button>
       </div>
     </div>`).join("")}
   </div>`:"";
@@ -135,7 +143,7 @@ function renderCollection(data){
 window.collectDelivery=async id=>{
   if(!sb)return alert("Inicie o rastreamento primeiro.");
   const nowIso=new Date().toISOString();
-  // A coleta só funciona se a entrega ainda estiver aguardando e sem motoqueiro.
+  // A coleta sÃ³ funciona se a entrega ainda estiver aguardando e sem motoqueiro.
   const {data,error}=await sb.from("deliveries")
     .update({driver_id:driverId,status:"pending",collected_at:nowIso,updated_at:nowIso})
     .eq("id",id)
@@ -144,7 +152,7 @@ window.collectDelivery=async id=>{
     .select("id");
   if(error)return alert("Erro ao coletar: "+error.message);
   if(!data||!data.length){
-    alert("Essa entrega já foi coletada por outro motoqueiro.");
+    alert("Essa entrega jÃ¡ foi coletada por outro motoqueiro.");
     return loadDeliveries();
   }
   await loadDeliveries();
@@ -166,14 +174,13 @@ function renderDeliveries(data){
   document.getElementById("mDone").textContent=currentDeliveries.filter(x=>x.status==="done").length;
   document.getElementById("mFailed").textContent=currentDeliveries.filter(x=>x.status==="failed").length;
 
-  Object.values(deliveryMarkers).forEach(mm=>map.removeLayer(mm));deliveryMarkers={};
+  Object.values(deliveryMarkers).forEach(mm=>mm.setMap(null));deliveryMarkers={};
 
   const pending=currentDeliveries.filter(d=>d.status==="pending").sort((a,b)=>(a.route_order??999999)-(b.route_order??999999));
   if(currentMotoboyTab==="active"){
     pending.forEach((d,i)=>{
       const n=d.route_order||i+1;
-      const icon=L.divIcon({className:"",html:`<div class="num-pin">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
-      deliveryMarkers[d.id]=L.marker([d.lat,d.lng],{icon}).addTo(map).bindPopup(`<b>${n}. ${esc(d.client_name)}</b><br>PENDENTE`);
+      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:String(n),title:d.client_name});
     });
   }
 
@@ -183,23 +190,23 @@ function renderDeliveries(data){
 
   const box=document.getElementById("deliveries");
   box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
-    <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
+    <b>${d.status==="done"?"ðŸŸ¢":d.status==="failed"?"ðŸ”´":"ðŸŸ¡"} ${d.route_order?d.route_order+". ":""}ðŸ‘¤ ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.status!=="pending"?`<br>🕐 ${new Date(d.completed_at||d.updated_at).toLocaleString("pt-BR")}`:""}
-      ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
+      ${d.status!=="pending"?`<br>ðŸ• ${new Date(d.completed_at||d.updated_at).toLocaleString("pt-BR")}`:""}
+      ${d.note?`<br>ðŸ“ ${esc(d.note)}`:""}</div>
     ${d.status==="pending"?`<div class="row" style="margin-top:6px">
-      <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
-      <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
-      <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">🧭 Navegar</button>
-      <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
-      <button class="green" onclick="setStatus('${d.id}','done')">✅ ENTREGUE</button>
-      <button class="red" onclick="setStatus('${d.id}','failed')">❌ NÃO ENTREGUE</button>
+      <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">ðŸ’¬ WhatsApp</button>
+      <button class="wa" onclick="sendTracking('${d.id}')">ðŸ“ Enviar rastreamento</button>
+      <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">ðŸ§­ Navegar</button>
+      <button class="gray" onclick="editDelivery('${d.id}')">âœï¸ EDITAR</button>
+      <button class="green" onclick="setStatus('${d.id}','done')">âœ… ENTREGUE</button>
+      <button class="red" onclick="setStatus('${d.id}','failed')">âŒ NÃƒO ENTREGUE</button>
     </div>`:
     `<div class="row" style="margin-top:6px">
-      <button class="green" onclick="switchFinalStatus('${d.id}','done')">✅ ENTREGUE</button>
-      <button class="red" onclick="switchFinalStatus('${d.id}','failed')">❌ NÃO ENTREGUE</button>
-      <button class="yellow" onclick="returnToPending('${d.id}')">🟡 PENDENTE</button>
-      <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
+      <button class="green" onclick="switchFinalStatus('${d.id}','done')">âœ… ENTREGUE</button>
+      <button class="red" onclick="switchFinalStatus('${d.id}','failed')">âŒ NÃƒO ENTREGUE</button>
+      <button class="yellow" onclick="returnToPending('${d.id}')">ðŸŸ¡ PENDENTE</button>
+      <button class="gray" onclick="editDelivery('${d.id}')">âœï¸ EDITAR</button>
     </div>`}
   </div>`).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
 }
@@ -209,7 +216,7 @@ function trackingUrl(d){
 }
 window.sendTracking=id=>{
   const d=currentDeliveries.find(x=>x.id===id);
-  if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
+  if(!d||!d.tracking_token)return alert("Esta entrega ainda nÃ£o possui link de rastreamento.");
   const n=normalizePhone(d.client_phone);
   if(n.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
   const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
@@ -245,7 +252,7 @@ document.getElementById("cancelEdit").onclick=()=>{
 document.getElementById("saveEdit").onclick=async()=>{
   if(!sb||!editingId)return;
   const p=extractCoords(document.getElementById("editLocation").value.trim());
-  if(!p)return alert("Localização inválida. Cole coordenadas ou um link completo do Google Maps.");
+  if(!p)return alert("LocalizaÃ§Ã£o invÃ¡lida. Cole coordenadas ou um link completo do Google Maps.");
   const patch={
     client_name:document.getElementById("editClient").value.trim()||"Cliente",
     client_phone:document.getElementById("editPhone").value.trim(),
@@ -266,7 +273,7 @@ document.getElementById("saveEdit").onclick=async()=>{
 window.returnToPending=async id=>{
   const d=currentDeliveries.find(x=>x.id===id);
   if(!d)return;
-  if(d.status==="pending")return alert("Essa entrega já está pendente.");
+  if(d.status==="pending")return alert("Essa entrega jÃ¡ estÃ¡ pendente.");
   if(!confirm(`Voltar a entrega de ${d.client_name} para PENDENTE?`))return;
 
   const nowIso=new Date().toISOString();
@@ -296,16 +303,16 @@ window.returnToPending=async id=>{
 window.switchFinalStatus=async(id,status)=>{
   const d=currentDeliveries.find(x=>x.id===id);
   if(!d)return;
-  if(d.status===status)return alert(status==="done"?"Já está marcado como ENTREGUE.":"Já está marcado como NÃO ENTREGUE.");
+  if(d.status===status)return alert(status==="done"?"JÃ¡ estÃ¡ marcado como ENTREGUE.":"JÃ¡ estÃ¡ marcado como NÃƒO ENTREGUE.");
   let note=d.note||"";
   if(status==="failed"){
-    const choice=prompt("Motivo da não entrega:\n1 - Cliente ausente\n2 - Endereço não localizado\n3 - Cliente recusou\n4 - Outro");
+    const choice=prompt("Motivo da nÃ£o entrega:\n1 - Cliente ausente\n2 - EndereÃ§o nÃ£o localizado\n3 - Cliente recusou\n4 - Outro");
     if(choice===null)return;
     if(choice==="1")note="Cliente ausente";
-    else if(choice==="2")note="Endereço não localizado";
+    else if(choice==="2")note="EndereÃ§o nÃ£o localizado";
     else if(choice==="3")note="Cliente recusou";
     else if(choice==="4")note=prompt("Digite o motivo:")||"Outro";
-    else note=choice||"Não informado";
+    else note=choice||"NÃ£o informado";
   }else{
     note="";
   }
@@ -323,13 +330,13 @@ window.switchFinalStatus=async(id,status)=>{
 async function setStatus(id,status){
   let note="";
   if(status==="failed"){
-    const choice=prompt("Motivo da não entrega:\n1 - Cliente ausente\n2 - Endereço não localizado\n3 - Cliente recusou\n4 - Outro");
+    const choice=prompt("Motivo da nÃ£o entrega:\n1 - Cliente ausente\n2 - EndereÃ§o nÃ£o localizado\n3 - Cliente recusou\n4 - Outro");
     if(choice===null)return;
     if(choice==="1")note="Cliente ausente";
-    else if(choice==="2")note="Endereço não localizado";
+    else if(choice==="2")note="EndereÃ§o nÃ£o localizado";
     else if(choice==="3")note="Cliente recusou";
     else if(choice==="4")note=prompt("Digite o motivo:")||"Outro";
-    else note=choice||"Não informado";
+    else note=choice||"NÃ£o informado";
   }
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({status,note,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
@@ -345,7 +352,7 @@ async function setStatus(id,status){
 
 function ft(v){return v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--"}
 function renderRouteTimes(){
-  document.getElementById("routeTimeInfo").textContent=`Saída / GPS: ${ft(currentDriver?.tracking_started_at)} · Início da rota: ${ft(currentDriver?.route_started_at)} · Conclusão: ${ft(currentDriver?.route_finished_at)}`;
+  document.getElementById("routeTimeInfo").textContent=`SaÃ­da / GPS: ${ft(currentDriver?.tracking_started_at)} Â· InÃ­cio da rota: ${ft(currentDriver?.route_started_at)} Â· ConclusÃ£o: ${ft(currentDriver?.route_finished_at)}`;
 }
 async function loadDriverInfo(){
   if(!sb)return;
@@ -365,7 +372,7 @@ document.getElementById("startRoute").onclick=async()=>{
   currentDriver={...(currentDriver||{}),route_started_at:nowIso,route_finished_at:null};
   renderRouteTimes();
   document.getElementById("routeTimeInfo").style.display="block";
-  alert("Rota iniciada. O horário foi enviado para a Central.");
+  alert("Rota iniciada. O horÃ¡rio foi enviado para a Central.");
 };
 
 
@@ -382,9 +389,9 @@ function getNextPendingDelivery(){
 }
 document.getElementById("nextDelivery").onclick=()=>{
   const next=getNextPendingDelivery();
-  if(!next)return alert("Você não possui entregas pendentes.");
+  if(!next)return alert("VocÃª nÃ£o possui entregas pendentes.");
   if(next.route_order==null){
-    alert("Organize a rota primeiro para definir a sequência.");
+    alert("Organize a rota primeiro para definir a sequÃªncia.");
     return;
   }
   const url=`https://www.google.com/maps/dir/?api=1&destination=${next.lat},${next.lng}&travelmode=driving`;
@@ -393,9 +400,9 @@ document.getElementById("nextDelivery").onclick=()=>{
 
 async function organizeMyRoute(){
   if(!sb)return alert("Inicie o rastreamento primeiro.");
-  if(!lastPosition)return alert("Aguarde o GPS localizar você.");
+  if(!lastPosition)return alert("Aguarde o GPS localizar vocÃª.");
   let pending=currentDeliveries.filter(d=>d.status==="pending"&&d.driver_id===driverId);
-  if(!pending.length)return alert("Você não possui entregas pendentes.");
+  if(!pending.length)return alert("VocÃª nÃ£o possui entregas pendentes.");
   let cur={lat:lastPosition.coords.latitude,lng:lastPosition.coords.longitude},ordered=[];
   while(pending.length){
     let best=0,bd=Infinity;
@@ -419,7 +426,7 @@ async function organizeMyRoute(){
   await loadDeliveries();
 }
 function openMyRoute(){
-  if(!lastPosition)return alert("Aguarde o GPS localizar você.");
+  if(!lastPosition)return alert("Aguarde o GPS localizar vocÃª.");
   const list=currentDeliveries
     .filter(d=>d.status==="pending"&&d.driver_id===driverId)
     .sort((a,b)=>(a.route_order||999)-(b.route_order||999));
@@ -430,13 +437,13 @@ function openMyRoute(){
   let u=`https://www.google.com/maps/dir/?api=1&origin=${lastPosition.coords.latitude},${lastPosition.coords.longitude}&destination=${dest.lat},${dest.lng}&travelmode=driving`;
   if(ways.length)u+=`&waypoints=${ways.map(x=>x.lat+","+x.lng).join("%7C")}`;
   window.open(u,"_blank");
-  if(list.length>10)alert(`A primeira rota abriu com 10 entregas. Restam ${list.length-10}. Após concluir algumas, organize/abra novamente.`);
+  if(list.length>10)alert(`A primeira rota abriu com 10 entregas. Restam ${list.length-10}. ApÃ³s concluir algumas, organize/abra novamente.`);
 }
 document.getElementById("organizeRoute").onclick=organizeMyRoute;
 document.getElementById("openRoute").onclick=openMyRoute;
 
 document.getElementById("centerMe").onclick=()=>{
-  if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");
+  if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localizaÃ§Ã£o.");
   map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
 };
 
@@ -457,7 +464,7 @@ const panelToggle=document.getElementById("panelToggle");
 if(panelEl&&panelToggle){
   panelToggle.onclick=()=>{
     const collapsed=panelEl.classList.toggle("panel-collapsed");
-    panelToggle.textContent=collapsed?"⬆️":"⬇️";
+    panelToggle.textContent=collapsed?"â¬†ï¸":"â¬‡ï¸";
     panelToggle.setAttribute("aria-label",collapsed?"Maximizar painel":"Minimizar painel");
     panelToggle.title=collapsed?"Maximizar painel":"Minimizar painel";
     setTimeout(()=>map.invalidateSize(),100);
@@ -467,7 +474,7 @@ if(panelEl&&panelToggle){
 
 document.getElementById("refreshMotoboy").onclick=async()=>{
   const btn=document.getElementById("refreshMotoboy");
-  const old=btn.textContent; btn.disabled=true; btn.textContent="⏳";
+  const old=btn.textContent; btn.disabled=true; btn.textContent="â³";
   try{
     if(!sb)sb=getSupabaseClient();
     if(sb){
@@ -482,8 +489,8 @@ document.getElementById("refreshMotoboy").onclick=async()=>{
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
   await loadDriverInfo();
-  if(!navigator.geolocation)return alert("GPS não suportado.");
-  navigator.geolocation.getCurrentPosition(upsertDriver,()=>alert("Permita acesso à localização."),{enableHighAccuracy:true,timeout:20000});
+  if(!navigator.geolocation)return alert("GPS nÃ£o suportado.");
+  navigator.geolocation.getCurrentPosition(upsertDriver,()=>alert("Permita acesso Ã  localizaÃ§Ã£o."),{enableHighAccuracy:true,timeout:20000});
   if(watch===null)watch=navigator.geolocation.watchPosition(upsertDriver,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
   loadDeliveries();
   sb.channel("motoboy-deliveries-"+driverId).on("postgres_changes",{event:"*",schema:"public",table:"deliveries",filter:"driver_id=eq."+driverId},()=>loadDeliveries()).subscribe();
@@ -491,7 +498,7 @@ document.getElementById("start").onclick=async()=>{
 document.getElementById("stop").onclick=async()=>{
   if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
   if(sb)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
-  document.getElementById("state").textContent="🔴 offline";
+  document.getElementById("state").textContent="ðŸ”´ offline";
 };
 window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId); });
 </script></body></html>
