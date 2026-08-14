@@ -30,7 +30,7 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-let deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+let currentDeliveries=[],deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
@@ -55,6 +55,7 @@ async function loadDeliveries(){
   renderDeliveries(data||[]);
 }
 function renderDeliveries(data){
+  currentDeliveries=data||[];
   Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
   const pending=[...data].filter(d=>d.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
   pending.forEach((d,i)=>{
@@ -69,10 +70,24 @@ function renderDeliveries(data){
     <div class="small">${d.lat}, ${d.lng}</div>
     <div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
+      <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
       <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">🧭 Navegar</button>
       ${d.status==="pending"?`<button class="green" onclick="setStatus('${d.id}','done')">✅ Entregue</button><button class="red" onclick="setStatus('${d.id}','failed')">❌ Não entregue</button>`:""}
     </div></div>`).join(""):"<div class='small'>Nenhuma entrega atribuída.</div>";
 }
+
+function trackingUrl(d){
+  return `${location.origin}${location.pathname.replace(/motoboy\.html$/,"")}acompanhar.html?t=${encodeURIComponent(d.tracking_token||"")}`;
+}
+window.sendTracking=id=>{
+  const d=currentDeliveries.find(x=>x.id===id);
+  if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
+  const n=normalizePhone(d.client_phone);
+  if(n.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
+  const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
+  window.open(`https://wa.me/${n}?text=${encodeURIComponent(msg)}`,"_blank");
+};
+
 async function setStatus(id,status){
   let note="";
   if(status==="failed")note=prompt("Motivo da não entrega (opcional):")||"";
