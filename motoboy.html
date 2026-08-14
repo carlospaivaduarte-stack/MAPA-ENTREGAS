@@ -93,7 +93,7 @@ function initGoogleMap(){
   });
   window.dispatchEvent(new Event("google-map-ready"));
 }
-let currentDriver=null,currentDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
 localStorage.setItem("v7_driver_id",driverId);
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
@@ -140,12 +140,36 @@ async function renumberActiveRoute(driverId){
 
 async function loadDeliveries(){
   if(!sb)return;
-  const {data:assigned,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).is("deleted_at",null).order("created_at",{ascending:true});
-  if(error){console.error(error);return}
-  const {data:waiting,error:waitingError}=await sb.from("deliveries").select("*").eq("status","awaiting_collection").is("driver_id",null).is("deleted_at",null).order("created_at",{ascending:true});
-  if(waitingError){console.error(waitingError);return}
-  waitingDeliveries=waiting||[]; renderCollection(waitingDeliveries);
-  renderDeliveries((assigned||[]).filter(d=>d.status!=="awaiting_collection"));
+
+  const {data:assigned,error}=await sb.from("deliveries")
+    .select("*")
+    .eq("driver_id",driverId)
+    .is("deleted_at",null)
+    .order("created_at",{ascending:true});
+  if(error){
+    console.error("Erro ao carregar entregas do motoboy:",error);
+    return;
+  }
+
+  const {data:waiting,error:waitingError}=await sb.from("deliveries")
+    .select("*")
+    .eq("status","awaiting_collection")
+    .is("driver_id",null)
+    .is("deleted_at",null)
+    .order("created_at",{ascending:true});
+  if(waitingError){
+    console.error("Erro ao carregar coletas:",waitingError);
+    return;
+  }
+
+  waitingDeliveries=waiting||[];
+  const mine=assigned||[];
+  finishedDeliveries=mine
+    .filter(d=>d.status==="done"||d.status==="failed")
+    .sort((a,b)=>new Date(b.completed_at||b.updated_at||b.created_at)-new Date(a.completed_at||a.updated_at||a.created_at));
+
+  renderCollection(waitingDeliveries);
+  renderDeliveries(mine.filter(d=>d.status!=="awaiting_collection"));
 }
 
 function renderCollection(data){
@@ -198,6 +222,8 @@ function renderDeliveries(data){
   document.getElementById("mPending").textContent=currentDeliveries.filter(x=>x.status==="pending").length;
   document.getElementById("mDone").textContent=currentDeliveries.filter(x=>x.status==="done").length;
   document.getElementById("mFailed").textContent=currentDeliveries.filter(x=>x.status==="failed").length;
+  const finishedTab=document.getElementById("tabMotoboyFinished");
+  if(finishedTab)finishedTab.textContent=`✅ FINALIZADAS (${finishedDeliveries.length})`;
 
   Object.values(deliveryMarkers).forEach(mm=>mm.setMap(null));deliveryMarkers={};
 
@@ -218,7 +244,7 @@ function renderDeliveries(data){
 
   const rows=currentMotoboyTab==="active"
     ? pending
-    : currentDeliveries.filter(d=>d.status==="done"||d.status==="failed");
+    : finishedDeliveries;
 
   const box=document.getElementById("deliveries");
   box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
@@ -372,15 +398,15 @@ async function setStatus(id,status){
   }
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({status,note,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
-  if(status==="done"||status==="failed")await renumberActiveRoute((allDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
+  if(status==="done"||status==="failed")await renumberActiveRoute((currentDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
   if(error)return alert("Erro ao atualizar entrega: "+error.message);
+  await loadDeliveries();
   const {data:remaining}=await sb.from("deliveries").select("id").eq("driver_id",driverId).eq("status","pending").limit(1);
   if(!remaining||remaining.length===0){
     await sb.from("drivers").update({route_finished_at:nowIso}).eq("id",driverId);
     if(currentDriver)currentDriver.route_finished_at=nowIso;
     renderRouteTimes();
   }
-  loadDeliveries();
 }
 
 function ft(v){return v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--"}
@@ -489,8 +515,8 @@ function setMotoboyTab(tab){
   renderCollection(waitingDeliveries);
   renderDeliveries(currentDeliveries);
 }
-document.getElementById("tabMotoboyActive").onclick=()=>setMotoboyTab("active");
-document.getElementById("tabMotoboyFinished").onclick=()=>setMotoboyTab("finished");
+document.getElementById("tabMotoboyActive").onclick=async()=>{setMotoboyTab("active");await loadDeliveries();};
+document.getElementById("tabMotoboyFinished").onclick=async()=>{currentMotoboyTab="finished";await loadDeliveries();setMotoboyTab("finished");};
 
 const panelEl=document.querySelector(".panel");
 const panelToggle=document.getElementById("panelToggle");
