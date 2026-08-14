@@ -1,87 +1,101 @@
-<!doctype html><html lang="pt-BR"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RTS — Central</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6}.layout{display:grid;grid-template-columns:430px 1fr;height:100vh}
-.side{background:white;padding:14px;overflow:auto}.map{height:100vh}#map{height:100%;width:100%}
-input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
-.num-pin{width:30px;height:30px;border-radius:50%;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}.pin-pending{background:#facc15}.pin-done{background:#22c55e;color:white}.pin-failed{background:#ef4444;color:white}
-.driver,.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-.toolbar{display:grid;grid-template-columns:1.4fr 1fr;gap:5px;margin:7px 0}.toolbar3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin:7px 0}
-.day-panel{border:1px solid #e5e7eb;border-radius:13px;padding:10px;margin:10px 0;background:#fafafa}.day-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.day-box{background:white;border-radius:9px;padding:8px;font-size:11px;border:1px solid #eee}.day-box b{display:block;font-size:14px;margin-top:2px}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
+.layout{display:grid;grid-template-columns:430px 1fr;height:100vh}.side{background:#fff;padding:14px;overflow:auto}.map{height:100vh}#map{height:100%;width:100%}
+input,select,textarea{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px;margin:4px 0;font-family:inherit}
+button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:#fff}.green{background:#16a34a;color:#fff}.red{background:#dc2626;color:#fff}.gray{background:#e5e7eb;color:#111827}.wa{background:#25D366;color:#071b0d}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:5px}.toolbar{display:grid;grid-template-columns:1.4fr 1fr;gap:5px;margin:7px 0}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:9px 0}
+.metric{background:#f3f4f6;border-radius:10px;padding:8px;text-align:center;font-size:11px}.metric b{display:block;font-size:17px;margin-top:2px}
+.driver,.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666;line-height:1.45}.driver-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px}
+.day-panel{border:1px solid #e5e7eb;border-radius:13px;padding:10px;margin:10px 0;background:#fafafa}.day-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.day-box{background:#fff;border-radius:9px;padding:8px;font-size:11px;border:1px solid #eee}.day-box b{display:block;font-size:14px;margin-top:2px}
 .history{max-height:220px;overflow:auto;border:1px solid #eee;border-radius:10px;padding:7px}.history-item{font-size:12px;padding:7px 2px;border-bottom:1px solid #eee}.history-item:last-child{border-bottom:0}
-.driver-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px}.route-line-label{font-size:11px;color:#555;margin:5px 0}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:9px 0}.metric{background:#f3f4f6;border-radius:10px;padding:8px;text-align:center;font-size:11px}.metric b{display:block;font-size:17px;margin-top:2px}
-.update-card{border:2px solid #e5e7eb;border-radius:13px;padding:11px;margin:8px 0;background:#fafafa}.update-card .big{font-size:18px;font-weight:800}.stale{color:#dc2626}.fresh{color:#16a34a}
-.time-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:7px}.time-box{background:#f3f4f6;border-radius:9px;padding:7px;font-size:11px}.time-box b{display:block;margin-top:2px;font-size:13px}
-@media(max-width:520px){.metrics{grid-template-columns:1fr 1fr}.time-grid{grid-template-columns:1fr}}
-.modal{position:fixed;z-index:3000;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.modalbox{background:white;border-radius:16px;padding:16px;width:min(460px,100%)}.modalbox h3{margin-top:0}
+.num-pin{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}.pin-pending{background:#facc15;color:#111}.pin-done{background:#22c55e;color:#fff}.pin-failed{background:#ef4444;color:#fff}
+.modal{position:fixed;z-index:3000;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;padding:16px;width:min(460px,100%)}.modalbox h3{margin-top:0}
 @media(max-width:760px){.layout{grid-template-columns:1fr}.map{height:55vh}.side{height:45vh;order:2}.map{order:1}}
-</style></head><body>
-<div class="layout"><div class="side">
-<h2>💻 RTS — Central</h2>
-<div id="connection" class="small">Conectando...</div>
-<div class="metrics">
-  <div class="metric">📦 Total<b id="mTotal">0</b></div>
-  <div class="metric">🟡 Pendentes<b id="mPending">0</b></div>
-  <div class="metric">🟢 Entregues<b id="mDone">0</b></div>
-  <div class="metric">🔴 Não entregues<b id="mFailed">0</b></div>
-</div>
-<h3>🏍️ Motoboys</h3><div id="drivers"></div>
-<div id="driverStatusCard" class="update-card">
-  <div class="small">Selecione um motoboy para ver os horários da rota.</div>
-</div>
-<div class="day-panel">
-  <b>📊 Painel do dia</b>
-  <div class="day-grid" style="margin-top:7px">
-    <div class="day-box">✅ Conclusão<b id="dayPercent">0%</b></div>
-    <div class="day-box">🏍️ Primeira saída<b id="dayFirstStart">--</b></div>
-    <div class="day-box">📦 Última entrega<b id="dayLastDelivery">--</b></div>
-    <div class="day-box">⏱️ Tempo da operação<b id="dayDuration">--</b></div>
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="side">
+    <h2>💻 RTS — Central</h2>
+    <div id="connection" class="small">Conectando...</div>
+
+    <div class="metrics">
+      <div class="metric">📦 Total<b id="mTotal">0</b></div>
+      <div class="metric">🟡 Pendentes<b id="mPending">0</b></div>
+      <div class="metric">🟢 Entregues<b id="mDone">0</b></div>
+      <div class="metric">🔴 Não ent.<b id="mFailed">0</b></div>
+    </div>
+
+    <h3>🏍️ Motoqueiros</h3>
+    <div id="drivers"><div class="small">Carregando...</div></div>
+
+    <div class="day-panel">
+      <b>📊 Painel do dia</b>
+      <div class="day-grid" style="margin-top:7px">
+        <div class="day-box">✅ Conclusão<b id="dayPercent">0%</b></div>
+        <div class="day-box">🏍️ Primeira saída<b id="dayFirstStart">--</b></div>
+        <div class="day-box">📦 Última entrega<b id="dayLastDelivery">--</b></div>
+        <div class="day-box">⏱️ Operação<b id="dayDuration">--</b></div>
+      </div>
+    </div>
+
+    <h3>➕ Nova venda</h3>
+    <input id="client" placeholder="Nome do cliente">
+    <input id="phone" placeholder="Telefone / WhatsApp">
+    <textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
+    <div class="small" style="padding:8px;background:#f3f4f6;border-radius:10px;margin:5px 0">
+      ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>. O motoqueiro será vinculado automaticamente quando tocar em <b>COLETADA</b> no celular.
+    </div>
+    <button class="green" id="addDelivery" style="width:100%">➕ ADICIONAR VENDA</button>
+
+    <div class="row" style="align-items:center;margin-top:12px">
+      <h3 style="margin:0">📦 Entregas</h3>
+      <button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
+    </div>
+
+    <div class="toolbar">
+      <input id="deliverySearch" placeholder="🔎 Buscar cliente ou telefone">
+      <select id="statusFilter">
+        <option value="all">Todos os status</option>
+        <option value="awaiting_collection">⚪ Aguardando coleta</option>
+        <option value="pending">🟡 Pendentes</option>
+        <option value="done">🟢 Entregues</option>
+        <option value="failed">🔴 Não entregues</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <button class="gray" id="exportReport">📄 EXPORTAR</button>
+      <button class="gray" id="fitMap">🗺️ VER TUDO</button>
+    </div>
+
+    <div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">⚪ Aguardando coleta: 0</div>
+    <div id="filteredInfo" class="small"></div>
+    <div id="deliveries"></div>
+
+    <h3>🕐 Histórico do dia</h3>
+    <div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
   </div>
-</div>
-<h3>➕ Nova entrega</h3>
-<input id="client" placeholder="Nome do cliente"><input id="phone" placeholder="Telefone / WhatsApp">
-<textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
 
-<button class="green" id="addDelivery" style="width:100%;margin-top:5px">Adicionar entrega</button>
+  <div class="map"><div id="map"></div></div>
+</div>
 
-<div class="row" style="align-items:center;margin-top:12px">
-<h3 style="margin:0">📦 Entregas</h3>
-<button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
-</div>
-<div class="toolbar">
-  <input id="deliverySearch" placeholder="🔎 Buscar cliente ou telefone">
-  <select id="statusFilter">
-    <option value="all">Todos os status</option>
-    <option value="awaiting_collection">⚪ Aguardando coleta</option>
-    <option value="pending">🟡 Pendentes</option>
-    <option value="done">🟢 Entregues</option>
-    <option value="failed">🔴 Não entregues</option>
-  </select>
-</div>
-<div class="toolbar3">
-  <button class="blue" id="centerSelectedDriver">📍 MOTOBOY</button>
-  <button class="gray" id="viewDriverRoute">🛣️ VISUALIZAR ROTA</button>
-  <button class="gray" id="exportReport">📄 EXPORTAR</button>
-</div>
-<div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">⚪ Aguardando coleta: 0</div>
-<div id="filteredInfo" class="small"></div>
-<div id="deliveries"></div>
-<h3>🕐 Histórico do dia</h3>
-<div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
-</div><div class="map"><div id="map"></div></div></div>
 <div class="modal" id="editModal">
   <div class="modalbox">
     <h3>✏️ Editar entrega</h3>
     <input id="editClient" placeholder="Nome do cliente">
     <input id="editPhone" placeholder="Telefone / WhatsApp">
     <textarea id="editLocation" placeholder="Link do Google Maps ou coordenadas"></textarea>
-    <select id="editDriver"></select>
     <textarea id="editNote" placeholder="Observação"></textarea>
     <div class="row" style="margin-top:8px">
-      <button class="green" id="saveEdit">💾 Salvar alterações</button>
+      <button class="green" id="saveEdit">💾 Salvar</button>
       <button class="gray" id="cancelEdit">❌ Cancelar</button>
     </div>
   </div>
@@ -89,268 +103,157 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script><script src="shared.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
 <script>
 const map=L.map("map").setView([-9.6658,-35.7353],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-const sb=getSupabaseClient(); let driverMarkers={},deliveryMarkers={},driverRouteLine=null,allDrivers=[];
-function fmtTime(v){return v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--"}
-function fmtDateTime(v){return v?new Date(v).toLocaleString("pt-BR"):"--"}
-function sameLocalDay(v){
-  if(!v)return false;
-  const d=new Date(v),n=new Date();
-  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
-}
-function minutesBetween(a,b){
-  if(!a||!b)return null;
-  return Math.max(0,Math.round((new Date(b)-new Date(a))/60000));
-}
-function formatMinutes(m){
-  if(m==null)return "--";
-  const h=Math.floor(m/60),min=m%60;
-  return h?`${h}h ${min}min`:`${min} min`;
-}
-function selectedDriverId(){return ""}
 
-function driverFresh(d){
-  return !!(d.last_seen && Date.now()-new Date(d.last_seen).getTime()<180000);
-}
-function renderDriverStatus(){
-  const box=document.getElementById("driverStatusCard");
-  if(box)box.innerHTML='<div class="small">Clique em CENTRALIZAR em um motoqueiro para acompanhar sua localização.</div>';
-}
+const sb=getSupabaseClient();
+let allDrivers=[],allDeliveries=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null;
 
-function renderDayPanel(){
-  const todayDeliveries=allDeliveries.filter(d=>d.status!=="awaiting_collection"&&(sameLocalDay(d.created_at)||sameLocalDay(d.completed_at)));
-  const completed=todayDeliveries.filter(d=>d.status!=="pending");
-  const percent=todayDeliveries.length?Math.round(completed.length/todayDeliveries.length*100):0;
-  document.getElementById("dayPercent").textContent=percent+"%";
+const fmtTime=v=>v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--";
+const fmtDateTime=v=>v?new Date(v).toLocaleString("pt-BR"):"--";
+function sameDay(v){if(!v)return false;const d=new Date(v),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate()}
+function mins(a,b){return a&&b?Math.max(0,Math.round((new Date(b)-new Date(a))/60000)):null}
+function fmtMins(m){if(m==null)return"--";const h=Math.floor(m/60),x=m%60;return h?`${h}h ${x}min`:`${x} min`}
+function fresh(d){return !!(d.last_seen&&Date.now()-new Date(d.last_seen).getTime()<180000)}
 
-  const starts=allDrivers.map(d=>d.tracking_started_at).filter(sameLocalDay).sort((a,b)=>new Date(a)-new Date(b));
-  document.getElementById("dayFirstStart").textContent=starts.length?fmtTime(starts[0]):"--";
-
-  const finishes=completed.map(d=>d.completed_at||d.updated_at).filter(sameLocalDay).sort((a,b)=>new Date(a)-new Date(b));
-  document.getElementById("dayLastDelivery").textContent=finishes.length?fmtTime(finishes[finishes.length-1]):"--";
-
-  const begin=starts[0],end=finishes[finishes.length-1];
-  document.getElementById("dayDuration").textContent=formatMinutes(minutesBetween(begin,end));
-}
-function renderHistory(){
-  const events=[];
-  allDrivers.forEach(d=>{
-    if(sameLocalDay(d.tracking_started_at))events.push({t:d.tracking_started_at,text:`🏍️ ${d.name} iniciou o GPS/saída`});
-    if(sameLocalDay(d.route_started_at))events.push({t:d.route_started_at,text:`▶️ ${d.name} iniciou a rota`});
-    if(sameLocalDay(d.route_finished_at))events.push({t:d.route_finished_at,text:`🏁 ${d.name} concluiu a rota`});
-  });
-  allDeliveries.forEach(d=>{
-    const t=d.completed_at||((d.status!=="pending")?d.updated_at:null);
-    if(t&&sameLocalDay(t))events.push({t,text:`${d.status==="done"?"✅":"❌"} ${d.client_name} — ${d.status==="done"?"entregue":"não entregue"}${d.note?" — "+d.note:""}`});
-  });
-  events.sort((a,b)=>new Date(b.t)-new Date(a.t));
-  document.getElementById("history").innerHTML=events.length?events.map(e=>`<div class="history-item"><b>${fmtTime(e.t)}</b> · ${esc(e.text)}</div>`).join(""):'<div class="small">Nenhum evento hoje.</div>';
-}
-
-async function loadDrivers(){
-  if(!sb)return;
-  const {data,error}=await sb.from("drivers").select("*").order("name");
-  if(error){console.error(error);return}
-  allDrivers=data||[];
-  document.getElementById("drivers").innerHTML=allDrivers.map(d=>{
-    const fresh=driverFresh(d),online=d.is_online&&fresh;
-    return `<div class="driver"><b>${online?"🟢":"🔴"} ${esc(d.name)}</b>
-      <div class="small">${esc(d.phone||"")}<br>
-      <b>Localização Atualizada ${fmtTime(d.last_seen)}</b></div>
-      <div class="driver-actions">
-        <button class="blue" onclick="selectAndCenterDriver('${d.id}')">📍 CENTRALIZAR</button>
-        <button class="red" onclick="deleteDriver('${d.id}')">🗑️ EXCLUIR</button>
-      </div></div>`;
-  }).join("")||"<div class='small'>Nenhum motoboy conectado.</div>";
-  renderDriverStatus(); renderDayPanel(); renderHistory();
-  allDrivers.forEach(d=>{
-    if(d.lat==null||d.lng==null)return;
-    const ll=[d.lat,d.lng];
-    const label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online&&driverFresh(d)?"Online":"Offline"}<br>Localização Atualizada ${fmtTime(d.last_seen)}`;
-    if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
-  });
-}
-let allDeliveries=[];
+function statusIcon(d){return d.status==="done"?"🟢":d.status==="failed"?"🔴":d.status==="awaiting_collection"?"⚪":"🟡"}
+function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
 function pinIcon(d,index){
   const cls=d.status==="done"?"pin-done":d.status==="failed"?"pin-failed":"pin-pending";
   const n=d.route_order||index+1;
   return L.divIcon({className:"",html:`<div class="num-pin ${cls}">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
 }
+
+async function loadDrivers(){
+  if(!sb)return;
+  const {data,error}=await sb.from("drivers").select("*").order("name");
+  if(error){console.error(error);document.getElementById("drivers").innerHTML='<div class="small">Erro ao carregar motoqueiros.</div>';return}
+  allDrivers=data||[];
+
+  document.getElementById("drivers").innerHTML=allDrivers.length?allDrivers.map(d=>`
+    <div class="driver">
+      <b>${d.is_online&&fresh(d)?"🟢":"🔴"} ${esc(d.name)}</b>
+      <div class="small">${esc(d.phone||"")}<br><b>Localização Atualizada ${fmtTime(d.last_seen)}</b></div>
+      <div class="driver-actions">
+        <button class="blue" onclick="centerDriver('${d.id}')">📍 CENTRALIZAR</button>
+        <button class="red" onclick="deleteDriver('${d.id}')">🗑️ EXCLUIR</button>
+      </div>
+    </div>`).join(""):'<div class="small">Nenhum motoqueiro cadastrado.</div>';
+
+  allDrivers.forEach(d=>{
+    if(d.lat==null||d.lng==null)return;
+    const ll=[d.lat,d.lng],label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online&&fresh(d)?"Online":"Offline"}<br>Localização Atualizada ${fmtTime(d.last_seen)}`;
+    if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);
+    else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
+  });
+
+  // remove markers of deleted drivers
+  Object.keys(driverMarkers).forEach(id=>{
+    if(!allDrivers.some(d=>d.id===id)){map.removeLayer(driverMarkers[id]);delete driverMarkers[id]}
+  });
+
+  renderDayPanel();renderHistory();
+}
+
 function filteredDeliveries(){
-  const q=(document.getElementById("deliverySearch")?.value||"").trim().toLowerCase();
-  const status=document.getElementById("statusFilter")?.value||"all";
-  const driver=selectedDriverId();
+  const q=document.getElementById("deliverySearch").value.trim().toLowerCase();
+  const st=document.getElementById("statusFilter").value;
   return allDeliveries.filter(d=>{
-    const matchQ=!q||String(d.client_name||"").toLowerCase().includes(q)||String(d.client_phone||"").toLowerCase().includes(q);
-    const matchS=status==="all"||d.status===status;
-    const matchD=!driver||d.driver_id===driver;
-    return matchQ&&matchS&&matchD;
+    const mq=!q||String(d.client_name||"").toLowerCase().includes(q)||String(d.client_phone||"").toLowerCase().includes(q);
+    const ms=st==="all"||d.status===st;
+    return mq&&ms;
   });
 }
-function renderDeliveryList(){
+
+function renderDeliveries(){
   const rows=filteredDeliveries();
   document.getElementById("filteredInfo").textContent=`Mostrando ${rows.length} de ${allDeliveries.length} entrega(s).`;
-  document.getElementById("deliveries").innerHTML=rows.map((d,i)=>`<div class="delivery">
-  <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":d.status==="awaiting_collection"?"⚪":"🟡"} ${d.route_order?d.route_order+". ":""}${esc(d.client_name)}</b>
-  <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-    ${d.status!=="pending"?`<br><b>🕐 Conclusão: ${fmtDateTime(d.completed_at||d.updated_at)}</b>`:""}
-    ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
-  <div class="row" style="margin-top:6px">
-    <button class="wa" onclick="sendTracking('${d.id}')">💬 ENVIAR RASTREAMENTO</button>
-    <button class="gray" onclick="copyTracking('${d.id}')">🔗 LINK DO CLIENTE</button>
-    <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
-  </div>
-</div>`).join("")||"<div class='small'>Nenhuma entrega com esses filtros.</div>";
+  document.getElementById("deliveries").innerHTML=rows.length?rows.map(d=>`
+    <div class="delivery">
+      <b>${statusIcon(d)} ${d.route_order?d.route_order+". ":""}${esc(d.client_name)}</b>
+      <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
+      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><b>🕐 Conclusão: ${fmtDateTime(d.completed_at||d.updated_at)}</b>`:""}
+      ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
+      <div class="row" style="margin-top:6px">
+        ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">💬 RASTREAMENTO</button>`:"<button class='gray' disabled>⚪ Aguardando coleta</button>"}
+        <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
+      </div>
+    </div>`).join(""):'<div class="small">Nenhuma entrega com esses filtros.</div>';
 
-  Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
+  Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m));deliveryMarkers={};
   rows.filter(d=>d.status!=="awaiting_collection").forEach((d,i)=>{
-    const ll=[d.lat,d.lng],label=`<b>${d.route_order||i+1}. ${esc(d.client_name)}</b><br>${d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}`;
-    deliveryMarkers[d.id]=L.marker(ll,{icon:pinIcon(d,i)}).addTo(map).bindPopup(label);
+    deliveryMarkers[d.id]=L.marker([d.lat,d.lng],{icon:pinIcon(d,i)}).addTo(map)
+      .bindPopup(`<b>${d.route_order||i+1}. ${esc(d.client_name)}</b><br>${statusText(d)}`);
   });
 }
+
 async function loadDeliveries(){
+  if(!sb)return;
   const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:true});
-  if(error){console.error(error);return}
+  if(error){console.error(error);alert("Erro ao carregar entregas: "+error.message);return}
   allDeliveries=data||[];
   document.getElementById("mTotal").textContent=allDeliveries.length;
   document.getElementById("mPending").textContent=allDeliveries.filter(x=>x.status==="pending").length;
   document.getElementById("mDone").textContent=allDeliveries.filter(x=>x.status==="done").length;
   document.getElementById("mFailed").textContent=allDeliveries.filter(x=>x.status==="failed").length;
-  const aw=document.getElementById("awaitingCount"); if(aw)aw.textContent="⚪ Aguardando coleta: "+allDeliveries.filter(x=>x.status==="awaiting_collection").length;
-  renderDeliveryList(); renderDayPanel(); renderHistory();
-}
-function km(a,b){
-  const R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;
-  const x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;
-  return 2*R*Math.asin(Math.sqrt(x));
+  document.getElementById("awaitingCount").textContent="⚪ Aguardando coleta: "+allDeliveries.filter(x=>x.status==="awaiting_collection").length;
+  renderDeliveries();renderDayPanel();renderHistory();
 }
 
-window.selectAndCenterDriver=id=>{
+function renderDayPanel(){
+  const today=allDeliveries.filter(d=>d.status!=="awaiting_collection"&&(sameDay(d.created_at)||sameDay(d.completed_at)));
+  const completed=today.filter(d=>d.status!=="pending");
+  document.getElementById("dayPercent").textContent=(today.length?Math.round(completed.length/today.length*100):0)+"%";
+  const starts=allDrivers.map(d=>d.tracking_started_at).filter(sameDay).sort((a,b)=>new Date(a)-new Date(b));
+  document.getElementById("dayFirstStart").textContent=starts.length?fmtTime(starts[0]):"--";
+  const ends=completed.map(d=>d.completed_at||d.updated_at).filter(sameDay).sort((a,b)=>new Date(a)-new Date(b));
+  document.getElementById("dayLastDelivery").textContent=ends.length?fmtTime(ends[ends.length-1]):"--";
+  document.getElementById("dayDuration").textContent=fmtMins(mins(starts[0],ends[ends.length-1]));
+}
+
+function renderHistory(){
+  const events=[];
+  allDrivers.forEach(d=>{
+    if(sameDay(d.tracking_started_at))events.push({t:d.tracking_started_at,text:`🏍️ ${d.name} iniciou GPS/saída`});
+    if(sameDay(d.route_started_at))events.push({t:d.route_started_at,text:`▶️ ${d.name} iniciou a rota`});
+    if(sameDay(d.route_finished_at))events.push({t:d.route_finished_at,text:`🏁 ${d.name} concluiu a rota`});
+  });
+  allDeliveries.forEach(d=>{
+    const t=d.completed_at||(d.status==="done"||d.status==="failed"?d.updated_at:null);
+    if(t&&sameDay(t))events.push({t,text:`${d.status==="done"?"✅":"❌"} ${d.client_name} — ${statusText(d)}${d.note?" — "+d.note:""}`});
+  });
+  events.sort((a,b)=>new Date(b.t)-new Date(a.t));
+  document.getElementById("history").innerHTML=events.length?events.map(e=>`<div class="history-item"><b>${fmtTime(e.t)}</b> · ${esc(e.text)}</div>`).join(""):'<div class="small">Nenhum evento hoje.</div>';
+}
+
+window.centerDriver=id=>{
   const d=allDrivers.find(x=>x.id===id);
-  if(d&&d.lat!=null)map.setView([d.lat,d.lng],17);
+  if(!d||d.lat==null)return alert("Esse motoqueiro ainda não enviou localização.");
+  map.setView([d.lat,d.lng],17);
+  driverMarkers[id]?.openPopup();
 };
-document.getElementById("centerSelectedDriver").onclick=()=>alert("Use o botão CENTRALIZAR na ficha do motoqueiro.");
-document.getElementById("viewDriverRoute").onclick=()=>alert("Abra a rota pelo motoqueiro após ele coletar as entregas.");
+
 window.deleteDriver=async id=>{
-  const d=allDrivers.find(x=>x.id===id); if(!d)return;
+  const d=allDrivers.find(x=>x.id===id);if(!d)return;
   const pending=allDeliveries.filter(x=>x.driver_id===id&&x.status==="pending").length;
-  if(pending>0)return alert(`Não é possível excluir ${d.name}. Existem ${pending} entrega(s) pendente(s) vinculada(s) a ele.`);
+  if(pending)return alert(`Não é possível excluir ${d.name}. Existem ${pending} entrega(s) pendente(s).`);
   if(!confirm(`Excluir o motoqueiro ${d.name}?`))return;
   const {error}=await sb.from("drivers").delete().eq("id",id);
-  if(error)return alert("Erro ao excluir motoqueiro: "+error.message);
-  if(driverMarkers[id]){map.removeLayer(driverMarkers[id]);delete driverMarkers[id]}
-  if(selectedDriverId()===id)document.getElementById("driverSelect").value="";
-  await loadDrivers(); await loadDeliveries();
+  if(error)return alert("Erro ao excluir: "+error.message);
+  await loadDrivers();await loadDeliveries();
 };
-document.getElementById("exportReport").onclick=()=>{
-  const driverMap=Object.fromEntries(allDrivers.map(d=>[d.id,d.name]));
-  const rows=[["Cliente","Telefone","Motoboy","Status","Conclusao","Motivo","Latitude","Longitude"]];
-  filteredDeliveries().forEach(d=>rows.push([
-    d.client_name||"",d.client_phone||"",driverMap[d.driver_id]||"Motoboy removido",
-    d.status==="done"?"ENTREGUE":d.status==="failed"?"NAO ENTREGUE":"PENDENTE",
-    d.completed_at||d.updated_at||"",d.note||"",d.lat,d.lng
-  ]));
-  const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");
-  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RTS_RELATORIO_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
-};
-
-async function organizeRoute(){
-  const driverId=document.getElementById("driverSelect").value;
-  if(!driverId)return alert("Selecione o motoboy.");
-  const {data:drivers}=await sb.from("drivers").select("*").eq("id",driverId).limit(1);
-  if(!drivers||!drivers.length||drivers[0].lat==null)return alert("Esse motoboy ainda não enviou a localização.");
-  let pending=allDeliveries.filter(d=>d.driver_id===driverId&&d.status==="pending");
-  if(!pending.length)return alert("Esse motoboy não possui entregas pendentes.");
-  let cur={lat:drivers[0].lat,lng:drivers[0].lng},ordered=[];
-  while(pending.length){
-    let best=0,bd=Infinity;
-    pending.forEach((d,i)=>{const z=km(cur,d);if(z<bd){bd=z;best=i}});
-    const n=pending.splice(best,1)[0]; ordered.push(n); cur=n;
-  }
-  for(let i=0;i<ordered.length;i++){
-    const {error}=await sb.from("deliveries").update({route_order:i+1,updated_at:new Date().toISOString()}).eq("id",ordered[i].id);
-    if(error){alert("Execute o arquivo V7_2_ATUALIZAR_BANCO.sql no Supabase antes de organizar a rota.");return}
-  }
-  document.getElementById("routeInfo").textContent=`Rota organizada: ${ordered.length} entrega(s) pendente(s).`;
-  await loadDeliveries();
-}
-function openRoute(){
-  const driverId=document.getElementById("driverSelect").value;
-  let list=allDeliveries.filter(d=>d.driver_id===driverId&&d.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
-  if(!list.length)return alert("Organize uma rota com entregas pendentes primeiro.");
-  // URL gratuita: destino + até 9 intermediários por bloco; blocos maiores são divididos.
-  const chunk=list.slice(0,10),dest=chunk[chunk.length-1],ways=chunk.slice(0,-1);
-  let u=`https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}&travelmode=driving`;
-  if(ways.length)u+=`&waypoints=${ways.map(x=>x.lat+","+x.lng).join("%7C")}`;
-  window.open(u,"_blank");
-  if(list.length>10) alert(`A primeira rota abriu com 10 entregas. Restam ${list.length-10}; marque as realizadas e abra a próxima rota.`);
-}
 
 function trackingUrl(d){
   return `${location.origin}${location.pathname.replace(/central\.html$/,"")}acompanhar.html?t=${encodeURIComponent(d.tracking_token||"")}`;
 }
-window.copyTracking=async id=>{
-  const d=allDeliveries.find(x=>x.id===id);
-  if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento. Execute a atualização V7.3 no Supabase.");
-  const url=trackingUrl(d);
-  try{await navigator.clipboard.writeText(url);alert("Link copiado.");}
-  catch(e){prompt("Copie o link:",url);}
-};
 window.sendTracking=id=>{
-  const d=allDeliveries.find(x=>x.id===id);
-  if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
-  const phone=normalizePhone(d.client_phone);
-  if(phone.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
+  const d=allDeliveries.find(x=>x.id===id);if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
+  const phone=normalizePhone(d.client_phone);if(phone.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
   const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
-};
-
-renderDeliveryList()});
-document.getElementById("deliverySearch").addEventListener("input",renderDeliveryList);
-document.getElementById("statusFilter").addEventListener("change",renderDeliveryList);
-
-
-let editingDeliveryId=null;
-window.editDelivery=id=>{
-  const d=allDeliveries.find(x=>x.id===id);
-  if(!d)return;
-  editingDeliveryId=id;
-  document.getElementById("editClient").value=d.client_name||"";
-  document.getElementById("editPhone").value=d.client_phone||"";
-  document.getElementById("editLocation").value=`${d.lat},${d.lng}`;
-  document.getElementById("editNote").value=d.note||"";
-  const sel=document.getElementById("editDriver");
-  sel.value=d.driver_id||"";
-  document.getElementById("editModal").classList.add("open");
-};
-document.getElementById("cancelEdit").onclick=()=>{
-  editingDeliveryId=null;
-  document.getElementById("editModal").classList.remove("open");
-};
-document.getElementById("saveEdit").onclick=async()=>{
-  const d=allDeliveries.find(x=>x.id===editingDeliveryId);
-  if(!d)return;
-  const p=extractCoords(document.getElementById("editLocation").value.trim());
-  if(!p)return alert("Localização inválida. Cole coordenadas ou link completo do Google Maps.");
-  const driverId=document.getElementById("editDriver").value;
-  if(d.status!=="awaiting_collection"&&!driverId)return alert("Selecione o motoboy.");
-  const patch={
-    client_name:document.getElementById("editClient").value.trim()||"Cliente",
-    client_phone:document.getElementById("editPhone").value.trim(),
-    lat:p.lat,lng:p.lng,
-    driver_id:driverId||null,
-    note:document.getElementById("editNote").value.trim(),
-    updated_at:new Date().toISOString()
-  };
-  const {error}=await sb.from("deliveries").update(patch).eq("id",d.id);
-  if(error)return alert("Erro ao editar: "+error.message);
-  document.getElementById("editModal").classList.remove("open");
-  editingDeliveryId=null;
-  await loadDeliveries();
 };
 
 document.getElementById("addDelivery").onclick=async()=>{
@@ -360,8 +263,7 @@ document.getElementById("addDelivery").onclick=async()=>{
     driver_id:null,
     client_name:document.getElementById("client").value.trim()||"Cliente",
     client_phone:document.getElementById("phone").value.trim(),
-    lat:p.lat,
-    lng:p.lng,
+    lat:p.lat,lng:p.lng,
     status:"awaiting_collection",
     route_order:null
   };
@@ -372,21 +274,69 @@ document.getElementById("addDelivery").onclick=async()=>{
   document.getElementById("location").value="";
   await loadDeliveries();
 };
+
+window.editDelivery=id=>{
+  const d=allDeliveries.find(x=>x.id===id);if(!d)return;
+  editingDeliveryId=id;
+  document.getElementById("editClient").value=d.client_name||"";
+  document.getElementById("editPhone").value=d.client_phone||"";
+  document.getElementById("editLocation").value=`${d.lat},${d.lng}`;
+  document.getElementById("editNote").value=d.note||"";
+  document.getElementById("editModal").classList.add("open");
+};
+document.getElementById("cancelEdit").onclick=()=>{editingDeliveryId=null;document.getElementById("editModal").classList.remove("open")};
+document.getElementById("saveEdit").onclick=async()=>{
+  const d=allDeliveries.find(x=>x.id===editingDeliveryId);if(!d)return;
+  const p=extractCoords(document.getElementById("editLocation").value.trim());
+  if(!p)return alert("Localização inválida.");
+  const patch={
+    client_name:document.getElementById("editClient").value.trim()||"Cliente",
+    client_phone:document.getElementById("editPhone").value.trim(),
+    lat:p.lat,lng:p.lng,
+    note:document.getElementById("editNote").value.trim(),
+    updated_at:new Date().toISOString()
+  };
+  const {error}=await sb.from("deliveries").update(patch).eq("id",d.id);
+  if(error)return alert("Erro ao editar: "+error.message);
+  document.getElementById("editModal").classList.remove("open");editingDeliveryId=null;await loadDeliveries();
+};
+
 document.getElementById("clearDeliveries").onclick=async()=>{
-  if(!confirm("Apagar TODAS as entregas da Central e dos celulares dos motoboys?"))return;
-  const typed=prompt("Digite LIMPAR para confirmar:");
-  if(typed!=="LIMPAR")return alert("Limpeza cancelada.");
+  if(!confirm("Apagar TODAS as entregas da Central e dos celulares?"))return;
+  if(prompt("Digite LIMPAR para confirmar:")!=="LIMPAR")return;
   const {error}=await sb.from("deliveries").delete().neq("id","00000000-0000-0000-0000-000000000000");
   if(error)return alert("Erro: "+error.message);
   await sb.from("drivers").update({route_started_at:null,route_finished_at:null});
-  await loadDeliveries(); await loadDrivers();
-  alert("Entregas apagadas. Os celulares conectados serão atualizados automaticamente.");
+  await loadDeliveries();await loadDrivers();
 };
+
+document.getElementById("deliverySearch").addEventListener("input",renderDeliveries);
+document.getElementById("statusFilter").addEventListener("change",renderDeliveries);
+
+document.getElementById("fitMap").onclick=()=>{
+  const pts=[];
+  allDrivers.forEach(d=>{if(d.lat!=null)pts.push([d.lat,d.lng])});
+  allDeliveries.filter(d=>d.status!=="awaiting_collection").forEach(d=>pts.push([d.lat,d.lng]));
+  if(!pts.length)return alert("Não há pontos no mapa.");
+  map.fitBounds(L.latLngBounds(pts),{padding:[35,35]});
+};
+
+document.getElementById("exportReport").onclick=()=>{
+  const driverMap=Object.fromEntries(allDrivers.map(d=>[d.id,d.name]));
+  const rows=[["Cliente","Telefone","Motoqueiro","Status","Conclusao","Motivo","Latitude","Longitude"]];
+  filteredDeliveries().forEach(d=>rows.push([d.client_name||"",d.client_phone||"",driverMap[d.driver_id]||"",statusText(d),d.completed_at||d.updated_at||"",d.note||"",d.lat,d.lng]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RTS_RELATORIO_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
+};
+
 if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";
   loadDrivers();loadDeliveries();
-  sb.channel("central-drivers").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
-  sb.channel("central-deliveries").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>loadDeliveries()).subscribe();
+  sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
+  sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>loadDeliveries()).subscribe();
   setInterval(loadDrivers,10000);
 }
-</script></body></html>
+</script>
+</body>
+</html>
