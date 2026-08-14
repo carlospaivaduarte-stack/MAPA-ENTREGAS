@@ -44,7 +44,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 <h3>➕ Nova entrega</h3>
 <input id="client" placeholder="Nome do cliente"><input id="phone" placeholder="Telefone / WhatsApp">
 <textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
-<select id="driverSelect"><option value="">Selecione o motoboy</option></select>
+
 <button class="green" id="addDelivery" style="width:100%;margin-top:5px">Adicionar entrega</button>
 <h3>🛣️ Organização da rota</h3>
 <div class="row">
@@ -115,25 +115,14 @@ function formatMinutes(m){
   const h=Math.floor(m/60),min=m%60;
   return h?`${h}h ${min}min`:`${min} min`;
 }
-function selectedDriverId(){return document.getElementById("driverSelect")?.value||""}
+function selectedDriverId(){return ""}
 
 function driverFresh(d){
   return !!(d.last_seen && Date.now()-new Date(d.last_seen).getTime()<180000);
 }
 function renderDriverStatus(){
-  const id=document.getElementById("driverSelect")?.value;
-  const d=allDrivers.find(x=>x.id===id);
   const box=document.getElementById("driverStatusCard");
-  if(!box)return;
-  if(!d){box.innerHTML='<div class="small">Selecione um motoboy para ver os horários da rota.</div>';return}
-  const fresh=driverFresh(d), last=fmtTime(d.last_seen);
-  box.innerHTML=`<div class="${fresh?"fresh":"stale"}"><div class="small">📍 ÚLTIMA ATUALIZAÇÃO DO MOTOBOY</div><div class="big">Localização Atualizada ${last}</div></div>
-  <div class="time-grid">
-    <div class="time-box">🏍️ Saída / GPS<b>${fmtTime(d.tracking_started_at)}</b></div>
-    <div class="time-box">▶️ Início da rota<b>${fmtTime(d.route_started_at)}</b></div>
-    <div class="time-box">🏁 Conclusão da rota<b>${fmtTime(d.route_finished_at)}</b></div>
-  </div>
-`;
+  if(box)box.innerHTML='<div class="small">Clique em CENTRALIZAR em um motoqueiro para acompanhar sua localização.</div>';
 }
 
 function renderDayPanel(){
@@ -181,9 +170,6 @@ async function loadDrivers(){
         <button class="red" onclick="deleteDriver('${d.id}')">🗑️ EXCLUIR</button>
       </div></div>`;
   }).join("")||"<div class='small'>Nenhum motoboy conectado.</div>";
-  const sel=document.getElementById("driverSelect"),current=sel.value;
-  sel.innerHTML='<option value="">Selecione o motoboy</option>'+(data||[]).map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
-  sel.value=current;
   renderDriverStatus(); renderDayPanel(); renderHistory();
   allDrivers.forEach(d=>{
     if(d.lat==null||d.lng==null)return;
@@ -248,30 +234,11 @@ function km(a,b){
 }
 
 window.selectAndCenterDriver=id=>{
-  const sel=document.getElementById("driverSelect");
-  sel.value=id; renderDriverStatus(); renderDeliveryList();
   const d=allDrivers.find(x=>x.id===id);
   if(d&&d.lat!=null)map.setView([d.lat,d.lng],17);
 };
-document.getElementById("centerSelectedDriver").onclick=()=>{
-  const id=selectedDriverId();
-  if(!id)return alert("Selecione o motoboy.");
-  const d=allDrivers.find(x=>x.id===id);
-  if(!d||d.lat==null)return alert("Esse motoboy ainda não enviou localização.");
-  map.setView([d.lat,d.lng],17);
-};
-document.getElementById("viewDriverRoute").onclick=()=>{
-  const id=selectedDriverId();
-  if(!id)return alert("Selecione o motoboy.");
-  const d=allDrivers.find(x=>x.id===id);
-  const list=allDeliveries.filter(x=>x.driver_id===id&&x.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
-  if(!d||d.lat==null)return alert("Motoboy sem localização.");
-  if(!list.length)return alert("Esse motoboy não possui entregas pendentes.");
-  if(driverRouteLine)map.removeLayer(driverRouteLine);
-  const pts=[[d.lat,d.lng],...list.map(x=>[x.lat,x.lng])];
-  driverRouteLine=L.polyline(pts,{weight:5,dashArray:"8 6"}).addTo(map);
-  map.fitBounds(driverRouteLine.getBounds(),{padding:[40,40]});
-};
+document.getElementById("centerSelectedDriver").onclick=()=>alert("Use o botão CENTRALIZAR na ficha do motoqueiro.");
+document.getElementById("viewDriverRoute").onclick=()=>alert("Abra a rota pelo motoqueiro após ele coletar as entregas.");
 window.deleteDriver=async id=>{
   const d=allDrivers.find(x=>x.id===id); if(!d)return;
   const pending=allDeliveries.filter(x=>x.driver_id===id&&x.status==="pending").length;
@@ -347,7 +314,7 @@ window.sendTracking=id=>{
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
 };
 
-document.getElementById("driverSelect").addEventListener("change",()=>{renderDriverStatus();renderDeliveryList()});
+renderDeliveryList()});
 document.getElementById("deliverySearch").addEventListener("input",renderDeliveryList);
 document.getElementById("statusFilter").addEventListener("change",renderDeliveryList);
 
@@ -362,7 +329,6 @@ window.editDelivery=id=>{
   document.getElementById("editLocation").value=`${d.lat},${d.lng}`;
   document.getElementById("editNote").value=d.note||"";
   const sel=document.getElementById("editDriver");
-  sel.innerHTML='<option value="">Selecione o motoboy</option>'+allDrivers.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");
   sel.value=d.driver_id||"";
   document.getElementById("editModal").classList.add("open");
 };
@@ -394,14 +360,22 @@ document.getElementById("saveEdit").onclick=async()=>{
 
 document.getElementById("addDelivery").onclick=async()=>{
   const p=extractCoords(document.getElementById("location").value.trim());
-  const driverId=document.getElementById("driverSelect").value;
   if(!p)return alert("Não encontrei coordenadas nesse link/localização.");
-  if(!driverId)return alert("Selecione um motoboy.");
-  const row={driver_id:driverId||null,client_name:document.getElementById("client").value.trim()||"Cliente",client_phone:document.getElementById("phone").value.trim(),lat:p.lat,lng:p.lng,status:"pending"};
+  const row={
+    driver_id:null,
+    client_name:document.getElementById("client").value.trim()||"Cliente",
+    client_phone:document.getElementById("phone").value.trim(),
+    lat:p.lat,
+    lng:p.lng,
+    status:"awaiting_collection",
+    route_order:null
+  };
   const {error}=await sb.from("deliveries").insert(row);
-  if(error)return alert("Erro ao adicionar entrega: "+error.message);
-  document.getElementById("client").value="";document.getElementById("phone").value="";document.getElementById("location").value="";
-  loadDeliveries();
+  if(error)return alert("Erro ao adicionar venda: "+error.message);
+  document.getElementById("client").value="";
+  document.getElementById("phone").value="";
+  document.getElementById("location").value="";
+  await loadDeliveries();
 };
 document.getElementById("organizeRoute").onclick=organizeRoute;
 document.getElementById("openRoute").onclick=openRoute;
