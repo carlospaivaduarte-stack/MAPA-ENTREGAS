@@ -1,0 +1,106 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>V7 Motoboy</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}#map{position:fixed;inset:0}
+.top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:14px;box-shadow:0 3px 18px #0002}
+.panel{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:18px;padding:12px;box-shadow:0 5px 25px #0003;max-height:58vh;overflow:auto}.panel.collapsed #deliveries,.panel.collapsed .delivery-help{display:none}
+input{width:100%;padding:11px;border:1px solid #ddd;border-radius:11px;margin-bottom:7px}
+button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.status{font-size:12px;font-weight:bold;margin:3px 0}
+.num-pin{width:30px;height:30px;border-radius:50%;background:#facc15;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}
+</style></head><body>
+<div id="map"></div>
+<div class="top"><b>🏍️ Motoboy</b> · <span id="state">desconectado</span></div>
+<div class="panel">
+<input id="driverName" placeholder="Seu nome">
+<input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
+<div class="row"><button class="blue" id="start">📍 Iniciar rastreamento</button><button class="gray" id="stop">⏹ Parar</button></div>
+<div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
+<div class="row" style="margin-bottom:7px">
+<button class="blue" id="centerMe">📍 Centralizar em mim</button>
+<button class="gray" id="toggleDeliveries">⬇️ Minimizar entregas</button>
+</div>
+<div id="deliveries"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="shared.js"></script>
+<script>
+const map=L.map("map").setView([-9.6658,-35.7353],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+let deliveryMarkers={},sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
+localStorage.setItem("v7_driver_id",driverId);
+document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
+document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
+
+async function upsertDriver(pos){
+  const now=Date.now(); lastPosition=pos; if(now-lastSend<60000 && marker)return; lastSend=now;
+  const name=document.getElementById("driverName").value.trim()||"Motoboy";
+  const phone=document.getElementById("driverPhone").value.trim();
+  localStorage.setItem("v7_driver_name",name);localStorage.setItem("v7_driver_phone",phone);
+  const row={id:driverId,name,phone,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,is_online:true,last_seen:new Date().toISOString()};
+  const {error}=await sb.from("drivers").upsert(row,{onConflict:"id"});
+  if(error){console.error(error);document.getElementById("state").textContent="erro ao enviar localização";return}
+  document.getElementById("state").textContent="🟢 online";
+  const ll=[row.lat,row.lng];
+  if(!marker)marker=L.marker(ll).addTo(map).bindPopup("📍 Você");else marker.setLatLng(ll);
+  if(!hasCentered){map.setView(ll,17);hasCentered=true;}
+}
+async function loadDeliveries(){
+  if(!sb)return;
+  const {data,error}=await sb.from("deliveries").select("*").eq("driver_id",driverId).order("created_at",{ascending:true});
+  if(error){console.error(error);return}
+  renderDeliveries(data||[]);
+}
+function renderDeliveries(data){
+  Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
+  const pending=[...data].filter(d=>d.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
+  pending.forEach((d,i)=>{
+    const n=d.route_order||i+1;
+    const icon=L.divIcon({className:"",html:`<div class="num-pin">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+    deliveryMarkers[d.id]=L.marker([d.lat,d.lng],{icon}).addTo(map).bindPopup(`<b>${n}. ${esc(d.client_name)}</b><br>PENDENTE`);
+  });
+  const box=document.getElementById("deliveries");
+  box.innerHTML=data.length?data.map(d=>`<div class="delivery"><b>${d.route_order?d.route_order+'. ':''}👤 ${esc(d.client_name)}</b><br>
+    <span onclick="openWhatsApp('${esc(d.client_phone)}')" style="color:#128c45;text-decoration:underline;cursor:pointer">📱 ${esc(d.client_phone||"")}</span>
+    <div class="status">${d.status==="done"?"✅ ENTREGUE":d.status==="failed"?"❌ NÃO ENTREGUE":"🟡 PENDENTE"}</div>
+    <div class="small">${d.lat}, ${d.lng}</div>
+    <div class="row" style="margin-top:6px">
+      <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
+      <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">🧭 Navegar</button>
+      ${d.status==="pending"?`<button class="green" onclick="setStatus('${d.id}','done')">✅ Entregue</button><button class="red" onclick="setStatus('${d.id}','failed')">❌ Não entregue</button>`:""}
+    </div></div>`).join(""):"<div class='small'>Nenhuma entrega atribuída.</div>";
+}
+async function setStatus(id,status){
+  let note="";
+  if(status==="failed")note=prompt("Motivo da não entrega (opcional):")||"";
+  await sb.from("deliveries").update({status,note,updated_at:new Date().toISOString()}).eq("id",id);
+  loadDeliveries();
+}
+document.getElementById("centerMe").onclick=()=>{
+  if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");
+  map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
+};
+document.getElementById("toggleDeliveries").onclick=()=>{
+  const panel=document.querySelector(".panel");
+  const collapsed=panel.classList.toggle("collapsed");
+  document.getElementById("toggleDeliveries").textContent=collapsed?"⬆️ Mostrar entregas":"⬇️ Minimizar entregas";
+  setTimeout(()=>map.invalidateSize(),100);
+};
+document.getElementById("start").onclick=async()=>{
+  sb=getSupabaseClient(); if(!sb)return;
+  if(!navigator.geolocation)return alert("GPS não suportado.");
+  navigator.geolocation.getCurrentPosition(upsertDriver,()=>alert("Permita acesso à localização."),{enableHighAccuracy:true,timeout:20000});
+  if(watch===null)watch=navigator.geolocation.watchPosition(upsertDriver,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+  loadDeliveries();
+  sb.channel("motoboy-deliveries-"+driverId).on("postgres_changes",{event:"*",schema:"public",table:"deliveries",filter:"driver_id=eq."+driverId},()=>loadDeliveries()).subscribe();
+};
+document.getElementById("stop").onclick=async()=>{
+  if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
+  if(sb)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
+  document.getElementById("state").textContent="🔴 offline";
+};
+window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId); });
+</script></body></html>
