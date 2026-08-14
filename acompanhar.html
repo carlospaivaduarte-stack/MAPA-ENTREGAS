@@ -16,9 +16,9 @@
 @media(min-width:760px){.top,.bottom{width:430px;left:20px;right:auto}}
 </style>
 <script>
-window.GOOGLE_MAPS_API_KEY="SUA_CHAVE_GOOGLE_MAPS_AQUI";
+window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_GOOGLE_MAPS_AQUI&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
+<script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
 <div id="map"></div>
@@ -45,12 +45,15 @@ window.GOOGLE_MAPS_API_KEY="SUA_CHAVE_GOOGLE_MAPS_AQUI";
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script><script src="shared.js"></script>
 <script>
-const map=L.map("map",{zoomControl:true}).setView([-9.6658,-35.7353],13);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+let map;
+function initGoogleMap(){
+  map=new google.maps.Map(document.getElementById("map"),{center:{lat:-9.6498,lng:-35.7089},zoom:13,mapTypeControl:true,streetViewControl:false,fullscreenControl:true});
+  refresh();
+}
 const sb=getSupabaseClient();
 const token=new URLSearchParams(location.search).get("t");
 let driverMarker=null,destMarker=null;
-const icon=(kind,label)=>L.divIcon({className:"",html:`<div class="pin ${kind}">${label}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
+const icon=(kind,label)=>({kind,label});
 
 function closeTracking(d){
   document.getElementById("talkDriver").style.display="none";
@@ -117,7 +120,7 @@ async function refresh(){
   const d=data[0];
   if(d.status==="awaiting_collection"){
     if(driverMarker){driverMarker.setMap(null);driverMarker=null}
-    if(destMarker){map.removeLayer(destMarker);destMarker=null}
+    if(destMarker){destMarker.setMap(null);destMarker=null}
     document.getElementById("headline").textContent="Seu pedido ainda está aguardando coleta.";
     document.getElementById("status").className="status warn";
     document.getElementById("status").textContent="⚪ Aguardando coleta";
@@ -128,8 +131,8 @@ async function refresh(){
     document.getElementById("detail").textContent="O rastreamento será liberado quando um motoqueiro coletar sua entrega.";
     return;
   }
-  if(!destMarker)destMarker=L.marker([d.lat,d.lng],{icon:icon("dest","📦")}).addTo(map).bindPopup("Sua entrega");
-  if(d.status!=="pending"){closeTracking(d);map.setView([d.lat,d.lng],16);return}
+  if(!destMarker)destMarker=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:"📦",title:"Sua entrega"});
+  if(d.status!=="pending"){closeTracking(d);map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});map.setZoom(16);return}
   document.getElementById("status").className="status warn";
   document.getElementById("status").textContent="🟡 Entrega pendente";
   document.getElementById("headline").textContent=d.route_order===1?"🏍️ Você é a próxima entrega":(d.route_order?`Sua entrega está na posição ${d.route_order} da rota.`:"Seu pedido está na rota do motoboy.");
@@ -141,10 +144,10 @@ async function refresh(){
     talk.onclick=()=>openWhatsApp(drv.phone);
   }else talk.style.display="none";
   if(drv&&drv.lat!=null){
-    const ll=[drv.lat,drv.lng];
-    if(!driverMarker)driverMarker=L.marker(ll,{icon:icon("driver","🏍️")}).addTo(map).bindPopup("Motoboy");
-    else driverMarker.setLatLng(ll);
-    map.fitBounds(L.latLngBounds([[d.lat,d.lng],ll]),{padding:[55,55]});
+    const pos={lat:Number(drv.lat),lng:Number(drv.lng)};
+    if(!driverMarker)driverMarker=new google.maps.Marker({position:pos,map,label:"🏍️",title:"Motoboy"});
+    else driverMarker.setPosition(pos);
+    const bounds=new google.maps.LatLngBounds(); bounds.extend({lat:Number(d.lat),lng:Number(d.lng)}); bounds.extend(pos); map.fitBounds(bounds,55);
     const last=drv.last_seen?new Date(drv.last_seen):null;
     const lastText=last?last.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--:--";
     const fresh=last && Date.now()-last.getTime()<180000;
@@ -163,7 +166,6 @@ document.getElementById("refreshClient").onclick=async()=>{
   finally{btn.disabled=false; btn.textContent=old;}
 };
 
-refresh();
 if(sb){
   sb.channel("cliente-"+(token||"x"))
     .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>refresh())

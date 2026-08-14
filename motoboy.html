@@ -22,9 +22,9 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 .modalbox h3{margin-top:0}.modalbox textarea{min-height:70px}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 0}.tabbtn{background:#e5e7eb;color:#111827}.tabbtn.active{background:#2563eb;color:#fff}
 </style><script>
-window.GOOGLE_MAPS_API_KEY="SUA_CHAVE_GOOGLE_MAPS_AQUI";
+window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_GOOGLE_MAPS_AQUI&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
+<script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head><body>
 <div id="map"></div>
 <div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
@@ -110,9 +110,9 @@ async function upsertDriver(pos){
   document.getElementById("state").textContent="🟢 online";
   currentDriver={...(currentDriver||{}),...row};
   renderRouteTimes();
-  const ll=[row.lat,row.lng];
-  if(!marker)marker=L.marker(ll).addTo(map).bindPopup("📍 Você");else marker.setLatLng(ll);
-  if(!hasCentered){map.setView(ll,17);hasCentered=true;}
+  const posMap={lat:Number(row.lat),lng:Number(row.lng)};
+  if(!marker)marker=new google.maps.Marker({position:posMap,map,title:"📍 Você"});else marker.setPosition(posMap);
+  if(!hasCentered){map.setCenter(posMap);map.setZoom(17);hasCentered=true;}
 }
 async function loadDeliveries(){
   if(!sb)return;
@@ -444,7 +444,7 @@ document.getElementById("openRoute").onclick=openMyRoute;
 
 document.getElementById("centerMe").onclick=()=>{
   if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");
-  map.setView([lastPosition.coords.latitude,lastPosition.coords.longitude],17);
+  map.setCenter({lat:Number(lastPosition.coords.latitude),lng:Number(lastPosition.coords.longitude)});map.setZoom(17);
 };
 
 

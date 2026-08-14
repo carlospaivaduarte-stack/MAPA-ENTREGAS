@@ -23,7 +23,7 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
+<script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
 <div class="layout">
@@ -164,11 +164,7 @@ async function resolveGoogleLocation(raw){
 
 function statusIcon(d){return d.status==="done"?"🟢":d.status==="failed"?"🔴":d.status==="awaiting_collection"?"⚪":"🟡"}
 function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
-function pinIcon(d,index){
-  const cls=d.status==="done"?"pin-done":d.status==="failed"?"pin-failed":"pin-pending";
-  const n=d.route_order||index+1;
-  return L.divIcon({className:"",html:`<div class="num-pin ${cls}">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
-}
+function pinIcon(d,index){ return String(d.route_order||index+1); }
 
 async function loadDrivers(){
   if(!sb)return;
@@ -188,14 +184,14 @@ async function loadDrivers(){
 
   allDrivers.forEach(d=>{
     if(d.lat==null||d.lng==null)return;
-    const ll=[d.lat,d.lng],label=`<b>🏍️ ${esc(d.name)}</b><br>${d.is_online&&fresh(d)?"Online":"Offline"}<br>Localização Atualizada ${fmtTime(d.last_seen)}`;
-    if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);
-    else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
+    const pos={lat:Number(d.lat),lng:Number(d.lng)},label=`🏍️ ${d.name} — ${d.is_online&&fresh(d)?"Online":"Offline"} — Localização Atualizada ${fmtTime(d.last_seen)}`;
+    if(!driverMarkers[d.id])driverMarkers[d.id]=new google.maps.Marker({position:pos,map,title:label});
+    else {driverMarkers[d.id].setPosition(pos);driverMarkers[d.id].setTitle(label);}
   });
 
   // remove markers of deleted drivers
   Object.keys(driverMarkers).forEach(id=>{
-    if(!allDrivers.some(d=>d.id===id)){map.removeLayer(driverMarkers[id]);delete driverMarkers[id]}
+    if(!allDrivers.some(d=>d.id===id)){driverMarkers[id].setMap(null);delete driverMarkers[id]}
   });
 
   renderDayPanel();renderHistory();
@@ -319,8 +315,8 @@ function renderHistory(){
 window.centerDriver=id=>{
   const d=allDrivers.find(x=>x.id===id);
   if(!d||d.lat==null)return alert("Esse motoqueiro ainda não enviou localização.");
-  map.setView([d.lat,d.lng],17);
-  driverMarkers[id]?.openPopup();
+  map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});
+  map.setZoom(17);
 };
 
 window.deleteDriver=async id=>{
@@ -454,8 +450,9 @@ document.getElementById("resolveLocation").onclick=async()=>{
   try{
     const p=await resolveGoogleLocation(document.getElementById("location").value);
     box.textContent=`✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
-    map.setView([p.lat,p.lng],17);
-    L.popup().setLatLng([p.lat,p.lng]).setContent("<b>📍 Localização encontrada</b>").openOn(map);
+    map.setCenter({lat:Number(p.lat),lng:Number(p.lng)});
+    map.setZoom(17);
+    new google.maps.InfoWindow({content:"<b>📍 Localização encontrada</b>",position:{lat:Number(p.lat),lng:Number(p.lng)}}).open({map});
   }catch(e){box.textContent="❌ "+(e.message||"Não foi possível localizar.");}
 };
 
@@ -478,7 +475,7 @@ document.getElementById("fitMap").onclick=()=>{
   allDrivers.forEach(d=>{if(d.lat!=null)pts.push([d.lat,d.lng])});
   allDeliveries.filter(d=>d.status!=="awaiting_collection").forEach(d=>pts.push([d.lat,d.lng]));
   if(!pts.length)return alert("Não há pontos no mapa.");
-  map.fitBounds(L.latLngBounds(pts),{padding:[35,35]});
+  const bounds=new google.maps.LatLngBounds(); pts.forEach(p=>bounds.extend({lat:Number(p[0]),lng:Number(p[1])})); map.fitBounds(bounds,35);
 };
 
 document.getElementById("exportReport").onclick=()=>{
