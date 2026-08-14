@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RTS — Acompanhar entrega</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#f3f4f6}
+#map{position:fixed;inset:0}.top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 20px #0002}
+.title{font-size:18px;font-weight:800}.sub{font-size:13px;color:#555;margin-top:4px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.stat{background:#f3f4f6;border-radius:12px;padding:9px}.stat b{display:block;font-size:17px;margin-top:2px}
+.bottom{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 20px #0002}
+.status{font-weight:800}.ok{color:#16a34a}.bad{color:#dc2626}.warn{color:#d97706}.small{font-size:12px;color:#666;margin-top:5px}
+.pin{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 7px #0005;font-weight:800}.driver{background:#111827;color:white}.dest{background:#facc15;color:#111}
+@media(min-width:760px){.top,.bottom{width:430px;left:20px;right:auto}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="top">
+  <div class="title">RTS — Acompanhe sua entrega</div>
+  <div id="headline" class="sub">Carregando informações...</div>
+  <div class="stats">
+    <div class="stat"><span>📦 Entregas antes da sua</span><b id="ahead">--</b></div>
+    <div class="stat"><span>⏱️ Previsão aproximada</span><b id="eta">--</b></div>
+  </div>
+</div>
+<div class="bottom">
+  <div id="status" class="status warn">🟡 Entrega pendente</div>
+  <div id="detail" class="small">A localização é atualizada aproximadamente a cada 1 minuto.</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="shared.js"></script>
+<script>
+const map=L.map("map",{zoomControl:true}).setView([-9.6658,-35.7353],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+const sb=getSupabaseClient();
+const token=new URLSearchParams(location.search).get("t");
+let driverMarker=null,destMarker=null;
+const icon=(kind,label)=>L.divIcon({className:"",html:`<div class="pin ${kind}">${label}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
+
+function closeTracking(d){
+  if(driverMarker){map.removeLayer(driverMarker);driverMarker=null}
+  document.getElementById("ahead").textContent="—";
+  document.getElementById("eta").textContent="—";
+  if(d.status==="done"){
+    document.getElementById("status").className="status ok";
+    document.getElementById("status").textContent="✅ Entrega realizada";
+    document.getElementById("headline").textContent="Sua entrega foi concluída.";
+  }else{
+    document.getElementById("status").className="status bad";
+    document.getElementById("status").textContent="❌ Entrega não realizada";
+    document.getElementById("headline").textContent="A entrega foi encerrada.";
+  }
+  document.getElementById("detail").textContent="O rastreamento da localização do motoboy foi encerrado.";
+}
+async function estimate(d,drv){
+  const {data:pending}=await sb.from("deliveries").select("id,lat,lng,route_order,status,driver_id")
+    .eq("driver_id",d.driver_id).eq("status","pending").order("route_order",{ascending:true});
+  const list=(pending||[]).filter(x=>x.route_order!=null&&x.route_order<=d.route_order);
+  const ahead=Math.max(0,list.filter(x=>x.id!==d.id).length);
+  document.getElementById("ahead").textContent=ahead===0?"Você é o próximo":String(ahead);
+  if(!drv||drv.lat==null||!list.length){document.getElementById("eta").textContent="Calculando...";return}
+  try{
+    const pts=[[drv.lng,drv.lat],...list.map(x=>[x.lng,x.lat])];
+    const r=await fetch("https://router.project-osrm.org/route/v1/driving/"+pts.map(x=>x.join(",")).join(";")+"?overview=false");
+    const j=await r.json(); if(j.code!=="Ok"||!j.routes?.length)throw 0;
+    const travel=Math.round(j.routes[0].duration/60),service=ahead*5,total=Math.max(1,travel+service);
+    document.getElementById("eta").textContent=`${Math.max(1,total-5)}–${total+5} min`;
+  }catch(e){
+    document.getElementById("eta").textContent=`~${Math.max(5,(ahead+1)*8)} min`;
+  }
+}
+async function refresh(){
+  if(!sb||!token){document.getElementById("headline").textContent="Link de rastreamento inválido.";return}
+  const {data,error}=await sb.from("deliveries").select("*").eq("tracking_token",token).limit(1);
+  if(error||!data||!data.length){
+    document.getElementById("headline").textContent="Este link não é válido ou expirou.";
+    document.getElementById("status").textContent="Rastreamento indisponível";
+    document.getElementById("ahead").textContent="—";document.getElementById("eta").textContent="—";return
+  }
+  const d=data[0];
+  if(!destMarker)destMarker=L.marker([d.lat,d.lng],{icon:icon("dest","📦")}).addTo(map).bindPopup("Sua entrega");
+  if(d.status!=="pending"){closeTracking(d);map.setView([d.lat,d.lng],16);return}
+  document.getElementById("status").className="status warn";
+  document.getElementById("status").textContent="🟡 Entrega pendente";
+  document.getElementById("headline").textContent=d.route_order?`Sua entrega está na posição ${d.route_order} da rota.`:"Seu pedido está na rota do motoboy.";
+  const {data:drivers}=await sb.from("drivers").select("id,name,lat,lng,last_seen,is_online").eq("id",d.driver_id).limit(1);
+  const drv=drivers&&drivers[0];
+  if(drv&&drv.lat!=null){
+    const ll=[drv.lat,drv.lng];
+    if(!driverMarker)driverMarker=L.marker(ll,{icon:icon("driver","🏍️")}).addTo(map).bindPopup("Motoboy");
+    else driverMarker.setLatLng(ll);
+    map.fitBounds(L.latLngBounds([[d.lat,d.lng],ll]),{padding:[55,55]});
+    document.getElementById("detail").textContent=`Última atualização do motoboy: ${drv.last_seen?new Date(drv.last_seen).toLocaleTimeString("pt-BR"):"--"}.`;
+  }
+  await estimate(d,drv);
+}
+refresh();
+if(sb){
+  sb.channel("cliente-"+(token||"x"))
+    .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>refresh())
+    .on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>refresh())
+    .subscribe();
+}
+setInterval(refresh,60000);
+</script></body></html>
