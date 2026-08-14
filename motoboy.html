@@ -32,6 +32,11 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <button class="blue" id="centerMe">📍 Centralizar em mim</button>
 <button class="gray" id="toggleDeliveries">⬇️ Minimizar entregas</button>
 </div>
+<div class="row" style="margin-bottom:7px">
+<button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
+<button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
+</div>
+<div id="routeInfo" class="small" style="margin:5px 0">A rota usa somente suas entregas coletadas e pendentes.</div>
 <div id="deliveries"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -187,6 +192,56 @@ document.getElementById("startRoute").onclick=async()=>{
   document.getElementById("routeTimeInfo").style.display="block";
   alert("Rota iniciada. O horário foi enviado para a Central.");
 };
+
+
+function km(a,b){
+  const R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;
+  const x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+async function organizeMyRoute(){
+  if(!sb)return alert("Inicie o rastreamento primeiro.");
+  if(!lastPosition)return alert("Aguarde o GPS localizar você.");
+  let pending=currentDeliveries.filter(d=>d.status==="pending"&&d.driver_id===driverId);
+  if(!pending.length)return alert("Você não possui entregas pendentes.");
+  let cur={lat:lastPosition.coords.latitude,lng:lastPosition.coords.longitude},ordered=[];
+  while(pending.length){
+    let best=0,bd=Infinity;
+    pending.forEach((d,i)=>{const z=km(cur,d);if(z<bd){bd=z;best=i}});
+    const next=pending.splice(best,1)[0];
+    ordered.push(next);cur=next;
+  }
+  document.getElementById("routeInfo").textContent="Organizando rota...";
+  for(let i=0;i<ordered.length;i++){
+    const {error}=await sb.from("deliveries")
+      .update({route_order:i+1,updated_at:new Date().toISOString()})
+      .eq("id",ordered[i].id)
+      .eq("driver_id",driverId)
+      .eq("status","pending");
+    if(error){
+      document.getElementById("routeInfo").textContent="Erro ao organizar.";
+      return alert("Erro ao organizar rota: "+error.message);
+    }
+  }
+  document.getElementById("routeInfo").textContent=`Rota organizada com ${ordered.length} entrega(s).`;
+  await loadDeliveries();
+}
+function openMyRoute(){
+  if(!lastPosition)return alert("Aguarde o GPS localizar você.");
+  const list=currentDeliveries
+    .filter(d=>d.status==="pending"&&d.driver_id===driverId)
+    .sort((a,b)=>(a.route_order||999)-(b.route_order||999));
+  if(!list.length)return alert("Organize uma rota primeiro.");
+  const block=list.slice(0,10);
+  const dest=block[block.length-1];
+  const ways=block.slice(0,-1);
+  let u=`https://www.google.com/maps/dir/?api=1&origin=${lastPosition.coords.latitude},${lastPosition.coords.longitude}&destination=${dest.lat},${dest.lng}&travelmode=driving`;
+  if(ways.length)u+=`&waypoints=${ways.map(x=>x.lat+","+x.lng).join("%7C")}`;
+  window.open(u,"_blank");
+  if(list.length>10)alert(`A primeira rota abriu com 10 entregas. Restam ${list.length-10}. Após concluir algumas, organize/abra novamente.`);
+}
+document.getElementById("organizeRoute").onclick=organizeMyRoute;
+document.getElementById("openRoute").onclick=openMyRoute;
 
 document.getElementById("centerMe").onclick=()=>{
   if(!lastPosition)return alert("Inicie o rastreamento e aguarde a localização.");

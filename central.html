@@ -46,12 +46,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 <textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
 
 <button class="green" id="addDelivery" style="width:100%;margin-top:5px">Adicionar entrega</button>
-<h3>🛣️ Organização da rota</h3>
-<div class="row">
-<button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
-<button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
-</div>
-<div class="small" id="routeInfo" style="margin:6px 0">Organize as entregas pendentes por proximidade do motoboy.</div>
+
 <div class="row" style="align-items:center;margin-top:12px">
 <h3 style="margin:0">📦 Entregas</h3>
 <button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
@@ -68,7 +63,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 </div>
 <div class="toolbar3">
   <button class="blue" id="centerSelectedDriver">📍 MOTOBOY</button>
-  <button class="gray" id="viewDriverRoute">🛣️ VER ROTA</button>
+  <button class="gray" id="viewDriverRoute">🛣️ VISUALIZAR ROTA</button>
   <button class="gray" id="exportReport">📄 EXPORTAR</button>
 </div>
 <div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">⚪ Aguardando coleta: 0</div>
@@ -377,8 +372,6 @@ document.getElementById("addDelivery").onclick=async()=>{
   document.getElementById("location").value="";
   await loadDeliveries();
 };
-document.getElementById("organizeRoute").onclick=organizeRoute;
-document.getElementById("openRoute").onclick=openRoute;
 document.getElementById("clearDeliveries").onclick=async()=>{
   if(!confirm("Apagar TODAS as entregas da Central e dos celulares dos motoboys?"))return;
   const typed=prompt("Digite LIMPAR para confirmar:");
