@@ -25,7 +25,8 @@ button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.
 <div id="map"></div>
 <div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
 <div class="panel">
-<div class="panel-header" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:6px">
+<div class="panel-header" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:6px">
+  <button class="blue" id="refreshMotoboy" title="Atualizar dados" style="padding:6px 10px">🔄</button>
   <button class="gray" id="panelToggle" aria-label="Minimizar painel" title="Minimizar painel" style="padding:6px 10px;font-size:18px;line-height:1">⬇️</button>
 </div>
 <div id="panelContent">
@@ -339,6 +340,21 @@ if(panelEl&&panelToggle){
     setTimeout(()=>map.invalidateSize(),100);
   };
 }
+
+
+document.getElementById("refreshMotoboy").onclick=async()=>{
+  const btn=document.getElementById("refreshMotoboy");
+  const old=btn.textContent; btn.disabled=true; btn.textContent="⏳";
+  try{
+    if(!sb)sb=getSupabaseClient();
+    if(sb){
+      if(typeof loadDriverInfo==="function")await loadDriverInfo();
+      await loadDeliveries();
+    }
+  }finally{
+    btn.disabled=false; btn.textContent=old;
+  }
+};
 
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;

@@ -23,7 +23,10 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
 <body>
 <div class="layout">
   <div class="side">
-    <h2>💻 RTS — Central</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+  <h2 style="margin:0">💻 RTS — Central</h2>
+  <button class="blue" id="refreshCentral">🔄 ATUALIZAR</button>
+</div>
     <div id="connection" class="small">Conectando...</div>
 
     <div class="metrics">
@@ -415,6 +418,17 @@ document.getElementById("exportReport").onclick=()=>{
   const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RTS_RELATORIO_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
+};
+
+
+document.getElementById("refreshCentral").onclick=async()=>{
+  const btn=document.getElementById("refreshCentral");
+  const old=btn.textContent; btn.disabled=true; btn.textContent="🔄 Atualizando...";
+  try{
+    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
+  }finally{
+    btn.disabled=false; btn.textContent=old;
+  }
 };
 
 if(sb){

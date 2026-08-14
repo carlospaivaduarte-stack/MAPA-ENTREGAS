@@ -20,7 +20,10 @@
 <body>
 <div id="map"></div>
 <div class="top">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
   <div class="title">RTS — Acompanhe sua entrega</div>
+  <button id="refreshClient" style="border:0;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer">🔄 ATUALIZAR</button>
+</div>
   <div id="headline" class="sub">Carregando informações...</div>
   <div class="stats">
     <div class="stat"><span>📦 Entregas antes da sua</span><b id="ahead">--</b></div>
@@ -141,6 +144,14 @@ async function refresh(){
   }
   await estimate(d,drv);
 }
+
+document.getElementById("refreshClient").onclick=async()=>{
+  const btn=document.getElementById("refreshClient");
+  const old=btn.textContent; btn.disabled=true; btn.textContent="⏳";
+  try{await refresh();}
+  finally{btn.disabled=false; btn.textContent=old;}
+};
+
 refresh();
 if(sb){
   sb.channel("cliente-"+(token||"x"))
