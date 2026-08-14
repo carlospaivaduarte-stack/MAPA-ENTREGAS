@@ -5,7 +5,8 @@
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6}.layout{display:grid;grid-template-columns:380px 1fr;height:100vh}
 .side{background:white;padding:14px;overflow:auto}.map{height:100vh}#map{height:100%;width:100%}
-input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.gray{background:#eee}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:4px 0}button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.gray{background:#eee}
+.num-pin{width:30px;height:30px;border-radius:50%;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}.pin-pending{background:#facc15}.pin-done{background:#22c55e;color:white}.pin-failed{background:#ef4444;color:white}
 .driver,.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 @media(max-width:760px){.layout{grid-template-columns:1fr}.map{height:55vh}.side{height:45vh;order:2}.map{order:1}}
 </style></head><body>
@@ -18,7 +19,17 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 <textarea id="location" placeholder="Link completo do Google Maps ou coordenadas"></textarea>
 <select id="driverSelect"><option value="">Selecione o motoboy</option></select>
 <button class="green" id="addDelivery" style="width:100%;margin-top:5px">Adicionar entrega</button>
-<h3>📦 Entregas</h3><div id="deliveries"></div>
+<h3>🛣️ Organização da rota</h3>
+<div class="row">
+<button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
+<button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
+</div>
+<div class="small" id="routeInfo" style="margin:6px 0">Organize as entregas pendentes por proximidade do motoboy.</div>
+<div class="row" style="align-items:center;margin-top:12px">
+<h3 style="margin:0">📦 Entregas</h3>
+<button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
+</div>
+<div id="deliveries"></div>
 </div><div class="map"><div id="map"></div></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,14 +58,58 @@ async function loadDrivers(){
     if(!driverMarkers[d.id])driverMarkers[d.id]=L.marker(ll).addTo(map).bindPopup(label);else driverMarkers[d.id].setLatLng(ll).setPopupContent(label);
   });
 }
+let allDeliveries=[];
+function pinIcon(d,index){
+  const cls=d.status==="done"?"pin-done":d.status==="failed"?"pin-failed":"pin-pending";
+  const n=d.route_order||index+1;
+  return L.divIcon({className:"",html:`<div class="num-pin ${cls}">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+}
 async function loadDeliveries(){
-  const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:false});
+  const {data,error}=await sb.from("deliveries").select("*").order("created_at",{ascending:true});
   if(error){console.error(error);return}
-  document.getElementById("deliveries").innerHTML=(data||[]).map(d=>`<div class="delivery"><b>${d.status==="done"?"✅":d.status==="failed"?"❌":"🟡"} ${esc(d.client_name)}</b><div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>${d.note?esc(d.note):""}</div></div>`).join("")||"<div class='small'>Nenhuma entrega.</div>";
-  (data||[]).forEach(d=>{
-    const ll=[d.lat,d.lng],label=`<b>${esc(d.client_name)}</b><br>${d.status}`;
-    if(!deliveryMarkers[d.id])deliveryMarkers[d.id]=L.circleMarker(ll,{radius:7}).addTo(map).bindPopup(label);else deliveryMarkers[d.id].setLatLng(ll).setPopupContent(label);
+  allDeliveries=data||[];
+  document.getElementById("deliveries").innerHTML=allDeliveries.map((d,i)=>`<div class="delivery"><b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}${esc(d.client_name)}</b><div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>${d.note?esc(d.note):""}</div></div>`).join("")||"<div class='small'>Nenhuma entrega.</div>";
+  Object.values(deliveryMarkers).forEach(m=>map.removeLayer(m)); deliveryMarkers={};
+  allDeliveries.forEach((d,i)=>{
+    const ll=[d.lat,d.lng],label=`<b>${d.route_order||i+1}. ${esc(d.client_name)}</b><br>${d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":"PENDENTE"}`;
+    deliveryMarkers[d.id]=L.marker(ll,{icon:pinIcon(d,i)}).addTo(map).bindPopup(label);
   });
+}
+function km(a,b){
+  const R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r;
+  const x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+async function organizeRoute(){
+  const driverId=document.getElementById("driverSelect").value;
+  if(!driverId)return alert("Selecione o motoboy.");
+  const {data:drivers}=await sb.from("drivers").select("*").eq("id",driverId).limit(1);
+  if(!drivers||!drivers.length||drivers[0].lat==null)return alert("Esse motoboy ainda não enviou a localização.");
+  let pending=allDeliveries.filter(d=>d.driver_id===driverId&&d.status==="pending");
+  if(!pending.length)return alert("Esse motoboy não possui entregas pendentes.");
+  let cur={lat:drivers[0].lat,lng:drivers[0].lng},ordered=[];
+  while(pending.length){
+    let best=0,bd=Infinity;
+    pending.forEach((d,i)=>{const z=km(cur,d);if(z<bd){bd=z;best=i}});
+    const n=pending.splice(best,1)[0]; ordered.push(n); cur=n;
+  }
+  for(let i=0;i<ordered.length;i++){
+    const {error}=await sb.from("deliveries").update({route_order:i+1,updated_at:new Date().toISOString()}).eq("id",ordered[i].id);
+    if(error){alert("Execute o arquivo V7_2_ATUALIZAR_BANCO.sql no Supabase antes de organizar a rota.");return}
+  }
+  document.getElementById("routeInfo").textContent=`Rota organizada: ${ordered.length} entrega(s) pendente(s).`;
+  await loadDeliveries();
+}
+function openRoute(){
+  const driverId=document.getElementById("driverSelect").value;
+  let list=allDeliveries.filter(d=>d.driver_id===driverId&&d.status==="pending").sort((a,b)=>(a.route_order||999)-(b.route_order||999));
+  if(!list.length)return alert("Organize uma rota com entregas pendentes primeiro.");
+  // URL gratuita: destino + até 9 intermediários por bloco; blocos maiores são divididos.
+  const chunk=list.slice(0,10),dest=chunk[chunk.length-1],ways=chunk.slice(0,-1);
+  let u=`https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}&travelmode=driving`;
+  if(ways.length)u+=`&waypoints=${ways.map(x=>x.lat+","+x.lng).join("%7C")}`;
+  window.open(u,"_blank");
+  if(list.length>10) alert(`A primeira rota abriu com 10 entregas. Restam ${list.length-10}; marque as realizadas e abra a próxima rota.`);
 }
 document.getElementById("addDelivery").onclick=async()=>{
   const p=extractCoords(document.getElementById("location").value.trim());
@@ -66,6 +121,17 @@ document.getElementById("addDelivery").onclick=async()=>{
   if(error)return alert("Erro ao adicionar entrega: "+error.message);
   document.getElementById("client").value="";document.getElementById("phone").value="";document.getElementById("location").value="";
   loadDeliveries();
+};
+document.getElementById("organizeRoute").onclick=organizeRoute;
+document.getElementById("openRoute").onclick=openRoute;
+document.getElementById("clearDeliveries").onclick=async()=>{
+  if(!confirm("Apagar TODAS as entregas da Central e dos celulares dos motoboys?"))return;
+  const typed=prompt("Digite LIMPAR para confirmar:");
+  if(typed!=="LIMPAR")return alert("Limpeza cancelada.");
+  const {error}=await sb.from("deliveries").delete().neq("id","00000000-0000-0000-0000-000000000000");
+  if(error)return alert("Erro: "+error.message);
+  await loadDeliveries();
+  alert("Entregas apagadas. Os celulares conectados serão atualizados automaticamente.");
 };
 if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";
