@@ -21,6 +21,17 @@ button{border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}.
 .transfer-row{display:grid;grid-template-columns:1fr auto;gap:5px;margin-top:6px}
 .section-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
 .section-header h3{margin:0}.section-toggle{padding:5px 9px;border-radius:8px;font-size:14px}.section-collapsed{display:none!important}
+
+.main-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:10px 0}
+.main-tab{background:#e5e7eb;color:#111827;padding:9px 5px;font-size:11px}
+.main-tab.active{background:#2563eb;color:#fff}
+.main-panel{display:none}
+.main-panel.active{display:block}
+.subtabs3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:9px 0}
+.subtabs2{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin:9px 0}
+.subtab{background:#e5e7eb;color:#111827;padding:9px 5px;font-size:11px}
+.subtab.active{background:#2563eb;color:#fff}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -39,76 +50,90 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     <div class="metrics">
       <div class="metric">📦 Total<b id="mTotal">0</b></div>
       <div class="metric">🟡 Pendentes<b id="mPending">0</b></div>
-      <div class="metric">🟢 Entregues<b id="mDone">0</b></div>
+      <div class="metric">🟢 Entregues hoje<b id="mDone">0</b></div>
       <div class="metric">🔴 Não ent.<b id="mFailed">0</b></div>
     </div>
 
-    <h3>🏍️ Motoqueiros</h3>
-    <div id="drivers"><div class="small">Carregando...</div></div>
 
-    <div class="day-panel">
-      <b>📊 Painel do dia</b>
-      <div class="day-grid" style="margin-top:7px">
-        <div class="day-box">✅ Conclusão<b id="dayPercent">0%</b></div>
-        <div class="day-box">🏍️ Primeira saída<b id="dayFirstStart">--</b></div>
-        <div class="day-box">📦 Última entrega<b id="dayLastDelivery">--</b></div>
-        <div class="day-box">⏱️ Operação<b id="dayDuration">--</b></div>
+    <div class="main-tabs">
+      <button class="main-tab active" data-main-tab="drivers">🏍️ MOTOQUEIROS</button>
+      <button class="main-tab" data-main-tab="sale">➕ NOVA VENDA</button>
+      <button class="main-tab" data-main-tab="deliveries">📦 ENTREGAS</button>
+      <button class="main-tab" data-main-tab="history">🕐 HISTÓRICO</button>
+    </div>
+
+    <div id="panelDrivers" class="main-panel active">
+      <h3>🏍️ Motoqueiros</h3>
+      <div id="drivers"><div class="small">Carregando...</div></div>
+
+      <div class="day-panel">
+        <b>📊 Painel do dia</b>
+        <div class="day-grid" style="margin-top:7px">
+          <div class="day-box">✅ Conclusão<b id="dayPercent">0%</b></div>
+          <div class="day-box">🏍️ Primeira saída<b id="dayFirstStart">--</b></div>
+          <div class="day-box">📦 Última entrega<b id="dayLastDelivery">--</b></div>
+          <div class="day-box">⏱️ Operação<b id="dayDuration">--</b></div>
+        </div>
       </div>
     </div>
 
-    <h3>➕ Nova venda</h3>
-    <input id="client" placeholder="Nome do cliente">
-    <input id="phone" placeholder="Telefone / WhatsApp">
-    <textarea id="location" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
-<textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
-    <div class="row">
-      <button class="gray" id="resolveLocation">📍 LER LOCALIZAÇÃO</button>
-      <div id="locationResult" class="small" style="padding:10px">Aceita links curtos do Google Maps.</div>
-    </div>
-    <div class="small" style="padding:8px;background:#f3f4f6;border-radius:10px;margin:5px 0">
-      ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>. O motoqueiro será vinculado automaticamente quando tocar em <b>COLETADA</b> no celular.
-    </div>
-    <button class="green" id="addDelivery" style="width:100%">➕ ADICIONAR VENDA</button>
-
-    <div class="row" style="align-items:center;margin-top:12px">
-      <h3 style="margin:0">📦 Entregas</h3>
-      <button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
-    </div>
-    <div class="tabs">
-      <button class="tabbtn active" id="tabActive">📦 COLETAS / PENDENTES</button>
-      <button class="tabbtn" id="tabFinished">✅ ENTREGUES / NÃO ENTREGUES</button>
+    <div id="panelSale" class="main-panel">
+      <h3>➕ Nova venda</h3>
+      <input id="client" placeholder="Nome do cliente">
+      <input id="phone" placeholder="Telefone / WhatsApp">
+      <textarea id="location" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
+      <textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
+      <div class="row">
+        <button class="gray" id="resolveLocation">📍 LER LOCALIZAÇÃO</button>
+        <div id="locationResult" class="small" style="padding:10px">Aceita links curtos do Google Maps.</div>
+      </div>
+      <div class="small" style="padding:8px;background:#f3f4f6;border-radius:10px;margin:5px 0">
+        ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>. O motoqueiro será vinculado automaticamente quando tocar em <b>COLETADA</b> no celular.
+      </div>
+      <button class="green" id="addDelivery" style="width:100%">➕ ADICIONAR VENDA</button>
     </div>
 
-    <div class="toolbar">
-      <input id="deliverySearch" placeholder="🔎 Buscar cliente ou telefone">
-      <select id="statusFilter">
-        <option value="all">Todos os status</option>
-        <option value="awaiting_collection">⚪ Aguardando coleta</option>
-        <option value="pending">🟡 Pendentes</option>
-        <option value="done">🟢 Entregues</option>
-        <option value="failed">🔴 Não entregues</option>
-      </select>
+    <div id="panelDeliveries" class="main-panel">
+      <div class="row" style="align-items:center;margin-top:4px">
+        <h3 style="margin:0">📦 Entregas</h3>
+        <button class="red" id="clearDeliveries">🗑️ LIMPAR ENTREGAS</button>
+      </div>
+
+      <div class="subtabs3">
+        <button class="subtab active" data-delivery-tab="awaiting_collection">⚪ AGUARDANDO COLETA</button>
+        <button class="subtab" data-delivery-tab="pending">🟡 ENTREGAS EM ROTAS</button>
+        <button class="subtab" data-delivery-tab="done">🟢 ENTREGUES</button>
+      </div>
+
+      <div class="toolbar" style="grid-template-columns:1fr">
+        <input id="deliverySearch" placeholder="🔎 Buscar cliente ou telefone">
+      </div>
+      <select id="statusFilter" style="display:none"><option value="all">Todos</option></select>
+
+      <div class="row">
+        <button class="gray" id="exportReport">📄 EXPORTAR</button>
+        <button class="gray" id="fitMap">🗺️ VER TUDO</button>
+      </div>
+
+      <div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">⚪ Aguardando coleta: 0</div>
+      <div id="filteredInfo" class="small"></div>
+      <div id="deliveries"></div>
     </div>
 
-    <div class="row">
-      <button class="gray" id="exportReport">📄 EXPORTAR</button>
-      <button class="gray" id="fitMap">🗺️ VER TUDO</button>
+    <div id="panelHistory" class="main-panel">
+      <h3>🕐 Histórico</h3>
+      <div class="subtabs2">
+        <button class="subtab active" data-history-tab="30">📚 ÚLTIMOS 30 DIAS</button>
+        <button class="subtab" data-history-tab="day">🕐 HISTÓRICO DIÁRIO</button>
+      </div>
+
+      <div id="history30Panel">
+        <div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
+      </div>
+      <div id="historyDayPanel" style="display:none">
+        <div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
+      </div>
     </div>
-
-    <div id="awaitingCount" class="small" style="font-weight:800;margin:6px 0">⚪ Aguardando coleta: 0</div>
-    <div id="filteredInfo" class="small"></div>
-    <div id="deliveries"></div>
-
-    <div class="section-header">
-  <h3>📚 Histórico de entregas — últimos 7 dias</h3>
-  <button class="gray section-toggle" id="toggleHistory7">⬇️</button>
-</div>
-<div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
-<div class="section-header">
-  <h3>🕐 Histórico do dia (05:00–04:59)</h3>
-  <button class="gray section-toggle" id="toggleHistoryDay">⬇️</button>
-</div>
-<div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
   </div>
 
   <div class="map"><div id="map"></div></div>
@@ -141,7 +166,7 @@ function initGoogleMap(){
   window.dispatchEvent(new Event("google-map-ready"));
 }
 const sb=getSupabaseClient();
-let allDrivers=[],allDeliveries=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="active";
+let allDrivers=[],allDeliveries=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="awaiting_collection";
 
 const fmtTime=v=>v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--";
 const fmtDateTime=v=>v?new Date(v).toLocaleString("pt-BR"):"--";
@@ -242,26 +267,19 @@ async function loadDrivers(){
 }
 
 function filteredDeliveries(){
-  const q=document.getElementById("deliverySearch").value.trim().toLowerCase();
-  const st=document.getElementById("statusFilter").value;
+  const q=(document.getElementById("deliverySearch")?.value||"").trim().toLowerCase();
   let rows=allDeliveries.filter(d=>{
     const mq=!q||String(d.client_name||"").toLowerCase().includes(q)||String(d.client_phone||"").toLowerCase().includes(q);
-    const inTab=currentDeliveryTab==="active"
-      ? (d.status==="awaiting_collection"||d.status==="pending")
-      : (d.status==="done"||d.status==="failed");
-    const ms=st==="all"||d.status===st;
-    return mq&&inTab&&ms;
+    return mq&&d.status===currentDeliveryTab;
   });
   rows.sort((a,b)=>{
-    if(currentDeliveryTab==="active"){
-      if(a.status==="awaiting_collection"&&b.status!=="awaiting_collection")return -1;
-      if(b.status==="awaiting_collection"&&a.status!=="awaiting_collection")return 1;
+    if(currentDeliveryTab==="pending"){
       const ao=a.route_order??999999,bo=b.route_order??999999;
       if(ao!==bo)return ao-bo;
     }
     const at=new Date(a.completed_at||a.updated_at||a.created_at).getTime();
     const bt=new Date(b.completed_at||b.updated_at||b.created_at).getTime();
-    return currentDeliveryTab==="finished"?bt-at:at-bt;
+    return currentDeliveryTab==="done"?bt-at:at-bt;
   });
   return rows;
 }
@@ -274,7 +292,7 @@ function renderDeliveries(){
     const order=(d.status==="pending"&&d.route_order)?`${d.route_order}. `:"";
     const driverText=d.status==="awaiting_collection"?"Ainda sem motoqueiro":(driver?driver.name:"Motoqueiro não encontrado");
     return `<div class="delivery">
-      <b>${currentDeliveryTab==="finished"?(d.status==="done"?"🟢 ":"🔴 "):""}${order}${esc(d.client_name)}</b>
+      <b>${currentDeliveryTab==="done"?"🟢 ":""}${order}${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>🏍️ ${esc(driverText)}
       ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}
       ${d.collected_at?`<br><span style="font-size:11px;color:#555"><b>🏍️ Coleta: ${esc(d.collected_by_name||driverText)}</b></span>`:""}
@@ -297,7 +315,7 @@ function renderDeliveries(){
   }).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
 
   Object.values(deliveryMarkers).forEach(m=>m.setMap(null));deliveryMarkers={};
-  if(currentDeliveryTab==="active"){
+  if(currentDeliveryTab==="pending"){
     rows.filter(d=>d.status==="pending").forEach((d,i)=>{
       deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,icon:{
   path:google.maps.SymbolPath.CIRCLE,
@@ -314,7 +332,7 @@ function renderDeliveries(){
 
 async function loadHistory7(){
   if(!sb)return;
-  const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
+  const since=new Date(Date.now()-30*24*60*60*1000).toISOString();
   const {data,error}=await sb.from("deliveries").select("*").gte("created_at",since).order("created_at",{ascending:false});
   const box=document.getElementById("history7");
   if(error){box.innerHTML=`<div class="small">Erro ao carregar histórico: ${esc(error.message)}</div>`;return}
@@ -324,7 +342,7 @@ async function loadHistory7(){
     const complete=d.completed_at?` · 🕐 ${fmtDateTime(d.completed_at)}`:"";
     return `<div class="history-item"><b>${statusIcon(d)} ${esc(d.client_name)}</b><br>
       <span class="small">${statusText(d)}${d.collected_by_name?` · 🏍️ Coleta: ${esc(d.collected_by_name)}`:""}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}</span></div>`;
-  }).join(""):'<div class="small">Nenhuma entrega nos últimos 7 dias.</div>';
+  }).join(""):'<div class="small">Nenhuma entrega nos últimos 30 dias.</div>';
 }
 
 async function loadDeliveries(){
@@ -334,7 +352,7 @@ async function loadDeliveries(){
   allDeliveries=data||[];
   document.getElementById("mTotal").textContent=allDeliveries.length;
   document.getElementById("mPending").textContent=allDeliveries.filter(x=>x.status==="pending").length;
-  document.getElementById("mDone").textContent=allDeliveries.filter(x=>x.status==="done").length;
+  document.getElementById("mDone").textContent=allDeliveries.filter(x=>x.status==="done"&&sameDay(x.completed_at||x.updated_at)).length;
   document.getElementById("mFailed").textContent=allDeliveries.filter(x=>x.status==="failed").length;
   document.getElementById("awaitingCount").textContent="⚪ Aguardando coleta: "+allDeliveries.filter(x=>x.status==="awaiting_collection").length;
   renderDeliveries();renderDayPanel();renderHistory();
@@ -511,31 +529,8 @@ document.getElementById("resolveLocation").onclick=async()=>{
 };
 
 
-function setDeliveryTab(tab){
-  currentDeliveryTab=tab;
-  document.getElementById("tabActive").classList.toggle("active",tab==="active");
-  document.getElementById("tabFinished").classList.toggle("active",tab==="finished");
-  document.getElementById("statusFilter").value="all";
-  renderDeliveries();
-}
-document.getElementById("tabActive").onclick=()=>setDeliveryTab("active");
-document.getElementById("tabFinished").onclick=()=>setDeliveryTab("finished");
-
-
-function bindSectionToggle(buttonId,contentId){
-  const btn=document.getElementById(buttonId),box=document.getElementById(contentId);
-  if(!btn||!box)return;
-  btn.onclick=()=>{
-    const collapsed=box.classList.toggle("section-collapsed");
-    btn.textContent=collapsed?"⬆️":"⬇️";
-    btn.title=collapsed?"Maximizar":"Minimizar";
-  };
-}
-bindSectionToggle("toggleHistory7","history7");
-bindSectionToggle("toggleHistoryDay","history");
-
 document.getElementById("deliverySearch").addEventListener("input",renderDeliveries);
-document.getElementById("statusFilter").addEventListener("change",renderDeliveries);
+
 
 document.getElementById("fitMap").onclick=()=>{
   const pts=[];
@@ -554,6 +549,38 @@ document.getElementById("exportReport").onclick=()=>{
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RTS_RELATORIO_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
 };
 
+
+
+function setMainTab(tab){
+  document.querySelectorAll("[data-main-tab]").forEach(b=>b.classList.toggle("active",b.dataset.mainTab===tab));
+  document.getElementById("panelDrivers").classList.toggle("active",tab==="drivers");
+  document.getElementById("panelSale").classList.toggle("active",tab==="sale");
+  document.getElementById("panelDeliveries").classList.toggle("active",tab==="deliveries");
+  document.getElementById("panelHistory").classList.toggle("active",tab==="history");
+  if(tab==="deliveries")renderDeliveries();
+  setTimeout(()=>{if(map)google.maps.event.trigger(map,"resize")},80);
+}
+document.querySelectorAll("[data-main-tab]").forEach(btn=>{
+  btn.onclick=()=>setMainTab(btn.dataset.mainTab);
+});
+
+function setDeliveryTab(tab){
+  currentDeliveryTab=tab;
+  document.querySelectorAll("[data-delivery-tab]").forEach(b=>b.classList.toggle("active",b.dataset.deliveryTab===tab));
+  renderDeliveries();
+}
+document.querySelectorAll("[data-delivery-tab]").forEach(btn=>{
+  btn.onclick=()=>setDeliveryTab(btn.dataset.deliveryTab);
+});
+
+document.querySelectorAll("[data-history-tab]").forEach(btn=>{
+  btn.onclick=()=>{
+    const tab=btn.dataset.historyTab;
+    document.querySelectorAll("[data-history-tab]").forEach(b=>b.classList.toggle("active",b.dataset.historyTab===tab));
+    document.getElementById("history30Panel").style.display=tab==="30"?"block":"none";
+    document.getElementById("historyDayPanel").style.display=tab==="day"?"block":"none";
+  };
+});
 
 document.getElementById("refreshCentral").onclick=async()=>{
   const btn=document.getElementById("refreshCentral");
