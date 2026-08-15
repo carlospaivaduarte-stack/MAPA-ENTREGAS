@@ -105,7 +105,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 </div>
 <div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
 <div class="section-header">
-  <h3>🕐 Histórico do dia</h3>
+  <h3>🕐 Histórico do dia (05:00–04:59)</h3>
   <button class="gray section-toggle" id="toggleHistoryDay">⬇️</button>
 </div>
 <div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
@@ -145,7 +145,20 @@ let allDrivers=[],allDeliveries=[],driverMarkers={},deliveryMarkers={},editingDe
 
 const fmtTime=v=>v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--";
 const fmtDateTime=v=>v?new Date(v).toLocaleString("pt-BR"):"--";
-function sameDay(v){if(!v)return false;const d=new Date(v),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate()}
+function operationalDayWindow(){
+  const now=new Date();
+  const start=new Date(now);
+  start.setHours(5,0,0,0);
+  if(now<start)start.setDate(start.getDate()-1);
+  const end=new Date(start);
+  end.setDate(end.getDate()+1);
+  return {start,end};
+}
+function sameDay(v){
+  if(!v)return false;
+  const d=new Date(v),w=operationalDayWindow();
+  return d>=w.start&&d<w.end;
+}
 function mins(a,b){return a&&b?Math.max(0,Math.round((new Date(b)-new Date(a))/60000)):null}
 function fmtMins(m){if(m==null)return"--";const h=Math.floor(m/60),x=m%60;return h?`${h}h ${x}min`:`${x} min`}
 function fresh(d){return !!(d.last_seen&&Date.now()-new Date(d.last_seen).getTime()<180000)}
@@ -264,6 +277,7 @@ function renderDeliveries(){
       <b>${currentDeliveryTab==="finished"?(d.status==="done"?"🟢 ":"🔴 "):""}${order}${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>🏍️ ${esc(driverText)}
       ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}
+      ${d.collected_at?`<br><span style="font-size:11px;color:#555"><b>🏍️ Coleta: ${esc(d.collected_by_name||driverText)}</b></span>`:""}
       ${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}
       ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
       ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
@@ -309,7 +323,7 @@ async function loadHistory7(){
     const removed=d.deleted_at?` · 🗑️ Removida ${fmtDateTime(d.deleted_at)}`:"";
     const complete=d.completed_at?` · 🕐 ${fmtDateTime(d.completed_at)}`:"";
     return `<div class="history-item"><b>${statusIcon(d)} ${esc(d.client_name)}</b><br>
-      <span class="small">${statusText(d)}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}</span></div>`;
+      <span class="small">${statusText(d)}${d.collected_by_name?` · 🏍️ Coleta: ${esc(d.collected_by_name)}`:""}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}</span></div>`;
   }).join(""):'<div class="small">Nenhuma entrega nos últimos 7 dias.</div>';
 }
 

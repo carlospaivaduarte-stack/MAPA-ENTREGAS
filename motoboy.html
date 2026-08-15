@@ -59,10 +59,12 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   <button class="green" id="nextDelivery" style="width:100%">➡️ PRÓXIMA ENTREGA</button>
 </div>
 <div id="routeInfo" class="small" style="margin:5px 0">A rota usa somente suas entregas coletadas e pendentes.</div>
-<div class="tabs">
+<div class="tabs" style="grid-template-columns:1fr 1fr 1fr">
   <button class="tabbtn active" id="tabMotoboyActive">📦 COLETAS / PENDENTES</button>
   <button class="tabbtn" id="tabMotoboyFinished">✅ FINALIZADAS</button>
+  <button class="tabbtn" id="tabMotoboyHistory">🕐 HISTÓRICO DIÁRIO</button>
 </div>
+<div id="dailyHistorySummary" style="display:none;margin:8px 0;padding:9px;border:1px solid #ddd;border-radius:10px;background:#fafafa"></div>
 <div id="collectionBox" style="margin:8px 0"></div>
 <div id="deliveries"></div>
 </div>
@@ -157,12 +159,19 @@ async function resolveMyDriverIds(){
   return [...ids];
 }
 
-function isTodayLocal(v){
+function operationalDayWindow(){
+  const now=new Date();
+  const start=new Date(now);
+  start.setHours(5,0,0,0);
+  if(now<start)start.setDate(start.getDate()-1);
+  const end=new Date(start);
+  end.setDate(end.getDate()+1);
+  return {start,end};
+}
+function isOperationalToday(v){
   if(!v)return false;
-  const d=new Date(v),now=new Date();
-  return d.getFullYear()===now.getFullYear() &&
-         d.getMonth()===now.getMonth() &&
-         d.getDate()===now.getDate();
+  const d=new Date(v),w=operationalDayWindow();
+  return d>=w.start&&d<w.end;
 }
 
 async function loadDeliveries(){
@@ -199,7 +208,7 @@ async function loadDeliveries(){
   waitingDeliveries=waiting||[];
 
   finishedDeliveries=assigned
-    .filter(d=>(d.status==="done"||d.status==="failed") && isTodayLocal(d.completed_at||d.updated_at))
+    .filter(d=>(d.status==="done"||d.status==="failed") && isOperationalToday(d.completed_at||d.updated_at))
     .sort((a,b)=>new Date(b.completed_at||b.updated_at)-new Date(a.completed_at||a.updated_at));
 
   const activeAssigned=assigned.filter(d=>d.status!=="awaiting_collection");
@@ -227,7 +236,13 @@ window.collectDelivery=async id=>{
   const nowIso=new Date().toISOString();
   // A coleta só funciona se a entrega ainda estiver aguardando e sem motoqueiro.
   const {data,error}=await sb.from("deliveries")
-    .update({driver_id:driverId,status:"pending",collected_at:nowIso,updated_at:nowIso})
+    .update({
+      driver_id:driverId,
+      status:"pending",
+      collected_at:nowIso,
+      collected_by_name:document.getElementById("driverName").value.trim()||localStorage.getItem("v7_driver_name")||"Motoboy",
+      updated_at:nowIso
+    })
     .eq("id",id)
     .eq("status","awaiting_collection")
     .is("driver_id",null)
@@ -241,6 +256,25 @@ window.collectDelivery=async id=>{
 };
 
 function fmtDateTime(v){return v?new Date(v).toLocaleString("pt-BR"):"--"}
+
+function renderDailyHistory(){
+  const box=document.getElementById("dailyHistorySummary");
+  if(!box)return;
+  const done=finishedDeliveries.filter(d=>d.status==="done").length;
+  const failed=finishedDeliveries.filter(d=>d.status==="failed").length;
+  const w=operationalDayWindow();
+  const startText=w.start.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  box.innerHTML=`
+    <b>🕐 HISTÓRICO DIÁRIO</b>
+    <div class="small" style="margin-top:5px">Período atual: ${startText} até 04:59</div>
+    <div class="metrics" style="margin-top:7px">
+      <div class="metric">Finalizadas<b>${finishedDeliveries.length}</b></div>
+      <div class="metric">Entregues<b>${done}</b></div>
+      <div class="metric">Não ent.<b>${failed}</b></div>
+      <div class="metric">Coletadas<b>${currentDeliveries.filter(d=>d.collected_at&&isOperationalToday(d.collected_at)).length}</b></div>
+    </div>`;
+}
+
 function renderDeliveries(data){
   currentDeliveries=(data||[]).sort((a,b)=>{
     const af=(a.status==="done"||a.status==="failed"),bf=(b.status==="done"||b.status==="failed");
@@ -279,6 +313,11 @@ function renderDeliveries(data){
   const rows=currentMotoboyTab==="active"
     ? pending
     : finishedDeliveries;
+  const histBox=document.getElementById("dailyHistorySummary");
+  if(histBox){
+    histBox.style.display=currentMotoboyTab==="history"?"block":"none";
+    if(currentMotoboyTab==="history")renderDailyHistory();
+  }
 
   const box=document.getElementById("deliveries");
   box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
@@ -286,7 +325,7 @@ function renderDeliveries(data){
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
       ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
       ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
-    ${d.status==="pending"?`<div class="row" style="margin-top:6px">
+    ${currentMotoboyTab==="history"?"":(d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
       <button class="blue" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}&travelmode=driving','_blank')">🧭 Navegar</button>
@@ -299,7 +338,7 @@ function renderDeliveries(data){
       <button class="red" onclick="switchFinalStatus('${d.id}','failed')">❌ NÃO ENTREGUE</button>
       <button class="yellow" onclick="returnToPending('${d.id}')">🟡 PENDENTE</button>
       <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
-    </div>`}
+    </div>`)}
   </div>`).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
 }
 
@@ -546,10 +585,12 @@ async function setMotoboyTab(tab){
   currentMotoboyTab=tab;
   document.getElementById("tabMotoboyActive").classList.toggle("active",tab==="active");
   document.getElementById("tabMotoboyFinished").classList.toggle("active",tab==="finished");
+  document.getElementById("tabMotoboyHistory").classList.toggle("active",tab==="history");
   await loadDeliveries();
 }
 document.getElementById("tabMotoboyActive").onclick=()=>setMotoboyTab("active");
 document.getElementById("tabMotoboyFinished").onclick=()=>setMotoboyTab("finished");
+document.getElementById("tabMotoboyHistory").onclick=()=>setMotoboyTab("history");
 
 const panelEl=document.querySelector(".panel");
 const panelToggle=document.getElementById("panelToggle");
