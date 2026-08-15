@@ -57,6 +57,7 @@ let driverMarker=null,destMarker=null,lastDriverPosition=null;
 const icon=(kind,label)=>({kind,label});
 
 function closeTracking(d){
+  lastDriverPosition=null;
   document.getElementById("talkDriver").style.display="none";
   if(driverMarker){driverMarker.setMap(null);driverMarker=null}
   document.getElementById("ahead").textContent="—";
@@ -120,6 +121,7 @@ async function refresh(){
   }
   const d=data[0];
   if(d.status==="awaiting_collection"){
+    lastDriverPosition=null;
     if(driverMarker){driverMarker.setMap(null);driverMarker=null}
     if(destMarker){destMarker.setMap(null);destMarker=null}
     document.getElementById("headline").textContent="Seu pedido ainda está aguardando coleta.";
@@ -137,7 +139,7 @@ async function refresh(){
   document.getElementById("status").className="status warn";
   document.getElementById("status").textContent="🟡 Entrega pendente";
   document.getElementById("headline").textContent=d.route_order===1?"🏍️ Você é a próxima entrega":(d.route_order?`Sua entrega está na posição ${d.route_order} da rota.`:"Seu pedido está na rota do motoboy.");
-  const {data:drivers}=await sb.from("drivers").select("id,name,lat,lng,last_seen,is_online").eq("id",d.driver_id).limit(1);
+  const {data:drivers}=await sb.from("drivers").select("id,name,phone,lat,lng,last_seen,is_online").eq("id",d.driver_id).limit(1);
   const drv=drivers&&drivers[0];
   const talk=document.getElementById("talkDriver");
   if(drv&&drv.phone){
@@ -146,6 +148,7 @@ async function refresh(){
   }else talk.style.display="none";
   if(drv&&drv.lat!=null){
     const pos={lat:Number(drv.lat),lng:Number(drv.lng)};
+    lastDriverPosition=pos;
     if(!driverMarker)driverMarker=new google.maps.Marker({position:pos,map,label:"🏍️",title:"Motoboy"});
     else driverMarker.setPosition(pos);
     const bounds=new google.maps.LatLngBounds(); bounds.extend({lat:Number(d.lat),lng:Number(d.lng)}); bounds.extend(pos); map.fitBounds(bounds,55);
@@ -156,6 +159,10 @@ async function refresh(){
     card.className="last-update "+(fresh?"fresh":"stale");
     document.getElementById("lastUpdateBig").textContent=`Localização Atualizada ${lastText}`;
     document.getElementById("detail").textContent=fresh?"A localização do motoboy é atualizada aproximadamente a cada 1 minuto.":"⚠️ A localização do motoboy está há mais de 3 minutos sem atualização.";
+  }else{
+    lastDriverPosition=null;
+    if(driverMarker){driverMarker.setMap(null);driverMarker=null}
+    document.getElementById("lastUpdateBig").textContent="Localização do motoboy indisponível";
   }
   await estimate(d,drv);
 }

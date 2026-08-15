@@ -41,10 +41,10 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <div class="row" style="margin-top:6px"><button class="green" id="startRoute">▶️ INICIAR ROTA</button><button class="gray" id="routeTimes">🕐 Horários</button></div>
 <div id="routeTimeInfo" class="route-times" style="display:none">Saída: -- · Início da rota: -- · Conclusão: --</div>
 <div class="metrics">
-  <div class="metric">Total<b id="mTotal">0</b></div>
+  <div class="metric">Total atual<b id="mTotal">0</b></div>
   <div class="metric">Pend.<b id="mPending">0</b></div>
-  <div class="metric">Entreg.<b id="mDone">0</b></div>
-  <div class="metric">Não ent.<b id="mFailed">0</b></div>
+  <div class="metric">Entreg. hoje<b id="mDone">0</b></div>
+  <div class="metric">Não ent. hoje<b id="mFailed">0</b></div>
 </div>
 <div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
 <div class="row" style="margin-bottom:7px">
@@ -114,7 +114,11 @@ async function upsertDriver(pos){
   currentDriver={...(currentDriver||{}),...row};
   renderRouteTimes();
   const posMap={lat:Number(row.lat),lng:Number(row.lng)};
-  if(!marker)marker=new google.maps.Marker({position:posMap,map,title:"📍 Você"});else marker.setPosition(posMap);
+  if(!marker)marker=new google.maps.Marker({position:posMap,map,icon:{
+  url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52"><text x="26" y="38" text-anchor="middle" font-size="36">🏍️</text></svg>`),
+  scaledSize:new google.maps.Size(52,52),
+  anchor:new google.maps.Point(26,26)
+},title:"Localização do motoboy"});else marker.setPosition(posMap);
   if(!hasCentered){map.setCenter(posMap);map.setZoom(17);hasCentered=true;}
 }
 
@@ -286,10 +290,13 @@ function renderDeliveries(data){
     return new Date(b.completed_at||b.updated_at||b.created_at)-new Date(a.completed_at||a.updated_at||a.created_at);
   });
 
-  document.getElementById("mTotal").textContent=currentDeliveries.length;
-  document.getElementById("mPending").textContent=currentDeliveries.filter(x=>x.status==="pending").length;
-  document.getElementById("mDone").textContent=currentDeliveries.filter(x=>x.status==="done").length;
-  document.getElementById("mFailed").textContent=currentDeliveries.filter(x=>x.status==="failed").length;
+  const pendingNow=currentDeliveries.filter(x=>x.status==="pending");
+  const doneToday=finishedDeliveries.filter(x=>x.status==="done");
+  const failedToday=finishedDeliveries.filter(x=>x.status==="failed");
+  document.getElementById("mTotal").textContent=pendingNow.length+finishedDeliveries.length;
+  document.getElementById("mPending").textContent=pendingNow.length;
+  document.getElementById("mDone").textContent=doneToday.length;
+  document.getElementById("mFailed").textContent=failedToday.length;
   const finishedTab=document.getElementById("tabMotoboyFinished");
   if(finishedTab)finishedTab.textContent=`✅ FINALIZADAS (${finishedDeliveries.length})`;
 
@@ -471,8 +478,8 @@ async function setStatus(id,status){
   }
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({status,note,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
-  if(status==="done"||status==="failed")await renumberActiveRoute((currentDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
   if(error)return alert("Erro ao atualizar entrega: "+error.message);
+  if(status==="done"||status==="failed")await renumberActiveRoute((currentDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
   await loadDeliveries();
   const {data:remaining}=await sb.from("deliveries").select("id").eq("driver_id",driverId).eq("status","pending").limit(1);
   if(!remaining||remaining.length===0){
