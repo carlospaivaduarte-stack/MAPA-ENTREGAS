@@ -4,99 +4,257 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>RTS — Acompanhar entrega</title>
+
 <style>
-*{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#f3f4f6}
-#map{position:fixed;inset:0}.top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 20px #0002}
-.title{font-size:18px;font-weight:800}.sub{font-size:13px;color:#555;margin-top:4px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
-.stat{background:#f3f4f6;border-radius:12px;padding:9px}.stat b{display:block;font-size:17px;margin-top:2px}
-.last-update{margin-top:9px;border:2px solid #e5e7eb;border-radius:13px;padding:10px;background:#fff}.last-update .label{font-size:11px;color:#666;font-weight:700}.last-update .time{font-size:20px;font-weight:900;margin-top:2px}.last-update.stale .time{color:#dc2626}.last-update.fresh .time{color:#16a34a}
-.bottom{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 20px #0002}
-.status{font-weight:800}.ok{color:#16a34a}.bad{color:#dc2626}.warn{color:#d97706}.small{font-size:12px;color:#666;margin-top:5px}.contact{width:100%;margin-top:9px;border:0;border-radius:12px;padding:12px;font-weight:800;background:#25D366;color:#071b0d;cursor:pointer}
-.pin{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 7px #0005;font-weight:800}.driver{background:#111827;color:white}.dest{background:#facc15;color:#111}
-@media(min-width:760px){.top,.bottom{width:430px;left:20px;right:auto}}
+:root{
+  --bg:#06111f;
+  --panel:#0a1727;
+  --panel2:#0d1d30;
+  --line:#1c3552;
+  --blue:#2474ff;
+  --blue2:#1457d8;
+  --text:#f7f9fc;
+  --muted:#8fa2b8;
+  --green:#28d17c;
+  --yellow:#ffd84d;
+  --red:#ef4444;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;min-height:100%;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+body{overflow:auto}
+#map{height:48vh;min-height:355px;width:100%;border-radius:25px}
+.app{width:min(720px,100%);margin:0 auto;padding:14px 14px 28px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:5px 3px 14px}
+.logo{font-size:34px;line-height:1;font-weight:1000;font-style:italic;color:#2e7cff;letter-spacing:.5px}
+.menu{font-size:26px;color:#fff}
+.heading{display:flex;align-items:center;gap:13px;margin:2px 2px 16px}
+.heading img{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 6px 10px #0005)}
+.heading h1{font-size:26px;line-height:1.05;margin:0}
+.heading p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.map-shell{position:relative;border:1px solid #203c5c;border-radius:27px;overflow:hidden;background:#071321;box-shadow:0 15px 38px #0004}
+.live-pill{position:absolute;z-index:5;left:14px;top:14px;background:#071421e6;border:1px solid #183754;border-radius:14px;padding:9px 11px;font-size:12px;color:#d9e4f1;pointer-events:none}
+.live-pill strong{color:#65ef9e}
+.destination-label{position:absolute;z-index:5;right:14px;top:14px;background:#071421e6;border:1px solid #5b4d19;border-radius:14px;padding:8px 10px;color:#ffe26a;font-size:11px;font-weight:900;pointer-events:none}
+.locate{width:100%;border:0;border-radius:21px;padding:17px 15px;margin:16px 0 13px;background:linear-gradient(90deg,var(--blue2),var(--blue));color:white;font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 10px 28px #1457d84a}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:20px;padding:16px;min-height:125px;box-shadow:0 8px 22px #0002}
+.label{font-size:12px;font-weight:900;color:#96a8bd;letter-spacing:.2px}
+.value{font-size:31px;font-weight:1000;margin-top:13px}
+.sub{font-size:12px;color:var(--muted);margin-top:3px}
+.queue .value{color:#3b84ff}
+.info{margin-top:12px;min-height:auto;display:flex;gap:12px;align-items:center}
+.info-icon{width:44px;height:44px;border-radius:50%;background:#1759d8;display:grid;place-items:center;font-size:24px;font-weight:900;flex:0 0 auto}
+.info strong{color:#3c83ff;font-size:12px}
+#headline{color:#c6d3e1}
+.status-card{display:none;margin-top:12px;min-height:auto}
+.status-card.show{display:flex;align-items:center;gap:13px}
+.status-card.done{border-color:#14613c;background:linear-gradient(180deg,#072b1e,#071b17)}
+.status-card.failed{border-color:#713030;background:linear-gradient(180deg,#321313,#1d0b0b)}
+.status-icon{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:900;flex:0 0 auto}
+.done .status-icon{background:var(--green)}
+.failed .status-icon{background:var(--red)}
+.status-card h3{margin:0 0 4px;font-size:17px}
+.done h3{color:#38df87}.failed h3{color:#ff7373}
+.updated{text-align:center;margin:15px 0 0;color:#7f93aa;font-size:12px}
+.hidden{display:none!important}
+@media(max-width:520px){
+  .app{padding:11px 11px 24px}
+  .heading h1{font-size:22px}
+  .heading img{width:58px;height:58px}
+  #map{height:43vh;min-height:330px}
+  .grid{grid-template-columns:1fr 1fr}
+  .value{font-size:27px}
+}
 </style>
+
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 </script>
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
+
 <body>
-<div id="map"></div>
-<div class="top">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-  <div class="title">RTS — Acompanhe sua entrega</div>
-  <button id="centerDriverClient" style="border:0;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer;margin-right:6px">🏍️ CENTRALIZAR</button>
-  <button id="refreshClient" style="border:0;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer">🔄 ATUALIZAR</button>
-</div>
-  <div id="headline" class="sub">Carregando informações...</div>
-  <div class="stats">
-    <div class="stat"><span>📦 Entregas antes da sua</span><b id="ahead">--</b></div>
-    <div class="stat"><span>⏱️ Previsão aproximada</span><b id="eta">--</b></div>
+<div class="app">
+  <div class="topbar">
+    <div class="logo">RTS</div>
+    <div class="menu">☰</div>
   </div>
-  <div id="lastUpdateCard" class="last-update">
-    <div class="label">📍 ÚLTIMA ATUALIZAÇÃO DO MOTOBOY</div>
-    <div id="lastUpdateBig" class="time">Localização Atualizada --:--</div>
+
+  <div class="heading">
+    <img src="moto_azul.png" alt="Moto RTS">
+    <div>
+      <h1 id="mainTitle">ENTREGA EM ROTA</h1>
+      <p id="headline">Carregando informações...</p>
+    </div>
   </div>
+
+  <div class="map-shell">
+    <div id="map"></div>
+    <div class="live-pill" id="livePill"><strong>● AO VIVO</strong><br><span id="liveText">Localização atualizada</span></div>
+    <div class="destination-label">📦 LOCAL DA ENTREGA</div>
+  </div>
+
+  <button class="locate" id="centerDriverClient">⌖ &nbsp; LOCALIZAR MOTOQUEIRO</button>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">◷ &nbsp; PREVISÃO DE CHEGADA</div>
+      <div class="value" id="eta">--</div>
+      <div class="sub" id="etaSub">Calculando...</div>
+    </div>
+
+    <div class="card queue">
+      <div class="label">☷ &nbsp; SUA ENTREGA É A</div>
+      <div class="value" id="queuePosition">--</div>
+      <div class="sub">da fila</div>
+    </div>
+  </div>
+
+  <div class="card info">
+    <div class="info-icon">i</div>
+    <div>
+      <strong>ACOMPANHE EM TEMPO REAL</strong><br>
+      <span id="detail">A localização do motoqueiro é atualizada automaticamente durante a entrega.</span>
+    </div>
+  </div>
+
+  <div class="card status-card done" id="doneCard">
+    <div class="status-icon">✓</div>
+    <div><h3>ENTREGA REALIZADA!</h3><div id="doneText">Sua entrega foi realizada com sucesso.</div></div>
+  </div>
+
+  <div class="card status-card failed" id="failedCard">
+    <div class="status-icon">×</div>
+    <div><h3>ENTREGA NÃO REALIZADA</h3><div id="failedText">A entrega foi encerrada.</div></div>
+  </div>
+
+  <div id="status" class="hidden"></div>
+  <div id="ahead" class="hidden">--</div>
+  <div id="lastUpdateCard" class="hidden"></div>
+  <div id="lastUpdateBig" class="hidden"></div>
+  <button id="talkDriver" class="hidden"></button>
+  <button id="refreshClient" class="hidden"></button>
+
+  <div class="updated" id="updatedText">↻ Atualizando localização...</div>
 </div>
-<div class="bottom">
-  <div id="status" class="status warn">🟡 Entrega pendente</div>
-  <div id="detail" class="small">A localização é atualizada aproximadamente a cada 1 minuto.</div>
-  <button id="talkDriver" class="contact" style="display:none">💬 FALAR COM O MOTOQUEIRO</button>
-</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script><script src="shared.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+
 <script>
 let map;
+const DARK_MAP_STYLE=[
+  {elementType:"geometry",stylers:[{color:"#0b1726"}]},
+  {elementType:"labels.text.fill",stylers:[{color:"#8ea2ba"}]},
+  {elementType:"labels.text.stroke",stylers:[{color:"#07111d"}]},
+  {featureType:"road",elementType:"geometry",stylers:[{color:"#1b324b"}]},
+  {featureType:"road.highway",elementType:"geometry",stylers:[{color:"#254563"}]},
+  {featureType:"poi",elementType:"geometry",stylers:[{color:"#10243a"}]},
+  {featureType:"poi.park",elementType:"geometry",stylers:[{color:"#12352d"}]},
+  {featureType:"water",elementType:"geometry",stylers:[{color:"#071a2b"}]}
+];
+
 function initGoogleMap(){
-  map=new google.maps.Map(document.getElementById("map"),{center:{lat:-9.6498,lng:-35.7089},zoom:13,mapTypeControl:true,streetViewControl:false,fullscreenControl:true});
+  map=new google.maps.Map(document.getElementById("map"),{
+    center:{lat:-9.6498,lng:-35.7089},
+    zoom:13,
+    styles:DARK_MAP_STYLE,
+    mapTypeControl:false,
+    streetViewControl:false,
+    fullscreenControl:false,
+    zoomControl:true
+  });
   refresh();
 }
+
 const sb=getSupabaseClient();
 const token=new URLSearchParams(location.search).get("t");
 let driverMarker=null,destMarker=null,lastDriverPosition=null;
-const icon=(kind,label)=>({kind,label});
+
+function motoIcon(){
+  return {
+    url:"moto_azul.png",
+    scaledSize:new google.maps.Size(64,64),
+    anchor:new google.maps.Point(32,32)
+  };
+}
+function packageIcon(){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54">
+    <text x="27" y="39" text-anchor="middle" font-size="38">📦</text>
+  </svg>`;
+  return {
+    url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg),
+    scaledSize:new google.maps.Size(54,54),
+    anchor:new google.maps.Point(27,27)
+  };
+}
+function ordinal(n){
+  if(!Number.isFinite(n)||n<1)return"--";
+  return `${n}ª`;
+}
+function setUpdated(text){
+  document.getElementById("updatedText").textContent=text;
+}
+function resetTerminalCards(){
+  document.getElementById("doneCard").classList.remove("show");
+  document.getElementById("failedCard").classList.remove("show");
+}
 
 function closeTracking(d){
   lastDriverPosition=null;
-  document.getElementById("talkDriver").style.display="none";
   if(driverMarker){driverMarker.setMap(null);driverMarker=null}
-  document.getElementById("ahead").textContent="—";
   document.getElementById("eta").textContent="—";
-
-  const card=document.getElementById("lastUpdateCard");
-  const big=document.getElementById("lastUpdateBig");
+  document.getElementById("etaSub").textContent="";
+  document.getElementById("queuePosition").textContent="—";
+  document.getElementById("centerDriverClient").style.display="none";
+  document.getElementById("livePill").style.display="none";
+  resetTerminalCards();
 
   if(d.status==="done"){
-    document.getElementById("status").className="status ok";
-    document.getElementById("status").textContent="✅ Entrega realizada";
+    document.getElementById("mainTitle").textContent="ENTREGA CONCLUÍDA";
     document.getElementById("headline").textContent="Sua entrega foi concluída.";
-    card.className="last-update fresh";
-    big.textContent=`${d.client_name||"Cliente"}, sua entrega já foi recolhida`;
-    document.getElementById("detail").textContent=`O rastreamento da localização do motoboy foi encerrado.${d.completed_at?" Conclusão: "+new Date(d.completed_at).toLocaleString("pt-BR"):""}`;
+    document.getElementById("doneCard").classList.add("show");
+    const when=d.completed_at?new Date(d.completed_at).toLocaleString("pt-BR"):"";
+    document.getElementById("doneText").textContent=when?`Sua entrega foi realizada com sucesso em ${when}.`:"Sua entrega foi realizada com sucesso.";
+    document.getElementById("detail").textContent="O rastreamento foi encerrado porque o motoboy confirmou a entrega.";
   }else{
-    document.getElementById("status").className="status bad";
-    document.getElementById("status").textContent="❌ Entrega não realizada";
+    document.getElementById("mainTitle").textContent="ENTREGA ENCERRADA";
     document.getElementById("headline").textContent="A entrega foi encerrada.";
-    card.className="last-update stale";
-    big.textContent="Entrega não realizada";
-    document.getElementById("detail").textContent=`O rastreamento da localização do motoboy foi encerrado.${d.completed_at?" Conclusão: "+new Date(d.completed_at).toLocaleString("pt-BR"):""}`;
+    document.getElementById("failedCard").classList.add("show");
+    document.getElementById("failedText").textContent=d.note?`Motivo: ${d.note}`:"A entrega não pôde ser realizada.";
+    document.getElementById("detail").textContent="O rastreamento desta entrega foi encerrado.";
   }
+  setUpdated("↻ Status atualizado");
 }
-async function estimate(d,drv){
-  const {data:pending}=await sb.from("deliveries").select("id,lat,lng,route_order,status,driver_id")
-    .eq("driver_id",d.driver_id).eq("status","pending").order("route_order",{ascending:true});
-  const ordered=(pending||[]).filter(x=>x.route_order!=null).sort((a,b)=>a.route_order-b.route_order);
-  const pos=ordered.findIndex(x=>x.id===d.id);
-  const ahead=pos<0?0:pos;
-  document.getElementById("ahead").textContent=ahead===0?"Você é o próximo":String(ahead);
 
-  if(ahead>0){
-    document.getElementById("eta").textContent="Aguardando sua vez";
+async function estimate(d,drv){
+  const {data:pending}=await sb.from("deliveries")
+    .select("id,lat,lng,route_order,status,driver_id")
+    .eq("driver_id",d.driver_id)
+    .eq("status","pending")
+    .is("deleted_at",null)
+    .order("route_order",{ascending:true});
+
+  const ordered=(pending||[])
+    .filter(x=>x.route_order!=null)
+    .sort((a,b)=>a.route_order-b.route_order);
+
+  const pos=ordered.findIndex(x=>x.id===d.id);
+  const queuePos=pos>=0?pos+1:(Number(d.route_order)||null);
+
+  document.getElementById("queuePosition").textContent=ordinal(queuePos);
+  document.getElementById("ahead").textContent=pos<=0?"Você é o próximo":String(pos);
+
+  if(queuePos>1){
+    document.getElementById("eta").textContent="AGUARDE";
+    document.getElementById("etaSub").textContent=`Há ${queuePos-1} entrega(s) antes da sua`;
     return;
   }
 
-  if(!drv||drv.lat==null){
-    document.getElementById("eta").textContent="Calculando...";
+  if(!drv||drv.lat==null||drv.lng==null){
+    document.getElementById("eta").textContent="--";
+    document.getElementById("etaSub").textContent="Calculando...";
     return;
   }
 
@@ -104,82 +262,145 @@ async function estimate(d,drv){
     const url=`https://router.project-osrm.org/route/v1/driving/${drv.lng},${drv.lat};${d.lng},${d.lat}?overview=false`;
     const r=await fetch(url);
     const j=await r.json();
-    if(j.code!=="Ok"||!j.routes?.length)throw 0;
+    if(j.code!=="Ok"||!j.routes?.length)throw new Error("rota");
     const mins=Math.max(1,Math.round(j.routes[0].duration/60));
-    document.getElementById("eta").textContent=`~${mins} min`;
+    const chegada=new Date(Date.now()+mins*60000);
+    document.getElementById("eta").textContent=chegada.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    document.getElementById("etaSub").textContent=`aprox. ${mins} min`;
   }catch(e){
-    document.getElementById("eta").textContent="Indisponível";
+    document.getElementById("eta").textContent="--";
+    document.getElementById("etaSub").textContent="Previsão indisponível";
   }
 }
+
 async function refresh(){
-  if(!sb||!token){document.getElementById("headline").textContent="Link de rastreamento inválido.";return}
-  const {data,error}=await sb.from("deliveries").select("*").eq("tracking_token",token).is("deleted_at",null).limit(1);
+  resetTerminalCards();
+
+  if(!sb||!token){
+    document.getElementById("headline").textContent="Link de rastreamento inválido.";
+    document.getElementById("mainTitle").textContent="RASTREAMENTO";
+    return;
+  }
+
+  const {data,error}=await sb.from("deliveries")
+    .select("*")
+    .eq("tracking_token",token)
+    .is("deleted_at",null)
+    .limit(1);
+
   if(error||!data||!data.length){
     document.getElementById("headline").textContent="Este link não é válido ou expirou.";
-    document.getElementById("status").textContent="Rastreamento indisponível";
-    document.getElementById("ahead").textContent="—";document.getElementById("eta").textContent="—";return
+    document.getElementById("mainTitle").textContent="RASTREAMENTO INDISPONÍVEL";
+    document.getElementById("eta").textContent="—";
+    document.getElementById("queuePosition").textContent="—";
+    return;
   }
+
   const d=data[0];
+
   if(d.status==="awaiting_collection"){
     lastDriverPosition=null;
     if(driverMarker){driverMarker.setMap(null);driverMarker=null}
     if(destMarker){destMarker.setMap(null);destMarker=null}
-    document.getElementById("headline").textContent="Seu pedido ainda está aguardando coleta.";
-    document.getElementById("status").className="status warn";
-    document.getElementById("status").textContent="⚪ Aguardando coleta";
-    document.getElementById("ahead").textContent="—";
-    document.getElementById("eta").textContent="Aguardando coleta";
-    document.getElementById("talkDriver").style.display="none";
-    document.getElementById("lastUpdateBig").textContent="Motoqueiro ainda não definido";
-    document.getElementById("detail").textContent="O rastreamento será liberado quando um motoqueiro coletar sua entrega.";
+    document.getElementById("mainTitle").textContent="AGUARDANDO COLETA";
+    document.getElementById("headline").textContent="Seu pedido ainda está aguardando um motoqueiro.";
+    document.getElementById("queuePosition").textContent="—";
+    document.getElementById("eta").textContent="—";
+    document.getElementById("etaSub").textContent="Aguardando coleta";
+    document.getElementById("centerDriverClient").style.display="none";
+    document.getElementById("livePill").style.display="none";
+    document.getElementById("detail").textContent="O acompanhamento será liberado assim que sua entrega for coletada.";
+    setUpdated("↻ Aguardando coleta");
     return;
   }
-  if(!destMarker)destMarker=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,label:"📦",title:"Sua entrega"});
-  if(d.status!=="pending"){closeTracking(d);map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});map.setZoom(16);return}
-  document.getElementById("status").className="status warn";
-  document.getElementById("status").textContent="🟡 Entrega pendente";
-  document.getElementById("headline").textContent=d.route_order===1?"🏍️ Você é a próxima entrega":(d.route_order?`Sua entrega está na posição ${d.route_order} da rota.`:"Seu pedido está na rota do motoboy.");
-  const {data:drivers}=await sb.from("drivers").select("id,name,phone,lat,lng,last_seen,is_online").eq("id",d.driver_id).limit(1);
+
+  if(!destMarker){
+    destMarker=new google.maps.Marker({
+      position:{lat:Number(d.lat),lng:Number(d.lng)},
+      map,
+      icon:packageIcon(),
+      title:"Local da sua entrega",
+      zIndex:20
+    });
+  }else{
+    destMarker.setPosition({lat:Number(d.lat),lng:Number(d.lng)});
+    destMarker.setMap(map);
+  }
+
+  if(d.status!=="pending"){
+    closeTracking(d);
+    map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});
+    map.setZoom(16);
+    return;
+  }
+
+  document.getElementById("mainTitle").textContent="ENTREGA EM ROTA";
+  document.getElementById("centerDriverClient").style.display="block";
+  document.getElementById("livePill").style.display="block";
+  document.getElementById("headline").textContent=d.route_order===1
+    ?"Sua entrega é a próxima."
+    :(d.route_order?`Sua entrega está na ${d.route_order}ª posição da rota.`:"Seu pedido está na rota do motoqueiro.");
+
+  const {data:drivers}=await sb.from("drivers")
+    .select("id,name,phone,lat,lng,last_seen,is_online")
+    .eq("id",d.driver_id)
+    .limit(1);
+
   const drv=drivers&&drivers[0];
-  const talk=document.getElementById("talkDriver");
-  if(drv&&drv.phone){
-    talk.style.display="block";
-    talk.onclick=()=>openWhatsApp(drv.phone);
-  }else talk.style.display="none";
-  if(drv&&drv.lat!=null){
+
+  if(drv&&drv.lat!=null&&drv.lng!=null){
     const pos={lat:Number(drv.lat),lng:Number(drv.lng)};
     lastDriverPosition=pos;
-    if(!driverMarker)driverMarker=new google.maps.Marker({position:pos,map,label:"🏍️",title:"Motoboy"});
-    else driverMarker.setPosition(pos);
-    const bounds=new google.maps.LatLngBounds(); bounds.extend({lat:Number(d.lat),lng:Number(d.lng)}); bounds.extend(pos); map.fitBounds(bounds,55);
+
+    if(!driverMarker){
+      driverMarker=new google.maps.Marker({
+        position:pos,
+        map,
+        icon:motoIcon(),
+        title:"Motoqueiro RTS",
+        zIndex:30
+      });
+    }else{
+      driverMarker.setPosition(pos);
+      driverMarker.setMap(map);
+    }
+
+    const bounds=new google.maps.LatLngBounds();
+    bounds.extend({lat:Number(d.lat),lng:Number(d.lng)});
+    bounds.extend(pos);
+    map.fitBounds(bounds,70);
+
     const last=drv.last_seen?new Date(drv.last_seen):null;
     const lastText=last?last.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--:--";
-    const fresh=last && Date.now()-last.getTime()<180000;
-    const card=document.getElementById("lastUpdateCard");
-    card.className="last-update "+(fresh?"fresh":"stale");
-    document.getElementById("lastUpdateBig").textContent=`Localização Atualizada ${lastText}`;
-    document.getElementById("detail").textContent=fresh?"A localização do motoboy é atualizada aproximadamente a cada 1 minuto.":"⚠️ A localização do motoboy está há mais de 3 minutos sem atualização.";
+    const fresh=last&&Date.now()-last.getTime()<180000;
+
+    document.getElementById("liveText").textContent=fresh
+      ?`Atualizada às ${lastText}`
+      :`Sem atualização recente (${lastText})`;
+
+    document.getElementById("detail").textContent=fresh
+      ?"A localização do motoqueiro é atualizada automaticamente durante a entrega."
+      :"A localização do motoqueiro está há mais de 3 minutos sem atualização.";
+
+    setUpdated(`↻ Localização atualizada ${lastText}`);
   }else{
     lastDriverPosition=null;
     if(driverMarker){driverMarker.setMap(null);driverMarker=null}
-    document.getElementById("lastUpdateBig").textContent="Localização do motoboy indisponível";
+    document.getElementById("liveText").textContent="Localização indisponível";
+    document.getElementById("detail").textContent="Aguardando a localização do motoqueiro.";
+    setUpdated("↻ Aguardando GPS do motoqueiro");
   }
+
   await estimate(d,drv);
 }
 
-
 document.getElementById("centerDriverClient").onclick=()=>{
-  if(!lastDriverPosition)return alert("A localização do motoboy ainda não está disponível.");
-  map.setCenter(lastDriverPosition);
+  if(!lastDriverPosition){
+    alert("A localização do motoqueiro ainda não está disponível.");
+    return;
+  }
+  map.panTo(lastDriverPosition);
   map.setZoom(17);
-  if(driverMarker)driverMarker.setMap(map);
-};
-
-document.getElementById("refreshClient").onclick=async()=>{
-  const btn=document.getElementById("refreshClient");
-  const old=btn.textContent; btn.disabled=true; btn.textContent="⏳";
-  try{await refresh();}
-  finally{btn.disabled=false; btn.textContent=old;}
 };
 
 if(sb){
@@ -188,5 +409,8 @@ if(sb){
     .on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>refresh())
     .subscribe();
 }
-setInterval(refresh,60000);
-</script></body></html>
+
+setInterval(refresh,30000);
+</script>
+</body>
+</html>
