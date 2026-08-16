@@ -77,6 +77,23 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 @media(max-width:1180px){.stats{grid-template-columns:repeat(3,1fr)}.dashboard-grid{grid-template-columns:1fr}.drivers-card{height:320px}.bottom-grid{grid-template-columns:1fr 1fr}.content-card:last-child{grid-column:1/-1}}
 @media(max-width:760px){.app-shell{grid-template-columns:1fr}.sidebar{height:auto;position:relative;padding:10px}.brand{padding:4px 8px 10px}.nav{display:grid;grid-template-columns:repeat(3,1fr)}.nav-btn{justify-content:center;font-size:0}.nav-icon{font-size:20px}.sidebar-bottom{display:none}.main{padding:0 9px 12px}.topbar{margin:0 -9px 10px;padding:0 10px;height:auto;min-height:70px;grid-template-columns:1fr auto}.searchbox{display:none}.stats{grid-template-columns:1fr 1fr}.dashboard-grid{grid-template-columns:1fr}.map-card{height:52vh}.drivers-card{height:300px}.bottom-grid{grid-template-columns:1fr}.top-actions .primary-action{padding:10px;font-size:0}.top-actions .primary-action:after{content:"＋";font-size:18px}}
 
+
+/* Nova Entrega: painel lateral à esquerda, ao lado do menu RTS */
+.drawer.left-sale{
+  left:220px;
+  right:auto;
+  width:min(460px,calc(100vw - 220px));
+  transform:translateX(-110%);
+  box-shadow:12px 0 35px #0002;
+}
+.drawer.left-sale.open{transform:none}
+@media(max-width:760px){
+  .drawer.left-sale{
+    left:0;
+    width:min(460px,95vw);
+  }
+}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -93,6 +110,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
     <nav class="nav">
       <button class="nav-btn active" data-open="overview"><span class="nav-icon">🏠</span>Visão geral</button>
+      <button class="nav-btn" data-open="sale"><span class="nav-icon">➕</span>Nova entrega</button>
       <button class="nav-btn" data-open="deliveries"><span class="nav-icon">📦</span>Entregas</button>
       <button class="nav-btn" data-open="drivers"><span class="nav-icon">🏍️</span>Motoboys</button>
       <button class="nav-btn" data-open="map"><span class="nav-icon">🗺️</span>Mapa ao vivo</button>
@@ -729,11 +747,13 @@ const drawer=document.getElementById("drawer");
 const drawerBackdrop=document.getElementById("drawerBackdrop");
 function closeDrawer(){
   drawer.classList.remove("open");drawerBackdrop.classList.remove("open");
+  setTimeout(()=>{if(!drawer.classList.contains("open"))drawer.classList.remove("left-sale")},230);
 }
 function openDrawer(section,title){
   document.querySelectorAll(".drawer-section").forEach(x=>x.classList.remove("active"));
   const el=document.getElementById(section);if(el)el.classList.add("active");
   document.getElementById("drawerTitle").textContent=title;
+  drawer.classList.toggle("left-sale",section==="drawerSale");
   drawer.classList.add("open");drawerBackdrop.classList.add("open");
 }
 document.getElementById("drawerClose").onclick=closeDrawer;
@@ -744,6 +764,7 @@ document.querySelectorAll("[data-open]").forEach(btn=>{
     const what=btn.dataset.open;
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b===btn));
     if(what==="overview"){closeDrawer();window.scrollTo({top:0,behavior:"smooth"});}
+    if(what==="sale")openDrawer("drawerSale","Nova entrega");
     if(what==="deliveries")openDrawer("drawerDeliveries","Entregas");
     if(what==="drivers"){closeDrawer();document.getElementById("driversCard").scrollIntoView({behavior:"smooth",block:"center"});}
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
