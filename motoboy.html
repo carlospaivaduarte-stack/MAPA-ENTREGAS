@@ -1020,7 +1020,7 @@ function initGoogleMap(){
   });
   window.dispatchEvent(new Event("google-map-ready"));
 }
-let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("rts_driver_cpf")||"",lastSend=0;
+let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId="",driverCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||""),lastSend=0;
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
 
@@ -1030,7 +1030,7 @@ async function upsertDriver(pos){
   const phone=document.getElementById("driverPhone").value.trim();
   localStorage.setItem("v7_driver_name",name);localStorage.setItem("v7_driver_phone",phone);
   const nowIso=new Date().toISOString();
-  const row={id:driverId,name,phone,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,is_online:true,last_seen:nowIso};
+  const row={id:driverId,cpf:driverCpf,name,phone,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,is_online:true,last_seen:nowIso};
   if(!currentDriver?.is_online)row.tracking_started_at=nowIso;
   const {error}=await sb.from("drivers").upsert(row,{onConflict:"id"});
   if(error){console.error(error);document.getElementById("state").textContent="erro ao enviar localização";return}
@@ -1105,12 +1105,14 @@ function isOperationalToday(v){
 async function loadDeliveries(){
   if(!sb)return;
 
-  const myIds=await resolveMyDriverIds();
-
   let assigned=[];
+  const assignedFilter = driverCpf
+    ? `driver_cpf.eq.${driverCpf},driver_id.eq.${driverId}`
+    : `driver_id.eq.${driverId}`;
+
   const {data:assignedData,error}=await sb.from("deliveries")
     .select("*")
-    .in("driver_id",myIds)
+    .or(assignedFilter)
     .is("deleted_at",null)
     .order("created_at",{ascending:true});
 
@@ -1125,6 +1127,7 @@ async function loadDeliveries(){
     .select("*")
     .eq("status","awaiting_collection")
     .is("driver_id",null)
+    .is("driver_cpf",null)
     .is("deleted_at",null)
     .order("created_at",{ascending:true});
 
@@ -1167,14 +1170,17 @@ window.collectDelivery=async id=>{
   const {data,error}=await sb.from("deliveries")
     .update({
       driver_id:driverId,
+      driver_cpf:driverCpf,
       status:"pending",
       collected_at:nowIso,
+      collected_by_cpf:driverCpf,
       collected_by_name:document.getElementById("driverName").value.trim()||localStorage.getItem("v7_driver_name")||"Motoboy",
       updated_at:nowIso
     })
     .eq("id",id)
     .eq("status","awaiting_collection")
     .is("driver_id",null)
+    .is("driver_cpf",null)
     .select("id");
   if(error)return alert("Erro ao coletar: "+error.message);
   if(!data||!data.length){
@@ -1565,6 +1571,7 @@ async function sendImmediateLocation(){
       const lat=pos.coords.latitude,lng=pos.coords.longitude;
       const row={
         id:driverId,
+        cpf:driverCpf,
         name:document.getElementById("driverName").value.trim()||"Motoboy",
         phone:document.getElementById("driverPhone").value.trim(),
         lat,lng,
@@ -1602,19 +1609,49 @@ document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 
 
 async function loadAuthenticatedDriver(cpf){
-  driverId=normalizeDigits(cpf);
-  if(!driverId)throw new Error("CPF inválido.");
-  const {data,error}=await sb.from("drivers").select("*").eq("id",driverId).limit(1);
-  if(error)throw error;
-  if(!data||!data.length)throw new Error("Cadastro do motoboy não encontrado.");
-  currentDriver=data[0];
-  localStorage.setItem("rts_driver_cpf",driverId);
+  driverCpf=normalizeDigits(cpf);
+  if(driverCpf.length!==11)throw new Error("CPF inválido.");
+
+  const {data:{user},error:userError}=await sb.auth.getUser();
+  if(userError||!user)throw new Error("Sessão do motoboy inválida.");
+
+  // O UUID do Supabase Auth continua sendo o ID técnico usado nas tabelas UUID.
+  driverId=user.id;
+
+  const {data:account,error:accountError}=await sb.from("driver_accounts")
+    .select("cpf,name,phone,active,auth_user_id")
+    .eq("auth_user_id",user.id)
+    .eq("cpf",driverCpf)
+    .maybeSingle();
+
+  if(accountError)throw accountError;
+  if(!account)throw new Error("Cadastro do motoboy não encontrado.");
+  if(account.active===false)throw new Error("Seu acesso está desativado pela Central.");
+
+  // Cria/atualiza o registro operacional do GPS sem transformar CPF em UUID.
+  const {data:driverRows,error:driverError}=await sb.from("drivers")
+    .select("*")
+    .eq("id",driverId)
+    .limit(1);
+
+  if(driverError)throw driverError;
+
+  currentDriver=driverRows&&driverRows[0]?driverRows[0]:{
+    id:driverId,
+    cpf:driverCpf,
+    name:account.name,
+    phone:account.phone,
+    is_online:false
+  };
+
+  localStorage.setItem("rts_driver_cpf",driverCpf);
   localStorage.setItem("v7_driver_id",driverId);
-  localStorage.setItem("v7_driver_name",currentDriver.name||"");
-  localStorage.setItem("v7_driver_phone",currentDriver.phone||"");
-  document.getElementById("driverName").value=currentDriver.name||"";
-  document.getElementById("driverPhone").value=currentDriver.phone||"";
-  document.getElementById("driverMenuName").textContent=currentDriver.name||"Motoboy";
+  localStorage.setItem("v7_driver_name",account.name||"");
+  localStorage.setItem("v7_driver_phone",account.phone||"");
+
+  document.getElementById("driverName").value=account.name||"";
+  document.getElementById("driverPhone").value=account.phone||"";
+  document.getElementById("driverMenuName").textContent=account.name||"Motoboy";
   document.getElementById("authGate").classList.add("hidden");
 }
 async function loginMotoboy(){
@@ -1628,8 +1665,8 @@ async function loginMotoboy(){
   btn.disabled=true;btn.textContent="ENTRANDO...";
   try{
     const email=`${cpf}@motoboy.rts.app`;
-    const {error}=await sb.auth.signInWithPassword({email,password});
-    if(error)throw new Error("CPF ou senha incorretos.");
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error||!data?.user)throw new Error("CPF ou senha incorretos.");
     await loadAuthenticatedDriver(cpf);
     await loadDeliveries();
   }catch(e){err.textContent=e.message||"Não foi possível entrar.";try{await sb.auth.signOut()}catch(_){}}
@@ -1644,7 +1681,7 @@ document.getElementById("logoutBtn").onclick=async()=>{
   try{if(sb&&driverId)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId)}catch(e){}
   try{if(sb)await sb.auth.signOut()}catch(e){}
   localStorage.removeItem("rts_driver_cpf");localStorage.removeItem("v7_driver_id");
-  driverId="";currentDriver=null;document.getElementById("driverMenu").classList.remove("open");document.getElementById("authGate").classList.remove("hidden");
+  driverId="";driverCpf="";currentDriver=null;document.getElementById("driverMenu").classList.remove("open");document.getElementById("authGate").classList.remove("hidden");
 };
 
 async function initializeMotoboyApp(){
@@ -1652,8 +1689,18 @@ async function initializeMotoboyApp(){
   if(!sb)return;
   try{
     const {data:{session}}=await sb.auth.getSession();
-    const savedCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf"));
-    if(!session||!savedCpf){document.getElementById("authGate").classList.remove("hidden");return;}
+    if(!session?.user){document.getElementById("authGate").classList.remove("hidden");return;}
+
+    let savedCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf"));
+    if(!savedCpf){
+      const {data:account}=await sb.from("driver_accounts")
+        .select("cpf")
+        .eq("auth_user_id",session.user.id)
+        .maybeSingle();
+      savedCpf=normalizeDigits(account?.cpf||"");
+    }
+
+    if(!savedCpf){document.getElementById("authGate").classList.remove("hidden");return;}
     await loadAuthenticatedDriver(savedCpf);
     await loadDeliveries();
   }catch(e){
