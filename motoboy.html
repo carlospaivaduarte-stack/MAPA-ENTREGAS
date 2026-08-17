@@ -61,7 +61,7 @@ button{cursor:pointer}
 .action-dark{background:linear-gradient(135deg,#0b1c2b,#07111d)}.action-dark .ico{background:#132536}
 .action-green{background:linear-gradient(135deg,#04a342,#02682f)}.action-green .ico{background:#08bf54}
 .action-purple{background:linear-gradient(135deg,#6321c5,#2d0c67)}.action-purple .ico{background:#7131de}
-.metrics{margin-top:17px;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #152d41;border-radius:20px;background:linear-gradient(180deg,#071421,#05111c);padding:18px 8px}
+.metrics{margin-top:17px;display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #152d41;border-radius:20px;background:linear-gradient(180deg,#071421,#05111c);padding:18px 8px}
 .metric{text-align:center;padding:4px 8px;border-right:1px solid #173044}.metric:last-child{border-right:0}
 .metric-icon{width:45px;height:45px;border-radius:50%;display:grid;place-items:center;margin:0 auto 10px;font-size:23px}
 .metric:nth-child(1) .metric-icon{background:#0c4ac8}.metric:nth-child(2) .metric-icon{background:#ff7900}.metric:nth-child(3) .metric-icon{background:#02953f}.metric:nth-child(4) .metric-icon{background:#d71920}
@@ -170,6 +170,59 @@ body.ui-minimized .minimize-btn{background:#0b5fe8}
   .quick-btn span{font-size:9px}
 }
 
+
+/* Organização por abas do aplicativo */
+.app-page{display:none}
+.app-page.active{display:block}
+#pageHome .action-grid{grid-template-columns:1fr 1fr}
+#pageDeliveries .delivery-top-actions{margin:14px 0}
+#pageDeliveries #nextDelivery{
+  width:100%;
+  min-height:72px;
+  border-radius:16px;
+  border:1px solid #174b2d;
+  background:linear-gradient(135deg,#04943c,#015e2b);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  font-weight:900;
+  font-size:15px;
+}
+#pageHistory .history-title{
+  margin:15px 2px 10px;
+  font-size:17px;
+  font-weight:900;
+}
+#pageHistory .history-sub{
+  font-size:12px;
+  color:#9baabd;
+  margin-bottom:10px;
+}
+#pageHistory #dailyHistorySummary{display:block!important}
+.hidden-logic-button{display:none!important}
+.bottom-nav .nav-btn.active{color:#08d15c}
+
+
+/* Ajuste de alinhamento do texto HISTÓRICO DIÁRIO */
+#frontHistorySummary .summary-title{
+  white-space:nowrap;
+  font-size:14px;
+  line-height:1.2;
+  text-align:center;
+}
+#frontHistorySummary{
+  padding-left:6px;
+  padding-right:6px;
+}
+@media(max-width:430px){
+  #frontHistorySummary .summary-title{
+    font-size:11px;
+    letter-spacing:-0.2px;
+  }
+}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -196,74 +249,106 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   <div class="map-card"><div id="map"></div></div>
 
   <div class="below-map">
-    <section class="route-summary">
-      <div class="route-line" id="frontRouteInfo">Rota organizada.</div>
-      <div class="summary-grid">
-        <button class="summary-card blue" id="frontActiveSummary" type="button">
-          <div class="summary-icon">📦</div><div class="summary-title">COLETAS /<br>PENDENTES</div><div class="summary-num" id="frontPendingSummary">0</div>
+
+    <!-- ABA INÍCIO -->
+    <section class="app-page active" id="pageHome">
+      <section class="action-grid">
+        <button class="action-card action-blue" id="start">
+          <div class="ico">📍</div>
+          <div><b>INICIAR RASTREAMENTO</b><span>Compartilhe sua localização em tempo real</span></div>
         </button>
-        <button class="summary-card green" id="frontFinishedSummary" type="button">
-          <div class="summary-icon">✅</div><div class="summary-title">FINALIZADAS</div><div class="summary-num" id="frontFinishedCount">0</div>
+
+        <button class="action-card action-dark" id="stop">
+          <div class="ico">■</div>
+          <div><b>PARAR</b><span>Encerrar o rastreamento de localização</span></div>
         </button>
-        <button class="summary-card purple" id="frontHistorySummary" type="button">
-          <div class="summary-icon">🕘</div><div class="summary-title">HISTÓRICO<br>DIÁRIO</div>
-        </button>
+      </section>
+
+      <section class="route-summary">
+        <div class="summary-grid">
+          <button class="summary-card blue" id="frontActiveSummary" type="button">
+            <div class="summary-icon">📦</div>
+            <div class="summary-title">COLETAS /<br>PENDENTES</div>
+            <div class="summary-num" id="frontPendingSummary">0</div>
+          </button>
+
+          <button class="summary-card green" id="frontFinishedSummary" type="button">
+            <div class="summary-icon">✅</div>
+            <div class="summary-title">FINALIZADAS</div>
+            <div class="summary-num" id="frontFinishedCount">0</div>
+          </button>
+
+          <button class="summary-card purple" id="frontHistorySummary" type="button">
+            <div class="summary-icon">🕘</div>
+            <div class="summary-title">HISTÓRICO DIÁRIO</div>
+          </button>
+        </div>
+      </section>
+
+      <section class="metrics">
+        <div class="metric"><div class="metric-icon">📋</div><span>ENTREGAS TOTAIS</span><b id="mTotal">0</b></div>
+        <div class="metric"><div class="metric-icon">🍴</div><span>PENDENTES</span><b id="mPending">0</b></div>
+        <div class="metric"><div class="metric-icon">☑</div><span>ENTREGUES HOJE</span><b id="mDone">0</b></div>
+        <div class="metric"><div class="metric-icon">✕</div><span>NÃO ENTREGUE HOJE</span><b id="mFailed">0</b></div>
+      </section>
+
+      <div class="tracking-note">
+        <div class="signal">◉</div>
+        <div>Sua localização será enviada à central a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
       </div>
     </section>
 
-    <section class="action-grid">
-      <button class="action-card action-blue" id="start"><div class="ico">📍</div><div><b>INICIAR RASTREAMENTO</b><span>Compartilhe sua localização em tempo real</span></div></button>
-      <button class="action-card action-dark" id="stop"><div class="ico">■</div><div><b>PARAR</b><span>Encerrar o rastreamento de localização</span></div></button>
-      <button class="action-card action-green" id="startRoute"><div class="ico">▶</div><div><b>INICIAR ROTA</b><span>Começar suas entregas agora</span></div></button>
-      <button class="action-card action-purple" id="organizeRoute"><div class="ico">⌘</div><div><b>ORGANIZAR ROTAS</b><span>Definir a melhor ordem das entregas</span></div></button>
-    </section>
-
-    <section class="metrics">
-      <div class="metric"><div class="metric-icon">📋</div><span>TOTAL ATUAL</span><b id="mTotal">0</b></div>
-      <div class="metric"><div class="metric-icon">🍴</div><span>PENDENTES</span><b id="mPending">0</b></div>
-      <div class="metric"><div class="metric-icon">☑</div><span>ENTREG. HOJE</span><b id="mDone">0</b></div>
-      <div class="metric"><div class="metric-icon">✕</div><span>NÃO ENT. HOJE</span><b id="mFailed">0</b></div>
-    </section>
-
-    <div class="tracking-note"><div class="signal">◉</div><div>Sua localização será enviada à central a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div></div>
-
-    <section class="quick-grid">
-      <button class="quick-btn quick-blue" id="centerMe"><div class="qico">📍</div><div><b>CENTRALIZAR EM MIM</b><span>Ver minha posição no mapa</span></div></button>
-      <button class="quick-btn quick-green" id="nextDelivery"><div class="qico">↪</div><div><b>PRÓXIMA ENTREGA</b><span>Ver detalhes da próxima entrega</span></div></button>
-    </section>
-
-    <div class="lower-route"><span class="ri">⌘</span><span id="frontRouteInfo2">Rota organizada.</span></div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <button id="refreshMotoboy">🔄</button>
-        <button id="updateLocationNow">📍 GPS AGORA</button>
-        <button id="panelToggle">⬇️</button>
+    <!-- ABA ENTREGAS -->
+    <section class="app-page" id="pageDeliveries">
+      <div class="delivery-top-actions">
+        <button id="nextDelivery">↪ &nbsp; PRÓXIMA ENTREGA</button>
       </div>
-      <div id="panelContent">
-        <div class="hidden-support">
-          <input id="driverName" placeholder="Seu nome">
-          <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
-          <button id="routeTimes">Horários</button>
-          <div id="routeTimeInfo"></div>
-          <button id="openRoute">Abrir rota</button>
-          <button id="togglePanel"></button>
-          <span id="state">desconectado</span>
+
+      <div class="panel">
+        <div class="panel-header">
+          <button id="refreshMotoboy">🔄</button>
+          <button id="updateLocationNow">📍 GPS AGORA</button>
+          <button id="panelToggle">⬇️</button>
         </div>
 
-        <div id="routeInfo" class="hidden-support">A rota usa somente suas entregas coletadas e pendentes.</div>
+        <div id="panelContent">
+          <div class="hidden-support">
+            <input id="driverName" placeholder="Seu nome">
+            <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
+            <button id="routeTimes">Horários</button>
+            <div id="routeTimeInfo"></div>
+            <button id="openRoute">Abrir rota</button>
+            <button id="togglePanel"></button>
+            <span id="state">desconectado</span>
 
-        <div class="tabs" id="frontTabs">
-          <button class="tabbtn active" id="tabMotoboyActive">📦 &nbsp; COLETAS / PENDENTES<small>Aguardando e em rota</small></button>
-          <button class="tabbtn" id="tabMotoboyFinished">✅ &nbsp; FINALIZADAS<small>Ver entregas finalizadas</small></button>
-          <button class="tabbtn" id="tabMotoboyHistory">🕘 &nbsp; HISTÓRICO DIÁRIO<small>Ver meu histórico do dia</small></button>
+            <!-- Mantidos ocultos para preservar toda a lógica atual -->
+            <button id="startRoute" class="hidden-logic-button">INICIAR ROTA</button>
+            <button id="organizeRoute" class="hidden-logic-button">ORGANIZAR ROTAS</button>
+            <button id="centerMe" class="hidden-logic-button">CENTRALIZAR EM MIM</button>
+          </div>
+
+          <div id="routeInfo" class="hidden-support">A rota usa somente suas entregas coletadas e pendentes.</div>
+
+          <div class="tabs" id="frontTabs">
+            <button class="tabbtn active" id="tabMotoboyActive">📦 &nbsp; COLETAS / PENDENTES<small>Todos os clientes e entregas em andamento</small></button>
+            <button class="tabbtn" id="tabMotoboyFinished">✅ &nbsp; FINALIZADAS<small>Entregas concluídas e não entregues</small></button>
+            <button class="tabbtn" id="tabMotoboyHistory">🕘 &nbsp; HISTÓRICO DIÁRIO<small>Histórico do dia</small></button>
+          </div>
+
+          <div id="dailyHistorySummary" style="display:none"></div>
+          <div id="collectionBox"></div>
+          <div id="deliveries"></div>
         </div>
-
-        <div id="dailyHistorySummary" style="display:none"></div>
-        <div id="collectionBox"></div>
-        <div id="deliveries"></div>
       </div>
-    </div>
+    </section>
+
+    <!-- ABA HISTÓRICO -->
+    <section class="app-page" id="pageHistory">
+      <div class="history-title">HISTÓRICO DE ENTREGAS</div>
+      <div class="history-sub">Todas as entregas realizadas e não entregues do período diário.</div>
+      <div id="historyMirror"></div>
+    </section>
+
   </div>
 </div>
 
@@ -271,7 +356,6 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   <button class="nav-btn active" id="navHome" type="button"><span class="ni">🏠</span><span>Início</span></button>
   <button class="nav-btn" id="navDeliveries" type="button"><span class="ni">📦</span><span>Entregas</span></button>
   <button class="nav-btn" id="navHistory" type="button"><span class="ni">◔</span><span>Histórico</span></button>
-  <button class="nav-btn" id="navMore" type="button"><span class="ni">⚙</span><span>Mais</span></button>
 </nav>
 
 <div class="modal" id="editModal">
@@ -965,22 +1049,46 @@ window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({i
   setInterval(syncFront,1500);
   setTimeout(syncFront,100);
 
-  $("frontActiveSummary")?.addEventListener("click",()=>$("tabMotoboyActive")?.click());
-  $("frontFinishedSummary")?.addEventListener("click",()=>$("tabMotoboyFinished")?.click());
-  $("frontHistorySummary")?.addEventListener("click",()=>$("tabMotoboyHistory")?.click());
+  $("frontActiveSummary")?.addEventListener("click",()=>{showAppPage("pageDeliveries");$("tabMotoboyActive")?.click();});
+  $("frontFinishedSummary")?.addEventListener("click",()=>{showAppPage("pageHistory");});
+  $("frontHistorySummary")?.addEventListener("click",()=>{showAppPage("pageHistory");});
 
-  $("navHome")?.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
-  $("navDeliveries")?.addEventListener("click",()=>{
-    $("frontTabs")?.scrollIntoView({behavior:"smooth",block:"start"});
-    $("tabMotoboyActive")?.click();
-  });
-  $("navHistory")?.addEventListener("click",()=>{
-    $("frontTabs")?.scrollIntoView({behavior:"smooth",block:"start"});
-    $("tabMotoboyHistory")?.click();
-  });
-  $("navMore")?.addEventListener("click",()=>{
-    alert("As funções principais do RTS Motoboy continuam disponíveis nesta tela.");
-  });
+  function showAppPage(page){
+    ["pageHome","pageDeliveries","pageHistory"].forEach(id=>{
+      $(id)?.classList.toggle("active",id===page);
+    });
+    $("navHome")?.classList.toggle("active",page==="pageHome");
+    $("navDeliveries")?.classList.toggle("active",page==="pageDeliveries");
+    $("navHistory")?.classList.toggle("active",page==="pageHistory");
+
+    if(page==="pageDeliveries"){
+      $("tabMotoboyActive")?.click();
+    }
+
+    if(page==="pageHistory"){
+      $("tabMotoboyFinished")?.click();
+      setTimeout(()=>{
+        if($("historyMirror") && $("deliveries")){
+          $("historyMirror").innerHTML=$("deliveries").innerHTML;
+        }
+      },180);
+    }
+
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  $("navHome")?.addEventListener("click",()=>showAppPage("pageHome"));
+  $("navDeliveries")?.addEventListener("click",()=>showAppPage("pageDeliveries"));
+  $("navHistory")?.addEventListener("click",()=>showAppPage("pageHistory"));
+
+
+  if($("deliveries")){
+    new MutationObserver(()=>{
+      if($("pageHistory")?.classList.contains("active") && $("historyMirror")){
+        $("historyMirror").innerHTML=$("deliveries").innerHTML;
+      }
+    }).observe($("deliveries"),{childList:true,subtree:true});
+  }
 
   const minBtn=$("minimizeApp");
   function applyMinimized(v){
