@@ -130,6 +130,33 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
   margin:8px 0 11px;
 }
 
+
+/* ===== LOGIN ADMIN CENTRAL ===== */
+.admin-auth-gate{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:linear-gradient(180deg,#06182e 0%,#092441 100%);
+}
+.admin-auth-gate.hidden{display:none!important}
+.admin-login-card{
+  width:min(410px,100%);
+  background:#fff;
+  border-radius:20px;
+  padding:24px;
+  box-shadow:0 22px 60px #0005;
+}
+.admin-login-card h2{margin:0 0 6px;color:#071a32}
+.admin-login-card p{margin:0 0 18px;color:#667085;font-size:13px;line-height:1.45}
+.admin-login-card input{margin-bottom:10px}
+.admin-login-card button{width:100%;margin-top:4px}
+.admin-login-result{font-size:12px;margin-top:10px;min-height:18px}
+#adminLogout{background:#edf0f4;color:#111827}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -137,6 +164,18 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
+
+<div class="admin-auth-gate" id="adminAuthGate">
+  <div class="admin-login-card">
+    <h2>RTS CENTRAL</h2>
+    <p>Entre com a conta administrativa</p>
+    <input id="adminEmail" type="email" autocomplete="username" placeholder="E-mail do administrador">
+    <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Senha">
+    <button class="blue" id="adminLogin">ENTRAR NA CENTRAL</button>
+    <div id="adminLoginResult" class="admin-login-result"></div>
+  </div>
+</div>
+
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand">
@@ -157,7 +196,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     <div class="sidebar-bottom">
       <div class="admin-card">
         <div class="avatar">👨🏻</div>
-        <div><b style="font-size:12px">Administrador</b><div style="font-size:10px;color:#a9bad0"><span class="online-dot"></span>Central Online</div></div>
+        <div style="flex:1"><b style="font-size:12px">Administrador</b><div style="font-size:10px;color:#a9bad0"><span class="online-dot"></span>Central Online</div><button id="adminLogout" style="margin-top:7px;padding:6px 9px;font-size:10px">Sair</button></div>
       </div>
     </div>
   </aside>
@@ -348,7 +387,77 @@ function initGoogleMap(){
   });
   window.dispatchEvent(new Event("google-map-ready"));
 }
+
 const sb=getSupabaseClient();
+
+let currentAdminUser=null;
+
+async function verifyAdminSession(){
+  const gate=document.getElementById("adminAuthGate");
+  if(!sb){gate.classList.remove("hidden");return false;}
+
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.user){
+    gate.classList.remove("hidden");
+    return false;
+  }
+
+  const {data:admin,error}=await sb.from("admin_accounts")
+    .select("auth_user_id")
+    .eq("auth_user_id",session.user.id)
+    .maybeSingle();
+
+  if(error||!admin){
+    await sb.auth.signOut();
+    gate.classList.remove("hidden");
+    document.getElementById("adminLoginResult").textContent="Esta conta não possui acesso de administrador.";
+    return false;
+  }
+
+  currentAdminUser=session.user;
+  gate.classList.add("hidden");
+  return true;
+}
+
+document.getElementById("adminLogin").onclick=async()=>{
+  const btn=document.getElementById("adminLogin");
+  const result=document.getElementById("adminLoginResult");
+  const email=document.getElementById("adminEmail").value.trim();
+  const password=document.getElementById("adminPassword").value;
+
+  if(!email||!password){
+    result.textContent="Informe e-mail e senha.";
+    return;
+  }
+
+  btn.disabled=true;
+  const old=btn.textContent;
+  btn.textContent="ENTRANDO...";
+  result.textContent="";
+
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error||!data?.user)throw new Error("E-mail ou senha incorretos.");
+
+    const ok=await verifyAdminSession();
+    if(!ok)return;
+
+    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
+  }catch(e){
+    result.textContent="❌ "+(e.message||"Não foi possível entrar.");
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
+};
+
+document.getElementById("adminLogout")?.addEventListener("click",async()=>{
+  await sb.auth.signOut();
+  currentAdminUser=null;
+  document.getElementById("adminAuthGate").classList.remove("hidden");
+});
+
+
 let allDrivers=[],allDeliveries=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="active";
 
 const fmtTime=v=>v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--";
@@ -979,10 +1088,13 @@ document.getElementById("reloadDriverAccounts")?.addEventListener("click",loadDr
 
 if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";
-  loadDrivers();loadDeliveries();loadHistory7();
-  sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
-  sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>{loadDeliveries();loadHistory7()}).subscribe();
-  setInterval(loadDrivers,10000);
+  verifyAdminSession().then(async ok=>{
+    if(!ok)return;
+    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
+    sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
+    sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>{loadDeliveries();loadHistory7()}).subscribe();
+    setInterval(loadDrivers,10000);
+  });
 }
 </script>
 </body>
