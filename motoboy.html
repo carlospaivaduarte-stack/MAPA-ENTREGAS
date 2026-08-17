@@ -1,74 +1,223 @@
-<!doctype html><html lang="pt-BR"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>RTS — Motoboy</title>
 <style>
-*{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}#map{position:fixed;inset:0}
-.top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;background:#fff;padding:10px;border-radius:14px;box-shadow:0 3px 18px #0002}
-.panel{position:fixed;z-index:1000;left:10px;right:10px;bottom:10px;background:#fff;border-radius:18px;padding:12px;box-shadow:0 5px 25px #0003;max-height:58vh;overflow:auto}.panel.collapsed #deliveries,.panel.collapsed .delivery-help{display:none}
-input{width:100%;padding:11px;border:1px solid #ddd;border-radius:11px;margin-bottom:7px}
-button{border:0;border-radius:11px;padding:11px;font-weight:700;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.red{background:#dc2626;color:white}.yellow{background:#facc15;color:#111827}.wa{background:#25D366;color:#071b0d}.gray{background:#eee}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}.delivery{border-top:1px solid #eee;padding:9px 0}.small{font-size:12px;color:#666}.status{font-size:12px;font-weight:bold;margin:3px 0}
-.num-pin{width:30px;height:30px;border-radius:50%;background:#facc15;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:13px}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:7px 0}.metric{background:#f3f4f6;border-radius:9px;padding:6px;text-align:center;font-size:10px}.metric b{display:block;font-size:15px}
-.route-times{font-size:11px;color:#555;background:#f8fafc;border-radius:10px;padding:7px;margin:6px 0}
-
-.panel.panel-collapsed{padding:8px 10px;max-height:none;overflow:hidden}
-.panel.panel-collapsed #panelContent{display:none}
-.panel.panel-collapsed .panel-header{margin-bottom:0}
-.panel.panel-collapsed #panelToggle{font-size:18px}
-
-.modal{position:fixed;z-index:3000;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:18px}
-.modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;padding:16px;width:min(430px,100%);box-shadow:0 8px 30px #0004}
-.modalbox h3{margin-top:0}.modalbox textarea{min-height:70px}
-.tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 0}.tabbtn{background:#e5e7eb;color:#111827}.tabbtn.active{background:#2563eb;color:#fff}
-</style><script>
+:root{
+  --bg:#020b14;
+  --panel:#071523;
+  --panel2:#0a1a2a;
+  --line:#132a3d;
+  --text:#f8fafc;
+  --muted:#9baabd;
+  --blue:#0b4eea;
+  --blue2:#0736ad;
+  --green:#03b94f;
+  --green2:#027c38;
+  --purple:#6524c9;
+  --purple2:#32116e;
+  --orange:#ff7a00;
+  --red:#e81f28;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:
+radial-gradient(circle at 50% -8%,#081b2d 0,#030c16 33%,#020911 70%,#01070d 100%);color:var(--text)}
+body{padding-bottom:94px}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+#map{width:100%;height:310px}
+.app{width:min(100%,760px);margin:0 auto;padding:18px 18px 0}
+.header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:17px;padding:18px 6px 17px}
+.menu-btn{width:46px;height:46px;border:0;background:transparent;color:#fff;font-size:34px;padding:0;line-height:1}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-pin{width:46px;height:58px;position:relative;filter:drop-shadow(0 7px 10px #00c95b22)}
+.brand-pin:before{content:"";position:absolute;left:7px;top:1px;width:32px;height:42px;background:#08c95a;border-radius:22px 22px 22px 4px;transform:rotate(-45deg)}
+.brand-pin:after{content:"";position:absolute;left:18px;top:13px;width:10px;height:10px;background:#04111b;border-radius:50%;z-index:2}
+.brand-copy{line-height:.92}
+.brand-copy b{display:block;font-size:39px;letter-spacing:-1.5px}
+.brand-copy span{display:block;font-size:18px;font-weight:900;color:#04c956;letter-spacing:.5px;margin-top:6px}
+.header-actions{display:flex;align-items:center;gap:8px}
+.status-pill{min-width:205px;display:flex;align-items:center;gap:11px;padding:12px 15px;border:1px solid #1b3043;border-radius:20px;background:#030b14d9}
+.status-dot{width:25px;height:25px;border-radius:50%;background:#05c653;box-shadow:0 0 16px #05c65355}
+.status-text b{font-size:19px;display:block}.status-text span{font-size:12px;color:#a8b1bf}
+.minimize-btn{border:1px solid #1b3043;background:#071421;color:#dce7f3;border-radius:14px;padding:11px 12px;font-size:11px;font-weight:900;letter-spacing:.35px}
+.map-card{border:1px solid #173047;border-radius:20px;overflow:hidden;background:#071421;box-shadow:0 12px 35px #0005}
+.route-summary{margin-top:20px;padding:23px 18px 18px;border:1px solid #142b3e;border-radius:20px;background:linear-gradient(180deg,#071421,#06111d)}
+.route-line{font-size:17px;color:#d6dce5;margin:0 7px 18px}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.summary-card{min-height:130px;border:1px solid #16314a;border-radius:18px;padding:20px 14px 15px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:white}
+.summary-card.blue{background:linear-gradient(135deg,#063d98,#061f50)}
+.summary-card.green{background:linear-gradient(135deg,#063a32,#041e20)}
+.summary-card.purple{background:linear-gradient(135deg,#321361,#12152f)}
+.summary-title{font-size:17px;font-weight:800;line-height:1.25}.summary-num{font-size:26px;font-weight:900;margin-top:8px}
+.summary-icon{font-size:34px;margin-bottom:8px}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.action-card{min-height:154px;border-radius:20px;border:1px solid #17334a;color:#fff;text-align:left;padding:22px;display:flex;align-items:flex-start;gap:18px}
+.action-card .ico{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;font-size:34px;flex:0 0 auto}
+.action-card b{display:block;font-size:18px;margin:7px 0 9px}.action-card span{display:block;font-size:14px;line-height:1.45;color:#d5dceb}
+.action-blue{background:linear-gradient(135deg,#094edf,#07308c)}.action-blue .ico{background:#115ff0}
+.action-dark{background:linear-gradient(135deg,#0b1c2b,#07111d)}.action-dark .ico{background:#132536}
+.action-green{background:linear-gradient(135deg,#04a342,#02682f)}.action-green .ico{background:#08bf54}
+.action-purple{background:linear-gradient(135deg,#6321c5,#2d0c67)}.action-purple .ico{background:#7131de}
+.metrics{margin-top:17px;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #152d41;border-radius:20px;background:linear-gradient(180deg,#071421,#05111c);padding:18px 8px}
+.metric{text-align:center;padding:4px 8px;border-right:1px solid #173044}.metric:last-child{border-right:0}
+.metric-icon{width:45px;height:45px;border-radius:50%;display:grid;place-items:center;margin:0 auto 10px;font-size:23px}
+.metric:nth-child(1) .metric-icon{background:#0c4ac8}.metric:nth-child(2) .metric-icon{background:#ff7900}.metric:nth-child(3) .metric-icon{background:#02953f}.metric:nth-child(4) .metric-icon{background:#d71920}
+.metric span{font-size:13px;color:#c2cad5}.metric b{display:block;font-size:27px;margin-top:6px}
+.tracking-note{margin-top:14px;border:1px solid #152d41;border-radius:17px;background:#071421;padding:16px 21px;display:flex;align-items:center;gap:16px;color:#d9dee7;line-height:1.45;font-size:15px}
+.tracking-note .signal{font-size:30px;color:#05cf61}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:17px}
+.quick-btn{min-height:106px;border-radius:18px;border:1px solid #15314a;color:#fff;display:flex;align-items:center;gap:16px;padding:19px;text-align:left}
+.quick-btn .qico{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:27px}
+.quick-btn b{font-size:16px;display:block;margin-bottom:6px}.quick-btn span{font-size:12px;color:#d4dce7}
+.quick-blue{background:linear-gradient(135deg,#084bdd,#062b85)}.quick-blue .qico{background:#115ef0}
+.quick-green{background:linear-gradient(135deg,#04943c,#015e2b)}.quick-green .qico{background:#08b64d}
+.lower-route{display:flex;align-items:center;gap:10px;color:#cbd3de;font-size:14px;margin:15px 3px 11px}.lower-route .ri{color:#53bd7a;font-size:24px}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:0}
+.tabbtn{min-height:133px;border:1px solid #173048;border-radius:18px;padding:15px;color:#fff;text-align:left;font-weight:700}
+#tabMotoboyActive{background:linear-gradient(135deg,#092347,#07152a)}
+#tabMotoboyFinished{background:linear-gradient(135deg,#082a28,#061b20)}
+#tabMotoboyHistory{background:linear-gradient(135deg,#221544,#0d1328)}
+.tabbtn.active{box-shadow:0 0 0 1px #3c7dff inset}
+.tabbtn small{display:block;font-size:11px;color:#c7d0dc;margin-top:10px;font-weight:400}
+#dailyHistorySummary,#collectionBox,#deliveries{margin-top:12px}
+#collectionBox>div{background:#071421!important;border-color:#173047!important;color:#fff!important}
+.delivery{border:1px solid #173047!important;background:#071421;border-radius:16px;padding:13px!important;margin:9px 0;color:#fff}
+.small{font-size:12px;color:#9baabd!important}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.blue,.green,.red,.yellow,.wa,.gray{border:0;border-radius:11px;padding:10px;font-weight:800}
+.blue{background:#165ee7;color:#fff}.green{background:#08a84a;color:#fff}.red{background:#d82831;color:#fff}.yellow{background:#f2b700;color:#111}.wa{background:#25d366;color:#05190d}.gray{background:#182636;color:#fff}
+.hidden-support{display:none!important}
+.panel{position:static!important;background:transparent!important;border:0!important;box-shadow:none!important;max-height:none!important;overflow:visible!important;padding:0!important;margin-top:0}
+.panel-header{display:none!important}
+input,textarea{width:100%;padding:12px;background:#071421;color:#fff;border:1px solid #173047;border-radius:12px;margin-bottom:8px}
+.modal{position:fixed;z-index:4000;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}
+.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}
+.bottom-nav{position:fixed;z-index:2500;left:0;right:0;bottom:0;height:86px;background:#071421f5;border-top:1px solid #173047;border-radius:26px 26px 0 0;display:grid;grid-template-columns:repeat(4,1fr);padding:9px max(8px,calc((100vw - 760px)/2 + 8px))}
+.nav-btn{border:0;background:transparent;color:#9baabd;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.nav-btn .ni{font-size:27px}.nav-btn.active{color:#08d15c}
+body.ui-minimized .below-map{display:none!important}
+body.ui-minimized{padding-bottom:18px}
+body.ui-minimized .bottom-nav{display:none}
+body.ui-minimized .map-card{height:calc(100vh - 145px)}
+body.ui-minimized #map{height:100%}
+body.ui-minimized .minimize-btn{background:#0b5fe8}
+@media(max-width:610px){
+  .app{padding:10px 10px 0}
+  .header{grid-template-columns:auto 1fr;gap:10px;padding:12px 3px}
+  .header-actions{grid-column:1/-1;justify-content:flex-end}
+  .status-pill{min-width:185px}
+  .brand-copy b{font-size:31px}.brand-copy span{font-size:15px}
+  #map{height:285px}
+  .summary-grid{gap:8px}.summary-card{padding:14px 8px;min-height:116px}.summary-title{font-size:14px}
+  .action-grid,.quick-grid{gap:10px}.action-card{padding:16px;gap:12px;min-height:137px}.action-card .ico{width:55px;height:55px}
+  .metrics{padding:14px 3px}.metric{padding:2px 3px}.metric span{font-size:10px}.metric b{font-size:23px}
+  .tabs{gap:7px}.tabbtn{padding:12px 9px;min-height:120px;font-size:12px}
+}
+</style>
+<script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 </script>
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
-</head><body>
-<div id="map"></div>
-<div class="top"><b>🏍️ RTS — Motoboy</b> · <span id="state">desconectado</span></div>
-<div class="panel">
-<div class="panel-header" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:6px">
-  <button class="blue" id="refreshMotoboy" title="Atualizar dados" style="padding:6px 10px">🔄</button>
-  <button class="green" id="updateLocationNow" title="Atualizar localização agora" style="padding:6px 10px">📍 GPS AGORA</button>
-  <button class="gray" id="panelToggle" aria-label="Minimizar painel" title="Minimizar painel" style="padding:6px 10px;font-size:18px;line-height:1">⬇️</button>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <button class="menu-btn" type="button">☰</button>
+    <div class="brand">
+      <div class="brand-pin"></div>
+      <div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div>
+    </div>
+    <div class="header-actions">
+      <div class="status-pill">
+        <div class="status-dot" id="frontStatusDot"></div>
+        <div class="status-text"><b id="frontStatusTitle">Online</b><span id="frontStatusSub">Você está disponível</span></div>
+      </div>
+      <button class="minimize-btn" id="minimizeApp" type="button">MINIMIZAR</button>
+    </div>
+  </header>
+
+  <div class="map-card"><div id="map"></div></div>
+
+  <div class="below-map">
+    <section class="route-summary">
+      <div class="route-line" id="frontRouteInfo">Rota organizada.</div>
+      <div class="summary-grid">
+        <button class="summary-card blue" id="frontActiveSummary" type="button">
+          <div class="summary-icon">📦</div><div class="summary-title">COLETAS /<br>PENDENTES</div><div class="summary-num" id="frontPendingSummary">0</div>
+        </button>
+        <button class="summary-card green" id="frontFinishedSummary" type="button">
+          <div class="summary-icon">✅</div><div class="summary-title">FINALIZADAS</div><div class="summary-num" id="frontFinishedCount">0</div>
+        </button>
+        <button class="summary-card purple" id="frontHistorySummary" type="button">
+          <div class="summary-icon">🕘</div><div class="summary-title">HISTÓRICO<br>DIÁRIO</div>
+        </button>
+      </div>
+    </section>
+
+    <section class="action-grid">
+      <button class="action-card action-blue" id="start"><div class="ico">📍</div><div><b>INICIAR RASTREAMENTO</b><span>Compartilhe sua localização em tempo real</span></div></button>
+      <button class="action-card action-dark" id="stop"><div class="ico">■</div><div><b>PARAR</b><span>Encerrar o rastreamento de localização</span></div></button>
+      <button class="action-card action-green" id="startRoute"><div class="ico">▶</div><div><b>INICIAR ROTA</b><span>Começar suas entregas agora</span></div></button>
+      <button class="action-card action-purple" id="organizeRoute"><div class="ico">⌘</div><div><b>ORGANIZAR ROTAS</b><span>Definir a melhor ordem das entregas</span></div></button>
+    </section>
+
+    <section class="metrics">
+      <div class="metric"><div class="metric-icon">📋</div><span>TOTAL ATUAL</span><b id="mTotal">0</b></div>
+      <div class="metric"><div class="metric-icon">🍴</div><span>PENDENTES</span><b id="mPending">0</b></div>
+      <div class="metric"><div class="metric-icon">☑</div><span>ENTREG. HOJE</span><b id="mDone">0</b></div>
+      <div class="metric"><div class="metric-icon">✕</div><span>NÃO ENT. HOJE</span><b id="mFailed">0</b></div>
+    </section>
+
+    <div class="tracking-note"><div class="signal">◉</div><div>Sua localização será enviada à central a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div></div>
+
+    <section class="quick-grid">
+      <button class="quick-btn quick-blue" id="centerMe"><div class="qico">📍</div><div><b>CENTRALIZAR EM MIM</b><span>Ver minha posição no mapa</span></div></button>
+      <button class="quick-btn quick-green" id="nextDelivery"><div class="qico">↪</div><div><b>PRÓXIMA ENTREGA</b><span>Ver detalhes da próxima entrega</span></div></button>
+    </section>
+
+    <div class="lower-route"><span class="ri">⌘</span><span id="frontRouteInfo2">Rota organizada.</span></div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <button id="refreshMotoboy">🔄</button>
+        <button id="updateLocationNow">📍 GPS AGORA</button>
+        <button id="panelToggle">⬇️</button>
+      </div>
+      <div id="panelContent">
+        <div class="hidden-support">
+          <input id="driverName" placeholder="Seu nome">
+          <input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
+          <button id="routeTimes">Horários</button>
+          <div id="routeTimeInfo"></div>
+          <button id="openRoute">Abrir rota</button>
+          <button id="togglePanel"></button>
+          <span id="state">desconectado</span>
+        </div>
+
+        <div id="routeInfo" class="hidden-support">A rota usa somente suas entregas coletadas e pendentes.</div>
+
+        <div class="tabs" id="frontTabs">
+          <button class="tabbtn active" id="tabMotoboyActive">📦 &nbsp; COLETAS / PENDENTES<small>Aguardando e em rota</small></button>
+          <button class="tabbtn" id="tabMotoboyFinished">✅ &nbsp; FINALIZADAS<small>Ver entregas finalizadas</small></button>
+          <button class="tabbtn" id="tabMotoboyHistory">🕘 &nbsp; HISTÓRICO DIÁRIO<small>Ver meu histórico do dia</small></button>
+        </div>
+
+        <div id="dailyHistorySummary" style="display:none"></div>
+        <div id="collectionBox"></div>
+        <div id="deliveries"></div>
+      </div>
+    </div>
+  </div>
 </div>
-<div id="panelContent">
-<input id="driverName" placeholder="Seu nome">
-<input id="driverPhone" inputmode="tel" placeholder="Seu telefone">
-<div class="row"><button class="blue" id="start">📍 Iniciar rastreamento</button><button class="gray" id="stop">⏹ Parar</button></div>
-<div class="row" style="margin-top:6px"><button class="green" id="startRoute">▶️ INICIAR ROTA</button><button class="gray" id="routeTimes">🕐 Horários</button></div>
-<div id="routeTimeInfo" class="route-times" style="display:none">Saída: -- · Início da rota: -- · Conclusão: --</div>
-<div class="metrics">
-  <div class="metric">Total atual<b id="mTotal">0</b></div>
-  <div class="metric">Pend.<b id="mPending">0</b></div>
-  <div class="metric">Entreg. hoje<b id="mDone">0</b></div>
-  <div class="metric">Não ent. hoje<b id="mFailed">0</b></div>
-</div>
-<div class="small delivery-help" style="margin:7px 0">Sua localização será enviada à central aproximadamente a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
-<div class="row" style="margin-bottom:7px">
-<button class="blue" id="centerMe">📍 Centralizar em mim</button>
-<button class="gray" id="togglePanel" style="display:none">⬇️</button>
-</div>
-<div class="row" style="margin-bottom:7px">
-<button class="blue" id="organizeRoute">🧠 ORGANIZAR ROTA</button>
-<button class="gray" id="openRoute">🗺️ ABRIR ROTA</button>
-</div>
-<div style="margin-bottom:7px">
-  <button class="green" id="nextDelivery" style="width:100%">➡️ PRÓXIMA ENTREGA</button>
-</div>
-<div id="routeInfo" class="small" style="margin:5px 0">A rota usa somente suas entregas coletadas e pendentes.</div>
-<div class="tabs" style="grid-template-columns:1fr 1fr 1fr">
-  <button class="tabbtn active" id="tabMotoboyActive">📦 COLETAS / PENDENTES</button>
-  <button class="tabbtn" id="tabMotoboyFinished">✅ FINALIZADAS</button>
-  <button class="tabbtn" id="tabMotoboyHistory">🕐 HISTÓRICO DIÁRIO</button>
-</div>
-<div id="dailyHistorySummary" style="display:none;margin:8px 0;padding:9px;border:1px solid #ddd;border-radius:10px;background:#fafafa"></div>
-<div id="collectionBox" style="margin:8px 0"></div>
-<div id="deliveries"></div>
-</div>
-</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navHome" type="button"><span class="ni">🏠</span><span>Início</span></button>
+  <button class="nav-btn" id="navDeliveries" type="button"><span class="ni">📦</span><span>Entregas</span></button>
+  <button class="nav-btn" id="navHistory" type="button"><span class="ni">◔</span><span>Histórico</span></button>
+  <button class="nav-btn" id="navMore" type="button"><span class="ni">⚙</span><span>Mais</span></button>
+</nav>
 
 <div class="modal" id="editModal">
   <div class="modalbox">
@@ -83,7 +232,6 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     </div>
   </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script><script src="shared.js"></script>
 <script>
@@ -91,7 +239,23 @@ let map;
 function initGoogleMap(){
   map=new google.maps.Map(document.getElementById("map"),{
     center:{lat:-9.6498,lng:-35.7089},zoom:13,
-    mapTypeControl:true,streetViewControl:false,fullscreenControl:true
+    mapTypeControl:false,
+    streetViewControl:false,
+    fullscreenControl:false,
+    zoomControl:false,
+    styles:[
+      {elementType:"geometry",stylers:[{color:"#071422"}]},
+      {elementType:"labels.text.fill",stylers:[{color:"#71849b"}]},
+      {elementType:"labels.text.stroke",stylers:[{color:"#07101b"}]},
+      {featureType:"administrative",elementType:"geometry",stylers:[{color:"#132a3e"}]},
+      {featureType:"poi",elementType:"geometry",stylers:[{color:"#0b1a29"}]},
+      {featureType:"poi",elementType:"labels.icon",stylers:[{visibility:"off"}]},
+      {featureType:"road",elementType:"geometry",stylers:[{color:"#10263a"}]},
+      {featureType:"road",elementType:"geometry.stroke",stylers:[{color:"#06111d"}]},
+      {featureType:"road.highway",elementType:"geometry",stylers:[{color:"#163149"}]},
+      {featureType:"transit",elementType:"geometry",stylers:[{color:"#0b1c2d"}]},
+      {featureType:"water",elementType:"geometry",stylers:[{color:"#04101b"}]}
+    ]
   });
   window.dispatchEvent(new Event("google-map-ready"));
 }
@@ -714,4 +878,73 @@ document.getElementById("stop").onclick=async()=>{
   document.getElementById("state").textContent="🔴 offline";
 };
 window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId); });
-</script></body></html>
+</script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+
+  function syncFront(){
+    const state=($("state")?.textContent||"").toLowerCase();
+    const online=state.includes("online") && !state.includes("offline");
+    if($("frontStatusTitle")) $("frontStatusTitle").textContent=online?"Online":"Offline";
+    if($("frontStatusSub")) $("frontStatusSub").textContent=online?"Você está disponível":"Rastreamento parado";
+    if($("frontStatusDot")) $("frontStatusDot").style.background=online?"#05c653":"#e81f28";
+
+    if($("frontPendingSummary")&&$("mPending")) $("frontPendingSummary").textContent=$("mPending").textContent||"0";
+
+    const finishedText=$("tabMotoboyFinished")?.textContent||"";
+    const m=finishedText.match(/\((\d+)\)/);
+    if($("frontFinishedCount")) $("frontFinishedCount").textContent=m?m[1]:($("mDone")?.textContent||"0");
+
+    const route=$("routeInfo")?.textContent?.trim();
+    if(route){
+      if($("frontRouteInfo")) $("frontRouteInfo").textContent=route;
+      if($("frontRouteInfo2")) $("frontRouteInfo2").textContent=route;
+    }
+  }
+
+  ["state","mPending","mDone","routeInfo","tabMotoboyFinished"].forEach(id=>{
+    const el=$(id);
+    if(el)new MutationObserver(syncFront).observe(el,{childList:true,subtree:true,characterData:true});
+  });
+  setInterval(syncFront,1500);
+  setTimeout(syncFront,100);
+
+  $("frontActiveSummary")?.addEventListener("click",()=>$("tabMotoboyActive")?.click());
+  $("frontFinishedSummary")?.addEventListener("click",()=>$("tabMotoboyFinished")?.click());
+  $("frontHistorySummary")?.addEventListener("click",()=>$("tabMotoboyHistory")?.click());
+
+  $("navHome")?.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
+  $("navDeliveries")?.addEventListener("click",()=>{
+    $("frontTabs")?.scrollIntoView({behavior:"smooth",block:"start"});
+    $("tabMotoboyActive")?.click();
+  });
+  $("navHistory")?.addEventListener("click",()=>{
+    $("frontTabs")?.scrollIntoView({behavior:"smooth",block:"start"});
+    $("tabMotoboyHistory")?.click();
+  });
+  $("navMore")?.addEventListener("click",()=>{
+    alert("As funções principais do RTS Motoboy continuam disponíveis nesta tela.");
+  });
+
+  const minBtn=$("minimizeApp");
+  function applyMinimized(v){
+    document.body.classList.toggle("ui-minimized",v);
+    if(minBtn)minBtn.textContent=v?"MAXIMIZAR":"MINIMIZAR";
+    localStorage.setItem("rts_app_ui_minimized",v?"1":"0");
+    try{
+      setTimeout(()=>google.maps.event.trigger(map,"resize"),120);
+      if(v&&lastPosition){
+        map.setCenter({lat:Number(lastPosition.coords.latitude),lng:Number(lastPosition.coords.longitude)});
+        map.setZoom(17);
+      }
+    }catch(e){}
+  }
+  if(minBtn){
+    applyMinimized(localStorage.getItem("rts_app_ui_minimized")==="1");
+    minBtn.addEventListener("click",()=>applyMinimized(!document.body.classList.contains("ui-minimized")));
+  }
+})();
+</script>
+</body>
+</html>
