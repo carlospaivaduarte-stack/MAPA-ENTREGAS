@@ -733,6 +733,90 @@ body.ui-minimized #map{
   }
 }
 
+
+/* ORGANIZAR ROTAS dentro de ENTREGAS */
+.delivery-actions-grid{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:8px !important;
+}
+#frontOrganizeRoute,
+#pageDeliveries #nextDelivery{
+  min-height:58px !important;
+  height:58px !important;
+  border-radius:14px !important;
+  border:1px solid #174b2d !important;
+  color:#fff !important;
+  font-weight:900 !important;
+  font-size:12px !important;
+}
+#frontOrganizeRoute{
+  background:linear-gradient(135deg,#6321c5,#2d0c67) !important;
+  border-color:#4b2591 !important;
+}
+
+/* Contador de coletas no menu inferior */
+.bottom-nav .nav-btn-count{
+  position:relative !important;
+}
+.bottom-nav .nav-btn-count .nav-count{
+  position:absolute !important;
+  top:2px !important;
+  right:22% !important;
+  min-width:18px !important;
+  height:18px !important;
+  padding:0 5px !important;
+  border-radius:999px !important;
+  background:#ff7a00 !important;
+  color:#fff !important;
+  display:none !important;
+  align-items:center !important;
+  justify-content:center !important;
+  font-size:10px !important;
+  font-weight:900 !important;
+  line-height:18px !important;
+  box-shadow:0 0 0 2px #061421 !important;
+  z-index:3 !important;
+}
+.bottom-nav .nav-btn-count .nav-count.show{
+  display:flex !important;
+}
+@media(max-width:430px){
+  #frontOrganizeRoute,
+  #pageDeliveries #nextDelivery{
+    font-size:10.5px !important;
+    min-height:54px !important;
+    height:54px !important;
+  }
+  .bottom-nav .nav-btn-count .nav-count{
+    right:18% !important;
+    top:1px !important;
+  }
+}
+
+
+/* COLETAS: contador no próprio nome, igual ao padrão dos outros itens */
+#navCollect{
+  position:relative !important;
+}
+#navCollectLabel{
+  width:100% !important;
+  height:18px !important;
+  margin:0 !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  font-size:10px !important;
+  line-height:18px !important;
+  font-weight:400 !important;
+  white-space:nowrap !important;
+}
+#navCollect .nav-count,
+#navCollectCountRemoved{
+  display:none !important;
+}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -778,7 +862,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         <div class="summary-grid">
           <button class="summary-card blue" id="frontActiveSummary" type="button">
             <div class="summary-icon">📦</div>
-            <div class="summary-title">COLETAS /<br>PENDENTES</div>
+            <div class="summary-title">PENDENTES</div>
             <div class="summary-num" id="frontPendingSummary">0</div>
           </button>
 
@@ -819,7 +903,8 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
     <!-- ABA ENTREGAS -->
     <section class="app-page" id="pageDeliveries">
-      <div class="delivery-top-actions">
+      <div class="delivery-top-actions delivery-actions-grid">
+        <button id="frontOrganizeRoute" type="button">🧠 &nbsp; ORGANIZAR ROTAS</button>
         <button id="nextDelivery">↪ &nbsp; PRÓXIMA ENTREGA</button>
       </div>
 
@@ -872,7 +957,10 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
 <nav class="bottom-nav">
   <button class="nav-btn active" id="navHome" type="button"><span class="ni">🏠</span><span>Início</span></button>
-  <button class="nav-btn" id="navCollect" type="button"><span class="ni">📥</span><span>Coleta</span></button>
+  <button class="nav-btn" id="navCollect" type="button">
+    <span class="ni">📥</span>
+    <span id="navCollectLabel">COLETAS (0)</span>
+  </button>
   <button class="nav-btn" id="navDeliveries" type="button"><span class="ni">📦</span><span>Entregas</span></button>
   <button class="nav-btn" id="navHistory" type="button"><span class="ni">◔</span><span>Histórico</span></button>
 </nav>
@@ -1032,6 +1120,7 @@ async function loadDeliveries(){
   }
 
   waitingDeliveries=waiting||[];
+  window.waitingDeliveries=waitingDeliveries;
 
   finishedDeliveries=assigned
     .filter(d=>(d.status==="done"||d.status==="failed") && isOperationalToday(d.completed_at||d.updated_at))
@@ -1559,6 +1648,14 @@ window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({i
       if($("frontRouteInfo")) $("frontRouteInfo").textContent=route;
       if($("frontRouteInfo2")) $("frontRouteInfo2").textContent=route;
     }
+
+    const collectCount = Array.isArray(window.waitingDeliveries)
+      ? window.waitingDeliveries.length
+      : (typeof waitingDeliveries!=="undefined" && Array.isArray(waitingDeliveries) ? waitingDeliveries.length : 0);
+
+    if($("navCollectLabel")){
+      $("navCollectLabel").textContent=`COLETAS (${collectCount})`;
+    }
   }
 
   ["state","mPending","mDone","routeInfo","tabMotoboyFinished"].forEach(id=>{
@@ -1568,7 +1665,12 @@ window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({i
   setInterval(syncFront,1500);
   setTimeout(syncFront,100);
 
-  $("frontActiveSummary")?.addEventListener("click",()=>{showAppPage("pageCollect");$("tabMotoboyActive")?.click();});
+
+  $("frontOrganizeRoute")?.addEventListener("click",()=>{
+    $("organizeRoute")?.click();
+  });
+
+  $("frontActiveSummary")?.addEventListener("click",()=>{showAppPage("pageDeliveries");$("tabMotoboyActive")?.click();});
   $("frontFinishedSummary")?.addEventListener("click",()=>{showAppPage("pageHistory");});
   $("frontHistorySummary")?.addEventListener("click",()=>{showAppPage("pageHistory");});
 
