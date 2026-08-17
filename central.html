@@ -94,6 +94,42 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
   }
 }
 
+
+/* ===== CADASTRO DE MOTOBOYS ===== */
+.driver-register-box{
+  border:1px solid #dfe6ef;
+  border-radius:14px;
+  padding:13px;
+  background:#f8fafc;
+  margin-bottom:14px;
+}
+.driver-register-box h4{margin:0 0 8px;font-size:13px}
+.driver-registry{margin-top:12px}
+.driver-account{
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  padding:11px;
+  margin:8px 0;
+  background:#fff;
+}
+.driver-account-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.driver-account-name{font-size:13px;font-weight:900}
+.driver-account-cpf{font-size:11px;color:#667085;margin-top:4px}
+.driver-account-status{font-size:10px;font-weight:900;padding:5px 8px;border-radius:999px}
+.driver-account-status.on{background:#dcfce7;color:#087a45}
+.driver-account-status.off{background:#fee2e2;color:#b42318}
+.driver-account-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+.driver-admin-note{
+  font-size:11px;
+  line-height:1.4;
+  color:#667085;
+  background:#eef4ff;
+  border:1px solid #d8e6ff;
+  padding:9px;
+  border-radius:10px;
+  margin:8px 0 11px;
+}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -235,6 +271,36 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div id="awaitingCount" class="small" style="font-weight:800;margin:8px 0">⚪ Aguardando coleta: 0</div>
       <div id="filteredInfo" class="small"></div>
       <div id="deliveries"></div>
+    </section>
+
+
+    <section class="drawer-section" id="drawerDrivers">
+      <div class="row" style="align-items:center">
+        <h3 style="margin:0">🏍️ Motoboys</h3>
+        <button class="blue" id="reloadDriverAccounts">🔄 Atualizar</button>
+      </div>
+
+      <div class="driver-register-box">
+        <h4>Registrar motoboy</h4>
+        <div class="driver-admin-note">
+          O CPF será o login e o identificador operacional do motoboy. A senha não é salva nesta página.
+        </div>
+        <input id="newDriverName" placeholder="Nome do motoboy">
+        <input id="newDriverCpf" inputmode="numeric" maxlength="14" placeholder="CPF / Login">
+        <input id="newDriverPhone" inputmode="tel" placeholder="Telefone / WhatsApp">
+        <input id="newDriverPassword" type="password" placeholder="Senha">
+        <input id="driverAdminKey" type="password" placeholder="Chave administrativa da Central">
+        <button class="green" id="registerDriverAccount" style="width:100%;margin-top:6px">➕ REGISTRAR MOTOBOY</button>
+        <div id="driverRegisterResult" class="small" style="margin-top:8px"></div>
+      </div>
+
+      <div class="section-header">
+        <h3 style="font-size:14px">Cadastros</h3>
+        <span id="driverRegistryCount" class="small">0</span>
+      </div>
+      <div id="driverRegistry" class="driver-registry">
+        <div class="small">Informe a chave administrativa e clique em Atualizar.</div>
+      </div>
     </section>
 
     <section class="drawer-section" id="drawerHistory">
@@ -766,7 +832,7 @@ document.querySelectorAll("[data-open]").forEach(btn=>{
     if(what==="overview"){closeDrawer();window.scrollTo({top:0,behavior:"smooth"});}
     if(what==="sale")openDrawer("drawerSale","Nova entrega");
     if(what==="deliveries")openDrawer("drawerDeliveries","Entregas");
-    if(what==="drivers"){closeDrawer();document.getElementById("driversCard").scrollIntoView({behavior:"smooth",block:"center"});}
+    if(what==="drivers")openDrawer("drawerDrivers","Motoboys");
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
     if(what==="history")openDrawer("drawerHistory","Histórico");
     if(what==="reports")openDrawer("drawerReports","Relatórios");
@@ -790,6 +856,126 @@ document.getElementById("refreshCentral").onclick=async()=>{
     btn.disabled=false; btn.textContent=old;
   }
 };
+
+
+function onlyCpfDigits(v){
+  return String(v||"").replace(/\D/g,"").slice(0,11);
+}
+
+function formatCpf(v){
+  const x=onlyCpfDigits(v);
+  if(x.length!==11)return x;
+  return `${x.slice(0,3)}.${x.slice(3,6)}.${x.slice(6,9)}-${x.slice(9)}`;
+}
+
+async function driverAdminRequest(action,payload={}){
+  if(!sb)throw new Error("Supabase indisponível.");
+  const adminKey=document.getElementById("driverAdminKey")?.value||sessionStorage.getItem("rts_driver_admin_key")||"";
+  if(!adminKey)throw new Error("Informe a chave administrativa da Central.");
+
+  sessionStorage.setItem("rts_driver_admin_key",adminKey);
+
+  const {data,error}=await sb.functions.invoke("driver-admin",{
+    body:{action,adminKey,...payload}
+  });
+
+  if(error)throw new Error(error.message||"Falha na função administrativa.");
+  if(!data?.ok)throw new Error(data?.error||"Operação não autorizada.");
+  return data;
+}
+
+async function loadDriverRegistry(){
+  const box=document.getElementById("driverRegistry");
+  const count=document.getElementById("driverRegistryCount");
+  if(!box)return;
+
+  box.innerHTML='<div class="small">Carregando cadastros...</div>';
+
+  try{
+    const data=await driverAdminRequest("list");
+    const rows=data.drivers||[];
+    if(count)count.textContent=`${rows.length} cadastro(s)`;
+
+    box.innerHTML=rows.length?rows.map(d=>`
+      <div class="driver-account">
+        <div class="driver-account-top">
+          <div>
+            <div class="driver-account-name">🏍️ ${esc(d.name||"Motoboy")}</div>
+            <div class="driver-account-cpf">CPF: ${esc(formatCpf(d.cpf||""))}</div>
+            <div class="driver-account-cpf">📱 ${esc(d.phone||"Sem telefone")}</div>
+          </div>
+          <span class="driver-account-status ${d.active?"on":"off"}">${d.active?"ATIVO":"DESATIVADO"}</span>
+        </div>
+        <div class="driver-account-actions">
+          <button class="${d.active?"red":"green"}" onclick="toggleDriverAccount('${d.cpf}',${d.active?"false":"true"})">
+            ${d.active?"⛔ DESATIVAR":"✅ ATIVAR"}
+          </button>
+          <button class="gray" onclick="resetDriverPassword('${d.cpf}','${String(d.name||"Motoboy").replaceAll("'","&#39;")}')">🔐 TROCAR SENHA</button>
+        </div>
+      </div>
+    `).join(""):'<div class="small">Nenhum motoboy registrado.</div>';
+  }catch(e){
+    box.innerHTML=`<div class="small" style="color:#b42318">❌ ${esc(e.message||"Erro ao carregar cadastros.")}</div>`;
+  }
+}
+
+window.toggleDriverAccount=async(cpf,active)=>{
+  try{
+    await driverAdminRequest("set_active",{cpf,active});
+    await loadDriverRegistry();
+  }catch(e){alert(e.message||"Não foi possível alterar o cadastro.");}
+};
+
+window.resetDriverPassword=async(cpf,name)=>{
+  const password=prompt(`Nova senha para ${name}:`);
+  if(!password)return;
+  try{
+    await driverAdminRequest("reset_password",{cpf,password});
+    alert("Senha atualizada.");
+  }catch(e){alert(e.message||"Não foi possível alterar a senha.");}
+};
+
+document.getElementById("newDriverCpf")?.addEventListener("input",e=>{
+  const x=onlyCpfDigits(e.target.value);
+  e.target.value=x.length===11?formatCpf(x):x;
+});
+
+document.getElementById("registerDriverAccount")?.addEventListener("click",async()=>{
+  const btn=document.getElementById("registerDriverAccount");
+  const result=document.getElementById("driverRegisterResult");
+  const name=document.getElementById("newDriverName").value.trim();
+  const cpf=onlyCpfDigits(document.getElementById("newDriverCpf").value);
+  const phone=document.getElementById("newDriverPhone").value.trim();
+  const password=document.getElementById("newDriverPassword").value;
+
+  if(!name)return alert("Informe o nome do motoboy.");
+  if(cpf.length!==11)return alert("Informe um CPF com 11 números.");
+  if(String(phone).replace(/\D/g,"").length<10)return alert("Informe o telefone/WhatsApp do motoboy com DDD.");
+  if(password.length<6)return alert("A senha precisa ter pelo menos 6 caracteres.");
+
+  btn.disabled=true;
+  const old=btn.textContent;
+  btn.textContent="Registrando...";
+  if(result)result.textContent="";
+
+  try{
+    const data=await driverAdminRequest("register",{name,cpf,phone,password});
+    document.getElementById("newDriverName").value="";
+    document.getElementById("newDriverCpf").value="";
+    document.getElementById("newDriverPhone").value="";
+    document.getElementById("newDriverPassword").value="";
+    if(result)result.textContent=`✅ ${data.driver?.name||name} registrado com sucesso.`;
+    await loadDriverRegistry();
+  }catch(e){
+    if(result)result.textContent="❌ "+(e.message||"Erro ao registrar motoboy.");
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
+});
+
+document.getElementById("reloadDriverAccounts")?.addEventListener("click",loadDriverRegistry);
+
 
 if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";

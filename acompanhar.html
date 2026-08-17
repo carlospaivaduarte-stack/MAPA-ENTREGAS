@@ -35,7 +35,7 @@ body{overflow:auto}
 .live-pill{position:absolute;z-index:5;left:14px;top:14px;background:#071421e6;border:1px solid #183754;border-radius:14px;padding:9px 11px;font-size:12px;color:#d9e4f1;pointer-events:none}
 .live-pill strong{color:#65ef9e}
 .destination-label{position:absolute;z-index:5;right:14px;top:14px;background:#071421e6;border:1px solid #5b4d19;border-radius:14px;padding:8px 10px;color:#ffe26a;font-size:11px;font-weight:900;pointer-events:none}
-.locate{width:100%;border:0;border-radius:21px;padding:17px 15px;margin:16px 0 13px;background:linear-gradient(90deg,var(--blue2),var(--blue));color:white;font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 10px 28px #1457d84a}
+.locate{width:100%;border:0;border-radius:21px;padding:17px 15px;margin:16px 0 13px;background:linear-gradient(90deg,var(--blue2),var(--blue));color:white;font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 10px 28px #1457d84a}.locate.talk{margin-top:0;background:linear-gradient(90deg,#079447,#16b85f);box-shadow:0 10px 28px #0a9c4a33}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:20px;padding:16px;min-height:125px;box-shadow:0 8px 22px #0002}
 .label{font-size:12px;font-weight:900;color:#96a8bd;letter-spacing:.2px}
@@ -95,6 +95,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   </div>
 
   <button class="locate" id="centerDriverClient">⌖ &nbsp; LOCALIZAR MOTOQUEIRO</button>
+  <button class="locate talk" id="talkDriver">💬 &nbsp; FALAR COM MOTOQUEIRO</button>
 
   <div class="grid">
     <div class="card">
@@ -132,7 +133,6 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   <div id="ahead" class="hidden">--</div>
   <div id="lastUpdateCard" class="hidden"></div>
   <div id="lastUpdateBig" class="hidden"></div>
-  <button id="talkDriver" class="hidden"></button>
   <button id="refreshClient" class="hidden"></button>
 
   <div class="updated" id="updatedText">↻ Atualizando localização...</div>
@@ -208,6 +208,7 @@ function closeTracking(d){
   document.getElementById("etaSub").textContent="";
   document.getElementById("queuePosition").textContent="—";
   document.getElementById("centerDriverClient").style.display="none";
+  document.getElementById("talkDriver").style.display="none";
   document.getElementById("livePill").style.display="none";
   resetTerminalCards();
 
@@ -308,6 +309,7 @@ async function refresh(){
     document.getElementById("eta").textContent="—";
     document.getElementById("etaSub").textContent="Aguardando coleta";
     document.getElementById("centerDriverClient").style.display="none";
+    document.getElementById("talkDriver").style.display="none";
     document.getElementById("livePill").style.display="none";
     document.getElementById("detail").textContent="O acompanhamento será liberado assim que sua entrega for coletada.";
     setUpdated("↻ Aguardando coleta");
@@ -336,6 +338,7 @@ async function refresh(){
 
   document.getElementById("mainTitle").textContent="ENTREGA EM ROTA";
   document.getElementById("centerDriverClient").style.display="block";
+  document.getElementById("talkDriver").style.display="block";
   document.getElementById("livePill").style.display="block";
   document.getElementById("headline").textContent=d.route_order===1
     ?"Sua entrega é a próxima."
@@ -401,6 +404,33 @@ document.getElementById("centerDriverClient").onclick=()=>{
   }
   map.panTo(lastDriverPosition);
   map.setZoom(17);
+};
+
+document.getElementById("talkDriver").onclick=async()=>{
+  const btn=document.getElementById("talkDriver");
+  const old=btn.textContent;
+  btn.disabled=true;
+  btn.textContent="LOCALIZANDO CONTATO...";
+
+  try{
+    const {data,error}=await sb.functions.invoke("tracking-driver-contact",{body:{token}});
+    if(error)throw new Error("Não foi possível localizar o contato do motoqueiro.");
+    if(!data?.ok)throw new Error(data?.error||"Contato indisponível.");
+
+    const phone=String(data.driver?.phone||"").replace(/\D/g,"");
+    if(phone.length<10)throw new Error("Telefone do motoqueiro inválido.");
+
+    const brPhone=phone.startsWith("55")?phone:`55${phone}`;
+    const name=data.driver?.name||"motoboy";
+    const msg=`Olá ${name}, estou acompanhando minha entrega pelo RTS.`;
+
+    window.open(`https://wa.me/${brPhone}?text=${encodeURIComponent(msg)}`,"_blank");
+  }catch(e){
+    alert(e.message||"Contato do motoqueiro indisponível.");
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
 };
 
 if(sb){
