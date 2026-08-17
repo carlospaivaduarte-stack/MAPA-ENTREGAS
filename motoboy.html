@@ -817,6 +817,10 @@ body.ui-minimized #map{
   display:none !important;
 }
 
+
+/* ===== LOGIN RTS MOTOBOY ===== */
+.auth-gate{position:fixed;z-index:20000;inset:0;background:radial-gradient(circle at 50% -8%,#081b2d 0,#030c16 38%,#01070d 100%);display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-gate.hidden{display:none!important}.login-card{width:min(100%,390px);background:#071421;border:1px solid #173047;border-radius:24px;padding:28px 22px;box-shadow:0 24px 70px #0009}.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:25px}.login-brand .brand-copy b{font-size:38px}.login-brand .brand-copy span{font-size:16px}.login-card h2{text-align:center;margin:0 0 7px;font-size:22px}.login-card p{text-align:center;color:#9baabd;font-size:12px;margin:0 0 20px}.login-card label{display:block;font-size:11px;font-weight:800;color:#c8d3df;margin:10px 2px 6px}.login-card input{height:48px;margin:0}.login-submit{width:100%;height:50px;margin-top:16px;border:0;border-radius:13px;background:linear-gradient(135deg,#04b94f,#027c38);color:#fff;font-weight:900;font-size:14px}.login-error{min-height:18px;color:#ff6970;font-size:11px;text-align:center;margin-top:10px}.driver-menu{position:fixed;z-index:15000;inset:0;background:#0008;display:none}.driver-menu.open{display:block}.driver-menu-card{width:min(300px,82vw);height:100%;background:#061421;border-right:1px solid #173047;padding:24px 18px;box-shadow:14px 0 35px #0008}.driver-menu-name{font-size:20px;font-weight:900;margin:18px 0 5px}.driver-menu-sub{font-size:11px;color:#9baabd;margin-bottom:24px}.logout-btn{width:100%;border:1px solid #6e2429;background:#321318;color:#fff;border-radius:12px;padding:12px;font-weight:900}
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -824,6 +828,17 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
+<div class="auth-gate" id="authGate">
+  <div class="login-card">
+    <div class="login-brand"><div class="brand-pin"></div><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div></div>
+    <h2>ACESSO DO MOTOBOY</h2><p>Entre com o CPF e a senha cadastrados pela Central.</p>
+    <label>CPF</label><input id="loginCpf" inputmode="numeric" autocomplete="username" maxlength="14" placeholder="Digite seu CPF">
+    <label>SENHA</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+    <button class="login-submit" id="loginSubmit" type="button">ENTRAR</button><div class="login-error" id="loginError"></div>
+  </div>
+</div>
+<div class="driver-menu" id="driverMenu"><div class="driver-menu-card"><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div><div class="driver-menu-name" id="driverMenuName">Motoboy</div><div class="driver-menu-sub">Conta do motoboy</div><button class="logout-btn" id="logoutBtn" type="button">SAIR</button></div></div>
+
 <div class="app">
   <header class="header">
     <button class="menu-btn" type="button">☰</button>
@@ -1005,8 +1020,7 @@ function initGoogleMap(){
   });
   window.dispatchEvent(new Event("google-map-ready"));
 }
-let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("v7_driver_id")||crypto.randomUUID(),lastSend=0;
-localStorage.setItem("v7_driver_id",driverId);
+let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId=localStorage.getItem("rts_driver_cpf")||"",lastSend=0;
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
 
@@ -1587,14 +1601,64 @@ async function sendImmediateLocation(){
 document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 
 
+async function loadAuthenticatedDriver(cpf){
+  driverId=normalizeDigits(cpf);
+  if(!driverId)throw new Error("CPF inválido.");
+  const {data,error}=await sb.from("drivers").select("*").eq("id",driverId).limit(1);
+  if(error)throw error;
+  if(!data||!data.length)throw new Error("Cadastro do motoboy não encontrado.");
+  currentDriver=data[0];
+  localStorage.setItem("rts_driver_cpf",driverId);
+  localStorage.setItem("v7_driver_id",driverId);
+  localStorage.setItem("v7_driver_name",currentDriver.name||"");
+  localStorage.setItem("v7_driver_phone",currentDriver.phone||"");
+  document.getElementById("driverName").value=currentDriver.name||"";
+  document.getElementById("driverPhone").value=currentDriver.phone||"";
+  document.getElementById("driverMenuName").textContent=currentDriver.name||"Motoboy";
+  document.getElementById("authGate").classList.add("hidden");
+}
+async function loginMotoboy(){
+  if(!sb)sb=getSupabaseClient();
+  const cpf=normalizeDigits(document.getElementById("loginCpf").value);
+  const password=document.getElementById("loginPassword").value;
+  const err=document.getElementById("loginError"),btn=document.getElementById("loginSubmit");
+  err.textContent="";
+  if(cpf.length!==11)return err.textContent="Digite um CPF com 11 números.";
+  if(!password)return err.textContent="Digite sua senha.";
+  btn.disabled=true;btn.textContent="ENTRANDO...";
+  try{
+    const email=`${cpf}@motoboy.rts.app`;
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    if(error)throw new Error("CPF ou senha incorretos.");
+    await loadAuthenticatedDriver(cpf);
+    await loadDeliveries();
+  }catch(e){err.textContent=e.message||"Não foi possível entrar.";try{await sb.auth.signOut()}catch(_){}}
+  finally{btn.disabled=false;btn.textContent="ENTRAR";}
+}
+document.getElementById("loginSubmit").onclick=loginMotoboy;
+document.getElementById("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")loginMotoboy()});
+document.querySelector(".menu-btn").onclick=()=>document.getElementById("driverMenu").classList.add("open");
+document.getElementById("driverMenu").onclick=e=>{if(e.target.id==="driverMenu")e.currentTarget.classList.remove("open")};
+document.getElementById("logoutBtn").onclick=async()=>{
+  if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
+  try{if(sb&&driverId)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId)}catch(e){}
+  try{if(sb)await sb.auth.signOut()}catch(e){}
+  localStorage.removeItem("rts_driver_cpf");localStorage.removeItem("v7_driver_id");
+  driverId="";currentDriver=null;document.getElementById("driverMenu").classList.remove("open");document.getElementById("authGate").classList.remove("hidden");
+};
+
 async function initializeMotoboyApp(){
   if(!sb)sb=getSupabaseClient();
   if(!sb)return;
   try{
-    await loadDriverInfo();
+    const {data:{session}}=await sb.auth.getSession();
+    const savedCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf"));
+    if(!session||!savedCpf){document.getElementById("authGate").classList.remove("hidden");return;}
+    await loadAuthenticatedDriver(savedCpf);
     await loadDeliveries();
   }catch(e){
     console.error("Erro ao iniciar aplicativo:",e);
+    document.getElementById("authGate").classList.remove("hidden");
   }
 }
 window.addEventListener("load",initializeMotoboyApp);
