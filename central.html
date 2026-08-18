@@ -820,6 +820,16 @@ function renderCustomerResults(query){
   });
 }
 
+function makeLocalUuid(){
+  if(window.crypto?.randomUUID)return window.crypto.randomUUID();
+  const bytes=new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  bytes[6]=(bytes[6]&0x0f)|0x40;
+  bytes[8]=(bytes[8]&0x3f)|0x80;
+  const h=[...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+
 async function ensureCustomerSaved(){
   const name=document.getElementById("client").value.trim();
   const phone=document.getElementById("phone").value.trim();
@@ -827,15 +837,46 @@ async function ensureCustomerSaved(){
   if(!name)throw new Error("Informe o nome do cliente.");
   if(!fixedAddress)throw new Error("Informe o endereço fixo do cliente.");
 
-  let coords=fixedResolved;
-  if(!coords)coords=await resolveGoogleLocation(fixedAddress);
+  const selected=selectedCustomerId
+    ? allCustomers.find(c=>String(c.id)===String(selectedCustomerId))
+    : null;
+
+  // Se o cliente selecionado não foi alterado, não fazemos UPDATE desnecessário.
+  // Isso evita o erro PGRST116 ("Cannot coerce the result to a single JSON object")
+  // que podia ocorrer quando o PostgREST não devolvia a linha no RETURNING.
+  if(selected){
+    const sameName=String(selected.name||"").trim()===name;
+    const samePhone=normalizePhone(selected.phone||"")===normalizePhone(phone);
+    const sameAddress=String(selected.fixed_address||"").trim()===fixedAddress;
+    const hasCoords=selected.fixed_lat!=null&&selected.fixed_lng!=null;
+    if(sameName&&samePhone&&sameAddress&&hasCoords){
+      fixedResolved={lat:Number(selected.fixed_lat),lng:Number(selected.fixed_lng)};
+      return selected;
+    }
+  }
+
+  let coords=null;
+  const selectedAddressUnchanged=selected&&String(selected.fixed_address||"").trim()===fixedAddress;
+  if(selectedAddressUnchanged&&selected.fixed_lat!=null&&selected.fixed_lng!=null){
+    coords={lat:Number(selected.fixed_lat),lng:Number(selected.fixed_lng)};
+  }else if(fixedResolved){
+    coords=fixedResolved;
+  }else{
+    coords=await resolveGoogleLocation(fixedAddress);
+  }
 
   const row={name,phone,fixed_address:fixedAddress,fixed_lat:coords.lat,fixed_lng:coords.lng,updated_at:new Date().toISOString()};
 
   if(selectedCustomerId){
-    const {data,error}=await sb.from("customers").update(row).eq("id",selectedCustomerId).select("*").single();
+    const id=selectedCustomerId;
+    const {error}=await sb.from("customers").update(row).eq("id",id);
     if(error)throw error;
-    fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
+    const data={...(selected||{}),id,...row};
+    fixedResolved=coords;
+    await loadCustomers();
+    const fresh=allCustomers.find(c=>String(c.id)===String(id))||data;
+    selectCustomer(fresh);
+    return fresh;
   }
 
   const phoneDigits=normalizePhone(phone);
@@ -846,18 +887,28 @@ async function ensureCustomerSaved(){
   });
 
   if(existing){
-    const {data,error}=await sb.from("customers")
-      .update(row)
-      .eq("id",existing.id)
-      .select("*")
-      .single();
+    const {error}=await sb.from("customers").update(row).eq("id",existing.id);
     if(error)throw error;
-    selectedCustomerId=data.id; fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
+    const data={...existing,...row};
+    selectedCustomerId=existing.id;
+    fixedResolved=coords;
+    await loadCustomers();
+    const fresh=allCustomers.find(c=>String(c.id)===String(existing.id))||data;
+    selectCustomer(fresh);
+    return fresh;
   }
 
-  const {data,error}=await sb.from("customers").insert(row).select("*").single();
+  // Geramos o UUID no navegador e fazemos o INSERT sem .select().single().
+  // Assim a criação não depende de o PostgREST devolver exatamente uma linha.
+  const data={id:makeLocalUuid(),...row};
+  const {error}=await sb.from("customers").insert(data);
   if(error)throw error;
-  selectedCustomerId=data.id; fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
+  selectedCustomerId=data.id;
+  fixedResolved=coords;
+  await loadCustomers();
+  const fresh=allCustomers.find(c=>String(c.id)===String(data.id))||data;
+  selectCustomer(fresh);
+  return fresh;
 }
 
 document.getElementById("customerSearch").addEventListener("input",e=>renderCustomerResults(e.target.value));
@@ -871,6 +922,20 @@ document.getElementById("client").addEventListener("input",()=>{
     const c=allCustomers.find(x=>x.id===selectedCustomerId);
     if(c&&document.getElementById("client").value.trim()!==String(c.name||"").trim())clearCustomerSelection();
   }
+});
+
+document.getElementById("location").addEventListener("input",()=>{
+  const c=selectedCustomerId?allCustomers.find(x=>String(x.id)===String(selectedCustomerId)):null;
+  const current=document.getElementById("location").value.trim();
+  if(!c||current!==String(c.fixed_address||"").trim()){
+    fixedResolved=null;
+    document.getElementById("locationResult").textContent="O endereço será localizado ao registrar a venda.";
+  }
+});
+
+document.getElementById("secondaryLocation").addEventListener("input",()=>{
+  secondaryResolved=null;
+  document.getElementById("secondaryLocationResult").textContent="Esse endereço será localizado ao registrar a entrega.";
 });
 
 document.getElementById("useSecondaryAddress").addEventListener("change",e=>{
