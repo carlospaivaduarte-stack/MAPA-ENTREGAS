@@ -392,7 +392,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         <span id="driverRegistryCount" class="small">0</span>
       </div>
       <div id="driverRegistry" class="driver-registry">
-        <div class="small">Informe a chave administrativa e clique em Atualizar.</div>
+        <div class="small">Carregando cadastros...</div>
       </div>
     </section>
 
@@ -429,6 +429,36 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
   </div>
 </aside>
+
+
+
+<div class="modal" id="driverEditModal">
+  <div class="modalbox">
+    <h3>✏️ Editar motoboy</h3>
+    <div class="small" style="margin-bottom:8px">O CPF é o identificador/login e não será alterado nesta tela.</div>
+    <input id="driverEditName" placeholder="Nome do motoboy">
+    <input id="driverEditCpf" disabled placeholder="CPF / Login">
+    <input id="driverEditPhone" inputmode="tel" placeholder="Telefone / WhatsApp">
+    <div class="row" style="margin-top:8px">
+      <button class="green" id="saveDriverEdit">💾 SALVAR</button>
+      <button class="gray" id="cancelDriverEdit">❌ CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="customerEditModal">
+  <div class="modalbox">
+    <h3>✏️ Editar cliente</h3>
+    <input id="customerEditName" placeholder="Nome do cliente">
+    <input id="customerEditPhone" placeholder="Telefone / WhatsApp">
+    <textarea id="customerEditAddress" placeholder="Endereço fixo: link do Google Maps ou coordenadas"></textarea>
+    <div id="customerEditLocationResult" class="small" style="margin:6px 0 10px"></div>
+    <div class="row">
+      <button class="green" id="saveCustomerEdit">💾 SALVAR</button>
+      <button class="gray" id="cancelCustomerEdit">❌ CANCELAR</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="editModal">
   <div class="modalbox">
@@ -645,6 +675,8 @@ function renderClientsRegistry(){
       <div class="client-card-actions">
         <button class="blue" onclick="useCustomerInSale('${c.id}')">➕ NOVA ENTREGA</button>
         <button class="gray" onclick="centerCustomerAddress('${c.id}')">📍 VER NO MAPA</button>
+        <button class="gray" onclick="editCustomer('${c.id}')">✏️ EDITAR</button>
+        <button class="red" onclick="deleteCustomer('${c.id}')">🗑️ EXCLUIR</button>
       </div>
     </div>
   `).join(""):'<div class="small">Nenhum cliente encontrado.</div>';
@@ -663,6 +695,109 @@ window.centerCustomerAddress=id=>{
   map.setCenter({lat:Number(c.fixed_lat),lng:Number(c.fixed_lng)});
   map.setZoom(17);
 };
+
+let editingCustomerId=null;
+let editingCustomerResolved=null;
+
+window.editCustomer=id=>{
+  const c=allCustomers.find(x=>String(x.id)===String(id));
+  if(!c)return;
+  editingCustomerId=c.id;
+  editingCustomerResolved=(c.fixed_lat!=null&&c.fixed_lng!=null)
+    ? {lat:Number(c.fixed_lat),lng:Number(c.fixed_lng)}
+    : null;
+
+  document.getElementById("customerEditName").value=c.name||"";
+  document.getElementById("customerEditPhone").value=c.phone||"";
+  document.getElementById("customerEditAddress").value=c.fixed_address||"";
+  document.getElementById("customerEditLocationResult").textContent=editingCustomerResolved
+    ? `Coordenadas atuais: ${editingCustomerResolved.lat.toFixed(6)}, ${editingCustomerResolved.lng.toFixed(6)}`
+    : "";
+
+  document.getElementById("customerEditModal").classList.add("open");
+};
+
+document.getElementById("cancelCustomerEdit").onclick=()=>{
+  editingCustomerId=null;
+  editingCustomerResolved=null;
+  document.getElementById("customerEditModal").classList.remove("open");
+};
+
+document.getElementById("customerEditAddress").addEventListener("input",()=>{
+  editingCustomerResolved=null;
+  document.getElementById("customerEditLocationResult").textContent="O endereço será localizado ao salvar.";
+});
+
+document.getElementById("saveCustomerEdit").onclick=async()=>{
+  const c=allCustomers.find(x=>String(x.id)===String(editingCustomerId));
+  if(!c)return;
+
+  const name=document.getElementById("customerEditName").value.trim();
+  const phone=document.getElementById("customerEditPhone").value.trim();
+  const address=document.getElementById("customerEditAddress").value.trim();
+
+  if(!name)return alert("Informe o nome do cliente.");
+  if(!address)return alert("Informe o endereço fixo.");
+
+  const btn=document.getElementById("saveCustomerEdit");
+  const old=btn.textContent;
+  btn.disabled=true;
+  btn.textContent="SALVANDO...";
+
+  try{
+    const p=editingCustomerResolved||await resolveGoogleLocation(address);
+    const {error}=await sb.from("customers").update({
+      name,
+      phone,
+      fixed_address:address,
+      fixed_lat:p.lat,
+      fixed_lng:p.lng,
+      updated_at:new Date().toISOString()
+    }).eq("id",c.id);
+
+    if(error)throw error;
+
+    document.getElementById("customerEditModal").classList.remove("open");
+    editingCustomerId=null;
+    editingCustomerResolved=null;
+    await loadCustomers();
+    alert("Cliente atualizado.");
+  }catch(e){
+    alert("Erro ao atualizar cliente: "+(e.message||e));
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
+};
+
+window.deleteCustomer=async id=>{
+  const c=allCustomers.find(x=>String(x.id)===String(id));
+  if(!c)return;
+
+  const linked=(allDeliveries||[]).filter(d=>String(d.customer_id||"")===String(c.id) && !d.deleted_at);
+  const active=linked.filter(d=>d.status==="awaiting_collection"||d.status==="pending");
+
+  if(active.length){
+    return alert(`Não é possível excluir ${c.name}. Existem ${active.length} entrega(s) ativa(s) vinculada(s) a este cliente.`);
+  }
+
+  if(!confirm(`Excluir o cliente ${c.name}?`))return;
+  const confirmText=prompt('Para confirmar, digite EXCLUIR');
+  if(confirmText!=="EXCLUIR")return alert("Exclusão cancelada.");
+
+  const {error}=await sb.from("customers").delete().eq("id",c.id);
+  if(error){
+    if(String(error.message||"").toLowerCase().includes("foreign key")){
+      return alert("Esse cliente possui histórico de entregas e não pode ser excluído definitivamente.");
+    }
+    return alert("Erro ao excluir cliente: "+error.message);
+  }
+
+  if(String(selectedCustomerId||"")===String(c.id))clearCustomerSelection();
+  await loadCustomers();
+  alert("Cliente excluído.");
+};
+
 
 function renderCustomerResults(query){
   const box=document.getElementById("customerResults");
@@ -1200,7 +1335,7 @@ document.querySelectorAll("[data-open]").forEach(btn=>{
     if(what==="sale")openDrawer("drawerSale","Nova entrega");
     if(what==="deliveries")openDrawer("drawerDeliveries","Entregas");
     if(what==="clients")openDrawer("drawerClients","Clientes");
-    if(what==="drivers")openDrawer("drawerDrivers","Motoboys");
+    if(what==="drivers"){openDrawer("drawerDrivers","Motoboys");loadDriverRegistry();}
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
     if(what==="history")openDrawer("drawerHistory","Histórico");
     if(what==="reports")openDrawer("drawerReports","Relatórios");
@@ -1260,11 +1395,16 @@ async function loadDriverRegistry(){
   box.innerHTML='<div class="small">Carregando cadastros...</div>';
 
   try{
-    const data=await driverAdminRequest("list");
-    const rows=data.drivers||[];
-    if(count)count.textContent=`${rows.length} cadastro(s)`;
+    const {data:rows,error}=await sb.from("driver_accounts")
+      .select("cpf,name,phone,active,created_at,updated_at")
+      .order("name",{ascending:true});
 
-    box.innerHTML=rows.length?rows.map(d=>`
+    if(error)throw error;
+
+    const list=rows||[];
+    if(count)count.textContent=`${list.length} cadastro(s)`;
+
+    box.innerHTML=list.length?list.map(d=>`
       <div class="driver-account">
         <div class="driver-account-top">
           <div>
@@ -1274,7 +1414,8 @@ async function loadDriverRegistry(){
           </div>
           <span class="driver-account-status ${d.active?"on":"off"}">${d.active?"ATIVO":"DESATIVADO"}</span>
         </div>
-        <div class="driver-account-actions">
+        <div class="driver-account-actions" style="grid-template-columns:1fr 1fr">
+          <button class="blue" onclick="editDriverAccount('${d.cpf}')">✏️ EDITAR</button>
           <button class="${d.active?"red":"green"}" onclick="toggleDriverAccount('${d.cpf}',${d.active?"false":"true"})">
             ${d.active?"⛔ DESATIVAR":"✅ ATIVAR"}
           </button>
@@ -1341,6 +1482,70 @@ document.getElementById("registerDriverAccount")?.addEventListener("click",async
     btn.textContent=old;
   }
 });
+
+
+let editingDriverCpf=null;
+
+window.editDriverAccount=async cpf=>{
+  const {data,error}=await sb.from("driver_accounts")
+    .select("cpf,name,phone,active")
+    .eq("cpf",cpf)
+    .maybeSingle();
+
+  if(error||!data)return alert("Não foi possível carregar o cadastro do motoboy.");
+
+  editingDriverCpf=data.cpf;
+  document.getElementById("driverEditName").value=data.name||"";
+  document.getElementById("driverEditCpf").value=formatCpf(data.cpf||"");
+  document.getElementById("driverEditPhone").value=data.phone||"";
+  document.getElementById("driverEditModal").classList.add("open");
+};
+
+document.getElementById("cancelDriverEdit")?.addEventListener("click",()=>{
+  editingDriverCpf=null;
+  document.getElementById("driverEditModal").classList.remove("open");
+});
+
+document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
+  if(!editingDriverCpf)return;
+
+  const name=document.getElementById("driverEditName").value.trim();
+  const phone=document.getElementById("driverEditPhone").value.trim();
+  if(!name)return alert("Informe o nome do motoboy.");
+  if(String(phone).replace(/\D/g,"").length<10)return alert("Informe o telefone com DDD.");
+
+  const btn=document.getElementById("saveDriverEdit");
+  const old=btn.textContent;
+  btn.disabled=true;btn.textContent="SALVANDO...";
+
+  try{
+    const {error}=await sb.from("driver_accounts")
+      .update({
+        name,
+        phone,
+        updated_at:new Date().toISOString()
+      })
+      .eq("cpf",editingDriverCpf);
+
+    if(error)throw error;
+
+    // Mantém o cadastro operacional/GPS com nome e telefone atualizados.
+    await sb.from("drivers")
+      .update({name,phone})
+      .eq("cpf",editingDriverCpf);
+
+    document.getElementById("driverEditModal").classList.remove("open");
+    editingDriverCpf=null;
+    await loadDriverRegistry();
+    await loadDrivers();
+    alert("Cadastro do motoboy atualizado.");
+  }catch(e){
+    alert("Erro ao editar motoboy: "+(e.message||e));
+  }finally{
+    btn.disabled=false;btn.textContent=old;
+  }
+});
+
 
 document.getElementById("reloadDriverAccounts")?.addEventListener("click",loadDriverRegistry);
 
