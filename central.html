@@ -173,6 +173,20 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 .secondary-area{display:none;margin-top:9px}.secondary-area.open{display:block}
 .customer-current{font-size:11px;color:#4b5563;padding:8px 10px;background:#eef4ff;border-radius:10px;margin:7px 0}
 
+
+/* ===== ABA CLIENTES ===== */
+.client-card{
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  padding:11px;
+  margin:8px 0;
+  background:#fff;
+}
+.client-card b{font-size:13px}
+.client-card .client-phone{font-size:11px;color:#475467;margin-top:4px}
+.client-card .client-address{font-size:11px;color:#667085;margin-top:5px;line-height:1.4}
+.client-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -203,6 +217,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <button class="nav-btn active" data-open="overview"><span class="nav-icon">🏠</span>Visão geral</button>
       <button class="nav-btn" data-open="sale"><span class="nav-icon">➕</span>Nova entrega</button>
       <button class="nav-btn" data-open="deliveries"><span class="nav-icon">📦</span>Entregas</button>
+      <button class="nav-btn" data-open="clients"><span class="nav-icon">👥</span>Clientes</button>
       <button class="nav-btn" data-open="drivers"><span class="nav-icon">🏍️</span>Motoboys</button>
       <button class="nav-btn" data-open="map"><span class="nav-icon">🗺️</span>Mapa ao vivo</button>
       <button class="nav-btn" data-open="history"><span class="nav-icon">🕐</span>Histórico</button>
@@ -292,7 +307,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div class="customer-box">
         <h4>👤 Cliente</h4>
         <div class="customer-search-wrap">
-          <input id="customerSearch" autocomplete="off" placeholder="🔎 Pesquisar cliente pelo nome">
+          <input id="customerSearch" autocomplete="off" placeholder="🔎 Pesquisar cliente por nome ou telefone">
           <div id="customerResults" class="customer-results"></div>
         </div>
         <div id="selectedCustomerInfo" class="customer-current">Nenhum cliente selecionado.</div>
@@ -301,9 +316,8 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         <textarea id="location" placeholder="Endereço fixo: link do Google Maps ou coordenadas"></textarea>
         <div class="row">
           <button class="gray" id="resolveLocation">📍 LER ENDEREÇO FIXO</button>
-          <div id="locationResult" class="small" style="padding:10px">O endereço fixo ficará salvo no cadastro do cliente.</div>
+          <div id="locationResult" class="small" style="padding:10px">O cliente será salvo automaticamente ao registrar a venda.</div>
         </div>
-        <button class="blue" id="saveCustomer" style="width:100%;margin-top:7px">💾 SALVAR / ATUALIZAR CLIENTE</button>
       </div>
 
       <div class="address-choice">
@@ -382,7 +396,22 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       </div>
     </section>
 
-    <section class="drawer-section" id="drawerHistory">
+    
+    <section class="drawer-section" id="drawerClients">
+      <div class="row" style="align-items:center">
+        <h3 style="margin:0">👥 Clientes</h3>
+        <button class="gray" id="reloadCustomers">🔄 Atualizar</button>
+      </div>
+
+      <div style="margin-top:10px">
+        <input id="clientsAdminSearch" placeholder="🔎 Buscar cliente por nome ou telefone">
+      </div>
+
+      <div id="clientsCount" class="small" style="margin:7px 0;font-weight:800">0 cliente(s)</div>
+      <div id="clientsRegistry"></div>
+    </section>
+
+<section class="drawer-section" id="drawerHistory">
       <div class="section-header"><h3>📚 Histórico — últimos 30 dias</h3><button class="gray section-toggle" id="toggleHistory7">⬇️</button></div>
       <div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
       <div class="section-header"><h3>🕐 Histórico diário (05:00–04:59)</h3><button class="gray section-toggle" id="toggleHistoryDay">⬇️</button></div>
@@ -588,13 +617,63 @@ async function loadCustomers(){
   const {data,error}=await sb.from("customers").select("*").order("name",{ascending:true});
   if(error){console.error("Erro ao carregar clientes:",error);return}
   allCustomers=data||[];
+  renderClientsRegistry();
 }
+
+function renderClientsRegistry(){
+  const box=document.getElementById("clientsRegistry");
+  const count=document.getElementById("clientsCount");
+  if(!box)return;
+
+  const q=String(document.getElementById("clientsAdminSearch")?.value||"").trim().toLowerCase();
+  const qDigits=normalizePhone(q);
+
+  const rows=allCustomers.filter(c=>{
+    if(!q)return true;
+    const name=String(c.name||"").toLowerCase();
+    const phone=normalizePhone(c.phone||"");
+    return name.includes(q)||(qDigits&&phone.includes(qDigits));
+  });
+
+  if(count)count.textContent=`${rows.length} cliente(s)`;
+
+  box.innerHTML=rows.length?rows.map(c=>`
+    <div class="client-card">
+      <b>👤 ${esc(c.name||"Cliente")}</b>
+      <div class="client-phone">📱 ${esc(c.phone||"Sem telefone")}</div>
+      <div class="client-address">📍 ${esc(c.fixed_address||"Sem endereço fixo")}</div>
+      <div class="client-card-actions">
+        <button class="blue" onclick="useCustomerInSale('${c.id}')">➕ NOVA ENTREGA</button>
+        <button class="gray" onclick="centerCustomerAddress('${c.id}')">📍 VER NO MAPA</button>
+      </div>
+    </div>
+  `).join(""):'<div class="small">Nenhum cliente encontrado.</div>';
+}
+
+window.useCustomerInSale=id=>{
+  const c=allCustomers.find(x=>String(x.id)===String(id));
+  if(!c)return;
+  selectCustomer(c);
+  openDrawer("drawerSale","Nova entrega");
+};
+
+window.centerCustomerAddress=id=>{
+  const c=allCustomers.find(x=>String(x.id)===String(id));
+  if(!c||c.fixed_lat==null||c.fixed_lng==null)return alert("Cliente sem coordenadas salvas.");
+  map.setCenter({lat:Number(c.fixed_lat),lng:Number(c.fixed_lng)});
+  map.setZoom(17);
+};
 
 function renderCustomerResults(query){
   const box=document.getElementById("customerResults");
   const q=String(query||"").trim().toLowerCase();
   if(!q){box.innerHTML="";box.classList.remove("open");return}
-  const rows=allCustomers.filter(c=>String(c.name||"").toLowerCase().includes(q)).slice(0,12);
+  const qDigits=normalizePhone(q);
+  const rows=allCustomers.filter(c=>{
+    const name=String(c.name||"").toLowerCase();
+    const phone=normalizePhone(c.phone||"");
+    return name.includes(q) || (qDigits && phone.includes(qDigits));
+  }).slice(0,12);
   box.innerHTML=rows.length?rows.map(c=>`
     <div class="customer-result" data-customer-id="${c.id}">
       <b>${esc(c.name||"Cliente")}</b>
@@ -624,12 +703,33 @@ async function ensureCustomerSaved(){
     fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
   }
 
+  const phoneDigits=normalizePhone(phone);
+  const existing=allCustomers.find(c=>{
+    const samePhone=phoneDigits && normalizePhone(c.phone||"")===phoneDigits;
+    const sameName=String(c.name||"").trim().toLowerCase()===name.toLowerCase();
+    return samePhone || sameName;
+  });
+
+  if(existing){
+    const {data,error}=await sb.from("customers")
+      .update(row)
+      .eq("id",existing.id)
+      .select("*")
+      .single();
+    if(error)throw error;
+    selectedCustomerId=data.id; fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
+  }
+
   const {data,error}=await sb.from("customers").insert(row).select("*").single();
   if(error)throw error;
   selectedCustomerId=data.id; fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
 }
 
 document.getElementById("customerSearch").addEventListener("input",e=>renderCustomerResults(e.target.value));
+
+document.getElementById("clientsAdminSearch")?.addEventListener("input",renderClientsRegistry);
+document.getElementById("reloadCustomers")?.addEventListener("click",loadCustomers);
+
 
 document.getElementById("client").addEventListener("input",()=>{
   if(selectedCustomerId){
@@ -647,13 +747,6 @@ document.getElementById("useSecondaryAddress").addEventListener("change",e=>{
   }
 });
 
-document.getElementById("saveCustomer").onclick=async()=>{
-  const btn=document.getElementById("saveCustomer"),old=btn.textContent;
-  btn.disabled=true;btn.textContent="SALVANDO...";
-  try{const c=await ensureCustomerSaved();alert(`Cliente ${c.name} salvo com endereço fixo.`)}
-  catch(e){alert("Erro ao salvar cliente: "+(e.message||e))}
-  finally{btn.disabled=false;btn.textContent=old}
-};
 
 async function resolveGoogleLocation(raw){
   raw=String(raw||"").trim();
@@ -1106,6 +1199,7 @@ document.querySelectorAll("[data-open]").forEach(btn=>{
     if(what==="overview"){closeDrawer();window.scrollTo({top:0,behavior:"smooth"});}
     if(what==="sale")openDrawer("drawerSale","Nova entrega");
     if(what==="deliveries")openDrawer("drawerDeliveries","Entregas");
+    if(what==="clients")openDrawer("drawerClients","Clientes");
     if(what==="drivers")openDrawer("drawerDrivers","Motoboys");
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
     if(what==="history")openDrawer("drawerHistory","Histórico");
