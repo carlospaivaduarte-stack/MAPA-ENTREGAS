@@ -627,6 +627,26 @@ function clearCustomerSelection(){
   document.getElementById("selectedCustomerInfo").textContent="Nenhum cliente selecionado.";
 }
 
+function resetSaleForm(){
+  clearCustomerSelection();
+  secondaryResolved=null;
+
+  document.getElementById("customerSearch").value="";
+  document.getElementById("customerResults").innerHTML="";
+  document.getElementById("customerResults").classList.remove("open");
+  document.getElementById("client").value="";
+  document.getElementById("phone").value="";
+  document.getElementById("location").value="";
+  document.getElementById("locationResult").textContent="O cliente será salvo automaticamente ao registrar a venda.";
+
+  document.getElementById("useSecondaryAddress").checked=false;
+  document.getElementById("secondaryArea").classList.remove("open");
+  document.getElementById("secondaryLocation").value="";
+  document.getElementById("secondaryLocationResult").textContent="Esse endereço será usado somente nesta entrega.";
+
+  document.getElementById("saleNote").value="";
+}
+
 function selectCustomer(c){
   if(!c)return;
   selectedCustomerId=c.id;
@@ -1237,14 +1257,9 @@ document.getElementById("addDelivery").onclick=async()=>{
     const {error}=await sb.from("deliveries").insert(row);
     if(error)throw new Error("Erro ao adicionar venda: "+error.message);
 
-    document.getElementById("saleNote").value="";
-    document.getElementById("useSecondaryAddress").checked=false;
-    document.getElementById("secondaryArea").classList.remove("open");
-    document.getElementById("secondaryLocation").value="";
-    document.getElementById("secondaryLocationResult").textContent="Esse endereço será usado somente nesta entrega.";
-    secondaryResolved=null;
+    resetSaleForm();
     await loadDeliveries();
-    alert(useSecondary?"Entrega cadastrada usando o endereço secundário.":"Entrega cadastrada usando o endereço fixo do cliente.");
+    alert(useSecondary?"Entrega cadastrada usando o endereço secundário. Formulário limpo para a próxima venda.":"Entrega cadastrada usando o endereço fixo do cliente. Formulário limpo para a próxima venda.");
   }catch(e){alert(e.message||"Não foi possível cadastrar a entrega.")}
   finally{btn.disabled=false;btn.textContent=old}
 };
