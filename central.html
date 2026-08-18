@@ -157,6 +157,22 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 .admin-login-result{font-size:12px;margin-top:10px;min-height:18px}
 #adminLogout{background:#edf0f4;color:#111827}
 
+
+/* ===== CADASTRO DE CLIENTES / ENDEREÇOS ===== */
+.customer-box{border:1px solid #dfe6ef;border-radius:14px;padding:12px;background:#f8fafc;margin-bottom:12px}
+.customer-box h4{margin:0 0 8px;font-size:13px}
+.customer-search-wrap{position:relative}
+.customer-results{position:absolute;z-index:30;left:0;right:0;top:48px;background:#fff;border:1px solid #dbe1ea;border-radius:10px;box-shadow:0 10px 28px #0002;max-height:220px;overflow:auto;display:none}
+.customer-results.open{display:block}
+.customer-result{padding:10px;border-bottom:1px solid #edf0f4;cursor:pointer}
+.customer-result:last-child{border-bottom:0}.customer-result:hover{background:#f3f6fb}
+.customer-result b{display:block;font-size:12px}.customer-result span{font-size:10px;color:#667085}
+.address-choice{margin-top:10px;border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}
+.secondary-toggle{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;cursor:pointer}
+.secondary-toggle input{width:auto;margin:0}
+.secondary-area{display:none;margin-top:9px}.secondary-area.open{display:block}
+.customer-current{font-size:11px;color:#4b5563;padding:8px 10px;background:#eef4ff;border-radius:10px;margin:7px 0}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -273,14 +289,38 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
     <section class="drawer-section" id="drawerSale">
       <h3>➕ Nova venda</h3>
-      <input id="client" placeholder="Nome do cliente">
-      <input id="phone" placeholder="Telefone / WhatsApp">
-      <textarea id="location" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
-      <textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
-      <div class="row">
-        <button class="gray" id="resolveLocation">📍 LER LOCALIZAÇÃO</button>
-        <div id="locationResult" class="small" style="padding:10px">Aceita links curtos do Google Maps.</div>
+      <div class="customer-box">
+        <h4>👤 Cliente</h4>
+        <div class="customer-search-wrap">
+          <input id="customerSearch" autocomplete="off" placeholder="🔎 Pesquisar cliente pelo nome">
+          <div id="customerResults" class="customer-results"></div>
+        </div>
+        <div id="selectedCustomerInfo" class="customer-current">Nenhum cliente selecionado.</div>
+        <input id="client" placeholder="Nome do cliente">
+        <input id="phone" placeholder="Telefone / WhatsApp">
+        <textarea id="location" placeholder="Endereço fixo: link do Google Maps ou coordenadas"></textarea>
+        <div class="row">
+          <button class="gray" id="resolveLocation">📍 LER ENDEREÇO FIXO</button>
+          <div id="locationResult" class="small" style="padding:10px">O endereço fixo ficará salvo no cadastro do cliente.</div>
+        </div>
+        <button class="blue" id="saveCustomer" style="width:100%;margin-top:7px">💾 SALVAR / ATUALIZAR CLIENTE</button>
       </div>
+
+      <div class="address-choice">
+        <label class="secondary-toggle">
+          <input type="checkbox" id="useSecondaryAddress">
+          <span>Usar endereço secundário nesta entrega</span>
+        </label>
+        <div id="secondaryArea" class="secondary-area">
+          <textarea id="secondaryLocation" placeholder="Endereço secundário: link do Google Maps ou coordenadas"></textarea>
+          <div class="row">
+            <button class="gray" id="resolveSecondaryLocation">📍 LER ENDEREÇO SECUNDÁRIO</button>
+            <div id="secondaryLocationResult" class="small" style="padding:10px">Esse endereço será usado somente nesta entrega.</div>
+          </div>
+        </div>
+      </div>
+
+      <textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
       <div class="small" style="padding:9px;background:#f3f4f6;border-radius:10px;margin:7px 0">
         ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>.
       </div>
@@ -442,7 +482,7 @@ document.getElementById("adminLogin").onclick=async()=>{
     const ok=await verifyAdminSession();
     if(!ok)return;
 
-    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
+    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
   }catch(e){
     result.textContent="❌ "+(e.message||"Não foi possível entrar.");
   }finally{
@@ -458,7 +498,7 @@ document.getElementById("adminLogout")?.addEventListener("click",async()=>{
 });
 
 
-let allDrivers=[],allDeliveries=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="active";
+let allDrivers=[],allDeliveries=[],allCustomers=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="active",selectedCustomerId=null,fixedResolved=null,secondaryResolved=null;
 
 const fmtTime=v=>v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--";
 const fmtDateTime=v=>v?new Date(v).toLocaleString("pt-BR"):"--";
@@ -518,6 +558,102 @@ function renderDashboardExtras(){
 }
 
 
+
+
+function customerLabel(c){return `${c.name||"Cliente"}${c.phone?` · ${c.phone}`:""}`}
+
+function clearCustomerSelection(){
+  selectedCustomerId=null;
+  fixedResolved=null;
+  document.getElementById("selectedCustomerInfo").textContent="Nenhum cliente selecionado.";
+}
+
+function selectCustomer(c){
+  if(!c)return;
+  selectedCustomerId=c.id;
+  fixedResolved=(c.fixed_lat!=null&&c.fixed_lng!=null)?{lat:Number(c.fixed_lat),lng:Number(c.fixed_lng)}:null;
+  document.getElementById("client").value=c.name||"";
+  document.getElementById("phone").value=c.phone||"";
+  document.getElementById("location").value=c.fixed_address||"";
+  document.getElementById("customerSearch").value=c.name||"";
+  document.getElementById("selectedCustomerInfo").textContent=`Cliente selecionado: ${customerLabel(c)}`;
+  document.getElementById("customerResults").classList.remove("open");
+  document.getElementById("locationResult").textContent=fixedResolved
+    ? `✅ Endereço fixo salvo: ${fixedResolved.lat.toFixed(6)}, ${fixedResolved.lng.toFixed(6)}`
+    : "Endereço fixo sem coordenadas salvas.";
+}
+
+async function loadCustomers(){
+  if(!sb)return;
+  const {data,error}=await sb.from("customers").select("*").order("name",{ascending:true});
+  if(error){console.error("Erro ao carregar clientes:",error);return}
+  allCustomers=data||[];
+}
+
+function renderCustomerResults(query){
+  const box=document.getElementById("customerResults");
+  const q=String(query||"").trim().toLowerCase();
+  if(!q){box.innerHTML="";box.classList.remove("open");return}
+  const rows=allCustomers.filter(c=>String(c.name||"").toLowerCase().includes(q)).slice(0,12);
+  box.innerHTML=rows.length?rows.map(c=>`
+    <div class="customer-result" data-customer-id="${c.id}">
+      <b>${esc(c.name||"Cliente")}</b>
+      <span>${esc(c.phone||"")} ${c.fixed_address?`· ${esc(c.fixed_address)}`:""}</span>
+    </div>`).join(""):'<div class="customer-result"><span>Nenhum cliente encontrado.</span></div>';
+  box.classList.add("open");
+  box.querySelectorAll("[data-customer-id]").forEach(el=>{
+    el.onclick=()=>selectCustomer(allCustomers.find(x=>String(x.id)===String(el.dataset.customerId)));
+  });
+}
+
+async function ensureCustomerSaved(){
+  const name=document.getElementById("client").value.trim();
+  const phone=document.getElementById("phone").value.trim();
+  const fixedAddress=document.getElementById("location").value.trim();
+  if(!name)throw new Error("Informe o nome do cliente.");
+  if(!fixedAddress)throw new Error("Informe o endereço fixo do cliente.");
+
+  let coords=fixedResolved;
+  if(!coords)coords=await resolveGoogleLocation(fixedAddress);
+
+  const row={name,phone,fixed_address:fixedAddress,fixed_lat:coords.lat,fixed_lng:coords.lng,updated_at:new Date().toISOString()};
+
+  if(selectedCustomerId){
+    const {data,error}=await sb.from("customers").update(row).eq("id",selectedCustomerId).select("*").single();
+    if(error)throw error;
+    fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
+  }
+
+  const {data,error}=await sb.from("customers").insert(row).select("*").single();
+  if(error)throw error;
+  selectedCustomerId=data.id; fixedResolved=coords; await loadCustomers(); selectCustomer(data); return data;
+}
+
+document.getElementById("customerSearch").addEventListener("input",e=>renderCustomerResults(e.target.value));
+
+document.getElementById("client").addEventListener("input",()=>{
+  if(selectedCustomerId){
+    const c=allCustomers.find(x=>x.id===selectedCustomerId);
+    if(c&&document.getElementById("client").value.trim()!==String(c.name||"").trim())clearCustomerSelection();
+  }
+});
+
+document.getElementById("useSecondaryAddress").addEventListener("change",e=>{
+  document.getElementById("secondaryArea").classList.toggle("open",e.target.checked);
+  if(!e.target.checked){
+    secondaryResolved=null;
+    document.getElementById("secondaryLocation").value="";
+    document.getElementById("secondaryLocationResult").textContent="Esse endereço será usado somente nesta entrega.";
+  }
+});
+
+document.getElementById("saveCustomer").onclick=async()=>{
+  const btn=document.getElementById("saveCustomer"),old=btn.textContent;
+  btn.disabled=true;btn.textContent="SALVANDO...";
+  try{const c=await ensureCustomerSaved();alert(`Cliente ${c.name} salvo com endereço fixo.`)}
+  catch(e){alert("Erro ao salvar cliente: "+(e.message||e))}
+  finally{btn.disabled=false;btn.textContent=old}
+};
 
 async function resolveGoogleLocation(raw){
   raw=String(raw||"").trim();
@@ -775,32 +911,49 @@ window.sendTracking=id=>{
 };
 
 document.getElementById("addDelivery").onclick=async()=>{
-  const btn=document.getElementById("addDelivery");
-  btn.disabled=true; const old=btn.textContent; btn.textContent="📍 Localizando...";
+  const btn=document.getElementById("addDelivery"),old=btn.textContent;
+  btn.disabled=true;btn.textContent="📍 Preparando entrega...";
   try{
-    const p=await resolveGoogleLocation(document.getElementById("location").value);
+    const customer=await ensureCustomerSaved();
+    const useSecondary=document.getElementById("useSecondaryAddress").checked;
+    let destination={lat:Number(customer.fixed_lat),lng:Number(customer.fixed_lng)};
+    let secondaryAddress=null,secondaryLat=null,secondaryLng=null;
+
+    if(useSecondary){
+      secondaryAddress=document.getElementById("secondaryLocation").value.trim();
+      if(!secondaryAddress)throw new Error("Informe o endereço secundário.");
+      const secondary=secondaryResolved||await resolveGoogleLocation(secondaryAddress);
+      destination=secondary;secondaryLat=secondary.lat;secondaryLng=secondary.lng;
+    }
+
     const row={
+      customer_id:customer.id,
       driver_id:null,
-      client_name:document.getElementById("client").value.trim()||"Cliente",
-      client_phone:document.getElementById("phone").value.trim(),
-      lat:p.lat,lng:p.lng,
-      status:"awaiting_collection",
-      route_order:null,
+      driver_cpf:null,
+      client_name:customer.name,
+      client_phone:customer.phone||"",
+      lat:destination.lat,lng:destination.lng,
+      use_secondary_address:useSecondary,
+      secondary_address:useSecondary?secondaryAddress:null,
+      secondary_lat:useSecondary?secondaryLat:null,
+      secondary_lng:useSecondary?secondaryLng:null,
+      status:"awaiting_collection",route_order:null,
       note:document.getElementById("saleNote").value.trim()
     };
+
     const {error}=await sb.from("deliveries").insert(row);
     if(error)throw new Error("Erro ao adicionar venda: "+error.message);
-    document.getElementById("client").value="";
-    document.getElementById("phone").value="";
-    document.getElementById("location").value="";
+
     document.getElementById("saleNote").value="";
-    document.getElementById("locationResult").textContent="Venda cadastrada.";
+    document.getElementById("useSecondaryAddress").checked=false;
+    document.getElementById("secondaryArea").classList.remove("open");
+    document.getElementById("secondaryLocation").value="";
+    document.getElementById("secondaryLocationResult").textContent="Esse endereço será usado somente nesta entrega.";
+    secondaryResolved=null;
     await loadDeliveries();
-  }catch(e){
-    alert(e.message||"Não foi possível localizar.");
-  }finally{
-    btn.disabled=false;btn.textContent=old;
-  }
+    alert(useSecondary?"Entrega cadastrada usando o endereço secundário.":"Entrega cadastrada usando o endereço fixo do cliente.");
+  }catch(e){alert(e.message||"Não foi possível cadastrar a entrega.")}
+  finally{btn.disabled=false;btn.textContent=old}
 };
 
 
@@ -865,10 +1018,22 @@ document.getElementById("resolveLocation").onclick=async()=>{
   box.textContent="Localizando...";
   try{
     const p=await resolveGoogleLocation(document.getElementById("location").value);
+    fixedResolved=p;
     box.textContent=`✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
-    map.setCenter({lat:Number(p.lat),lng:Number(p.lng)});
-    map.setZoom(17);
-    new google.maps.InfoWindow({content:"<b>📍 Localização encontrada</b>",position:{lat:Number(p.lat),lng:Number(p.lng)}}).open({map});
+    map.setCenter({lat:Number(p.lat),lng:Number(p.lng)});map.setZoom(17);
+    new google.maps.InfoWindow({content:"<b>📍 Endereço fixo encontrado</b>",position:{lat:Number(p.lat),lng:Number(p.lng)}}).open({map});
+  }catch(e){box.textContent="❌ "+(e.message||"Não foi possível localizar.");}
+};
+
+document.getElementById("resolveSecondaryLocation").onclick=async()=>{
+  const box=document.getElementById("secondaryLocationResult");
+  box.textContent="Localizando...";
+  try{
+    const p=await resolveGoogleLocation(document.getElementById("secondaryLocation").value);
+    secondaryResolved=p;
+    box.textContent=`✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
+    map.setCenter({lat:Number(p.lat),lng:Number(p.lng)});map.setZoom(17);
+    new google.maps.InfoWindow({content:"<b>📦 Endereço secundário encontrado</b>",position:{lat:Number(p.lat),lng:Number(p.lng)}}).open({map});
   }catch(e){box.textContent="❌ "+(e.message||"Não foi possível localizar.");}
 };
 
@@ -960,7 +1125,7 @@ document.getElementById("refreshCentral").onclick=async()=>{
   const btn=document.getElementById("refreshCentral");
   const old=btn.textContent; btn.disabled=true; btn.textContent="🔄 Atualizando...";
   try{
-    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
+    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
   }finally{
     btn.disabled=false; btn.textContent=old;
   }
@@ -1090,7 +1255,7 @@ if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";
   verifyAdminSession().then(async ok=>{
     if(!ok)return;
-    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7()]);
+    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
     sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
     sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>{loadDeliveries();loadHistory7()}).subscribe();
     setInterval(loadDrivers,10000);
