@@ -821,6 +821,22 @@ body.ui-minimized #map{
 /* ===== LOGIN RTS MOTOBOY ===== */
 .auth-gate{position:fixed;z-index:20000;inset:0;background:radial-gradient(circle at 50% -8%,#081b2d 0,#030c16 38%,#01070d 100%);display:flex;align-items:center;justify-content:center;padding:20px}
 .auth-gate.hidden{display:none!important}.login-card{width:min(100%,390px);background:#071421;border:1px solid #173047;border-radius:24px;padding:28px 22px;box-shadow:0 24px 70px #0009}.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:25px}.login-brand .brand-copy b{font-size:38px}.login-brand .brand-copy span{font-size:16px}.login-card h2{text-align:center;margin:0 0 7px;font-size:22px}.login-card p{text-align:center;color:#9baabd;font-size:12px;margin:0 0 20px}.login-card label{display:block;font-size:11px;font-weight:800;color:#c8d3df;margin:10px 2px 6px}.login-card input{height:48px;margin:0}.login-submit{width:100%;height:50px;margin-top:16px;border:0;border-radius:13px;background:linear-gradient(135deg,#04b94f,#027c38);color:#fff;font-weight:900;font-size:14px}.login-error{min-height:18px;color:#ff6970;font-size:11px;text-align:center;margin-top:10px}.driver-menu{position:fixed;z-index:15000;inset:0;background:#0008;display:none}.driver-menu.open{display:block}.driver-menu-card{width:min(300px,82vw);height:100%;background:#061421;border-right:1px solid #173047;padding:24px 18px;box-shadow:14px 0 35px #0008}.driver-menu-name{font-size:20px;font-weight:900;margin:18px 0 5px}.driver-menu-sub{font-size:11px;color:#9baabd;margin-bottom:24px}.logout-btn{width:100%;border:1px solid #6e2429;background:#321318;color:#fff;border-radius:12px;padding:12px;font-weight:900}
+
+
+/* ===== AVISO VISUAL DE NOVA COLETA ===== */
+.rts-collection-notice-stack{
+  position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:150000;
+  width:min(430px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;pointer-events:none;
+}
+.rts-collection-notice{
+  pointer-events:auto;background:#fff;border:1px solid #dfe6ee;border-radius:16px;padding:12px 14px;
+  box-shadow:0 12px 34px #0004;display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center;
+  animation:rtsCollectionNoticeIn .22s ease-out;
+}
+.rts-collection-notice-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:#fff3cd;font-size:23px}
+.rts-collection-notice b{display:block;font-size:13px;color:#111827}.rts-collection-notice span{display:block;font-size:11px;color:#667085;margin-top:3px}
+@keyframes rtsCollectionNoticeIn{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -828,6 +844,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
+<div class="rts-collection-notice-stack" id="rtsCollectionNoticeStack" aria-live="polite"></div>
 <div class="auth-gate" id="authGate">
   <div class="login-card">
     <div class="login-brand"><div class="brand-pin"></div><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div></div>
@@ -1021,6 +1038,80 @@ function initGoogleMap(){
   window.dispatchEvent(new Event("google-map-ready"));
 }
 let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId="",driverCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||""),lastSend=0;
+let assignedDeliveryChannel=null,globalDeliveryChannel=null;
+const notifiedCollectionIds=new Set();
+
+function showCollectionInAppNotice(delivery){
+  const stack=document.getElementById("rtsCollectionNoticeStack");
+  if(!stack)return;
+  const notice=document.createElement("div");
+  notice.className="rts-collection-notice";
+  notice.innerHTML=`<div class="rts-collection-notice-icon">📦</div><div><b>Nova coleta disponível</b><span>${esc(delivery?.client_name||"Nova entrega registrada pela Central")}</span></div>`;
+  stack.appendChild(notice);
+  while(stack.children.length>2)stack.firstElementChild?.remove();
+  setTimeout(()=>notice.remove(),5000);
+}
+
+function playCollectionFallbackSound(){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    const ctx=new AudioCtx();
+    const osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type="sine";osc.frequency.value=880;gain.gain.value=.12;
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(()=>{try{osc.stop();ctx.close()}catch(_){ }},260);
+  }catch(_){ }
+}
+
+function notifyNewCollection(delivery){
+  if(!delivery||!delivery.id||!driverId||!currentDriver?.is_online)return;
+  const id=String(delivery.id);
+  if(notifiedCollectionIds.has(id))return;
+  notifiedCollectionIds.add(id);
+  showCollectionInAppNotice(delivery);
+
+  const title="RTS Motoboy • Nova coleta";
+  const body=delivery.client_name?`Nova coleta para ${delivery.client_name}. Toque para abrir o RTS.`:"Uma nova coleta foi registrada pela Central.";
+  try{
+    if(window.RTSAndroid&&typeof window.RTSAndroid.showCollectionNotification==="function"){
+      window.RTSAndroid.showCollectionNotification(title,body,id);
+      return;
+    }
+  }catch(e){console.warn("Notificação nativa indisponível:",e)}
+  playCollectionFallbackSound();
+}
+
+async function handleMotoboyDeliveryRealtime(payload){
+  const row=payload?.new||{};
+  if(payload?.eventType==="INSERT"&&row.status==="awaiting_collection"&&!row.driver_id&&!row.driver_cpf){
+    notifyNewCollection(row);
+  }
+  await loadDeliveries();
+}
+
+function ensureDeliverySubscriptions(){
+  if(!sb||!driverId)return;
+  if(!assignedDeliveryChannel){
+    assignedDeliveryChannel=sb.channel("motoboy-deliveries-"+driverId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"deliveries",filter:"driver_id=eq."+driverId},()=>loadDeliveries())
+      .subscribe();
+  }
+  if(!globalDeliveryChannel){
+    globalDeliveryChannel=sb.channel("motoboy-global-refresh-"+driverId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},handleMotoboyDeliveryRealtime)
+      .subscribe();
+  }
+}
+
+async function clearDeliverySubscriptions(){
+  if(!sb)return;
+  try{if(assignedDeliveryChannel)await sb.removeChannel(assignedDeliveryChannel)}catch(_){ }
+  try{if(globalDeliveryChannel)await sb.removeChannel(globalDeliveryChannel)}catch(_){ }
+  assignedDeliveryChannel=null;globalDeliveryChannel=null;
+}
+
 document.getElementById("driverName").value=localStorage.getItem("v7_driver_name")||"";
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
 
@@ -1235,16 +1326,26 @@ function renderDeliveries(data){
 
   const pending=currentDeliveries.filter(d=>d.status==="pending").sort((a,b)=>(a.route_order??999999)-(b.route_order??999999));
   if(currentMotoboyTab==="active"){
+    // Novas vendas ainda não coletadas aparecem em amarelo para todos os motoboys.
+    waitingDeliveries.forEach(d=>{
+      if(d.lat==null||d.lng==null)return;
+      deliveryMarkers[`waiting_${d.id}`]=new google.maps.Marker({
+        position:{lat:Number(d.lat),lng:Number(d.lng)},map,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:"#FFD400",fillOpacity:1,strokeColor:"#8A6D00",strokeWeight:2},
+        label:{text:"C",color:"#111",fontSize:"13px",fontWeight:"700"},
+        title:`COLETA • ${d.client_name}`
+      });
+    });
+
+    // Depois que o motoboy coleta, o marcador passa para vermelho e segue a ordem da rota.
     pending.forEach((d,i)=>{
       const n=d.route_order||i+1;
-      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,icon:{
-  path:google.maps.SymbolPath.CIRCLE,
-  scale:16,
-  fillColor:"#FFD400",
-  fillOpacity:1,
-  strokeColor:"#8A6D00",
-  strokeWeight:2
-},label:{text:String(n),color:"#111",fontSize:"13px",fontWeight:"700"},title:d.client_name});
+      deliveryMarkers[d.id]=new google.maps.Marker({
+        position:{lat:Number(d.lat),lng:Number(d.lng)},map,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:"#E53935",fillOpacity:1,strokeColor:"#7F1D1D",strokeWeight:2},
+        label:{text:String(n),color:"#fff",fontSize:"13px",fontWeight:"700"},
+        title:`ENTREGA • ${d.client_name}`
+      });
     });
   }
 
@@ -1608,6 +1709,43 @@ async function sendImmediateLocation(){
 document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 
 
+async function syncNativeOnlineService(){
+  if(!driverId||!currentDriver?.is_online)return;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)return;
+    if(window.RTSAndroid&&typeof window.RTSAndroid.setDriverOnline==="function"){
+      window.RTSAndroid.setDriverOnline(
+        String(driverId),String(driverCpf||""),
+        String(document.getElementById("driverName").value.trim()||"Motoboy"),
+        String(document.getElementById("driverPhone").value.trim()||""),
+        String(session.access_token||""),String(session.refresh_token||"")
+      );
+    }
+    if(window.RTSAndroid&&typeof window.RTSAndroid.requestPushToken==="function")window.RTSAndroid.requestPushToken();
+  }catch(e){console.warn("Serviço nativo RTS indisponível:",e)}
+}
+
+window.rtsReceivePushToken=async function(token){
+  token=String(token||"").trim();
+  if(!token||!sb||!driverId)return;
+  try{
+    const {error}=await sb.from("driver_push_tokens").upsert({
+      driver_id:driverId,
+      fcm_token:token,
+      platform:"android",
+      active:true,
+      updated_at:new Date().toISOString(),
+      last_used_at:new Date().toISOString()
+    },{onConflict:"fcm_token"});
+    if(error)console.warn("Não foi possível registrar push token:",error);
+  }catch(e){console.warn("Push token não registrado:",e)}
+};
+
+function nativeGoOffline(){
+  try{if(window.RTSAndroid&&typeof window.RTSAndroid.setDriverOffline==="function")window.RTSAndroid.setDriverOffline()}catch(_){ }
+}
+
 async function loadAuthenticatedDriver(cpf){
   driverCpf=normalizeDigits(cpf);
   if(driverCpf.length!==11)throw new Error("CPF inválido.");
@@ -1669,6 +1807,7 @@ async function loginMotoboy(){
     if(error||!data?.user)throw new Error("CPF ou senha incorretos.");
     await loadAuthenticatedDriver(cpf);
     await loadDeliveries();
+    ensureDeliverySubscriptions();
   }catch(e){err.textContent=e.message||"Não foi possível entrar.";try{await sb.auth.signOut()}catch(_){}}
   finally{btn.disabled=false;btn.textContent="ENTRAR";}
 }
@@ -1678,7 +1817,12 @@ document.querySelector(".menu-btn").onclick=()=>document.getElementById("driverM
 document.getElementById("driverMenu").onclick=e=>{if(e.target.id==="driverMenu")e.currentTarget.classList.remove("open")};
 document.getElementById("logoutBtn").onclick=async()=>{
   if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
-  try{if(sb&&driverId)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId)}catch(e){}
+  await clearDeliverySubscriptions();
+  try{if(sb&&driverId){
+    await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
+    await sb.from("driver_push_tokens").update({active:false,updated_at:new Date().toISOString()}).eq("driver_id",driverId);
+  }}catch(e){}
+  nativeGoOffline();
   try{if(sb)await sb.auth.signOut()}catch(e){}
   localStorage.removeItem("rts_driver_cpf");localStorage.removeItem("v7_driver_id");
   driverId="";driverCpf="";currentDriver=null;document.getElementById("driverMenu").classList.remove("open");document.getElementById("authGate").classList.remove("hidden");
@@ -1703,6 +1847,14 @@ async function initializeMotoboyApp(){
     if(!savedCpf){document.getElementById("authGate").classList.remove("hidden");return;}
     await loadAuthenticatedDriver(savedCpf);
     await loadDeliveries();
+    ensureDeliverySubscriptions();
+    if(currentDriver?.is_online){
+      document.getElementById("state").textContent="🟢 online";
+      await syncNativeOnlineService();
+    }else{
+      document.getElementById("state").textContent="🔴 offline";
+      try{if(window.RTSAndroid&&typeof window.RTSAndroid.requestPushToken==="function")window.RTSAndroid.requestPushToken()}catch(_){ }
+    }
   }catch(e){
     console.error("Erro ao iniciar aplicativo:",e);
     document.getElementById("authGate").classList.remove("hidden");
@@ -1714,28 +1866,28 @@ document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
   await loadDriverInfo();
   if(!navigator.geolocation)return alert("GPS não suportado.");
-  navigator.geolocation.getCurrentPosition(upsertDriver,()=>alert("Permita acesso à localização."),{enableHighAccuracy:true,timeout:20000});
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    await upsertDriver(pos);
+    currentDriver={...(currentDriver||{}),is_online:true};
+    await syncNativeOnlineService();
+  },()=>alert("Permita acesso à localização."),{enableHighAccuracy:true,timeout:20000});
   if(watch===null)watch=navigator.geolocation.watchPosition(upsertDriver,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
   loadDeliveries();
-  sb.channel("motoboy-deliveries-"+driverId).on("postgres_changes",{event:"*",schema:"public",table:"deliveries",filter:"driver_id=eq."+driverId},()=>loadDeliveries()).subscribe();
+  ensureDeliverySubscriptions();
 };
-
-if(!window.__rtsGlobalDeliveryChannel){
-  window.__rtsGlobalDeliveryChannel=true;
-  setTimeout(()=>{
-    if(!sb)sb=getSupabaseClient();
-    if(sb)sb.channel("motoboy-global-refresh-"+driverId)
-      .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>loadDeliveries())
-      .subscribe();
-  },500);
-}
 
 document.getElementById("stop").onclick=async()=>{
   if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
-  if(sb)await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
+  if(sb){
+    await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
+    await sb.from("driver_push_tokens").update({active:false,updated_at:new Date().toISOString()}).eq("driver_id",driverId);
+  }
+  currentDriver={...(currentDriver||{}),is_online:false};
+  nativeGoOffline();
   document.getElementById("state").textContent="🔴 offline";
 };
-window.addEventListener("beforeunload",()=>{ if(sb) sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId); });
+// RTS 0.1: sair da tela, minimizar ou fechar a WebView NÃO coloca o motoboy offline.
+
 </script>
 <script>
 (function(){

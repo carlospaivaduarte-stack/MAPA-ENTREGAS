@@ -187,6 +187,51 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 .client-card .client-address{font-size:11px;color:#667085;margin-top:5px;line-height:1.4}
 .client-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
 
+
+
+/* ===== NOTIFICAÇÃO DE ENTREGA CONCLUÍDA ===== */
+.rts-toast-stack{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:120000;
+  width:min(370px,calc(100vw - 24px));
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  pointer-events:none;
+}
+.rts-toast{
+  pointer-events:auto;
+  display:grid;
+  grid-template-columns:46px 1fr auto;
+  gap:11px;
+  align-items:start;
+  background:#fff;
+  border:1px solid #dfe6ee;
+  border-radius:15px;
+  padding:13px 13px 12px;
+  box-shadow:0 14px 38px #0003;
+  cursor:pointer;
+  animation:rtsToastIn .24s ease-out;
+  overflow:hidden;
+  position:relative;
+}
+.rts-toast.removing{animation:rtsToastOut .2s ease-in forwards}
+.rts-toast-icon{
+  width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+  background:#dcfce7;color:#087a45;font-size:23px;font-weight:900;
+}
+.rts-toast-title{font-size:13px;font-weight:950;color:#111827;margin:1px 0 3px}
+.rts-toast-client{font-size:13px;font-weight:850;color:#162033;line-height:1.3}
+.rts-toast-meta{font-size:11px;color:#667085;margin-top:4px;line-height:1.4}
+.rts-toast-time{font-size:10px;color:#98a2b3;white-space:nowrap;margin-top:2px}
+.rts-toast-progress{position:absolute;left:0;bottom:0;height:3px;background:#25d366;width:100%;transform-origin:left;animation:rtsToastProgress 7s linear forwards}
+@keyframes rtsToastIn{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes rtsToastOut{to{opacity:0;transform:translateY(12px) scale(.98)}}
+@keyframes rtsToastProgress{to{transform:scaleX(0)}}
+@media(max-width:760px){.rts-toast-stack{right:12px;bottom:12px;width:calc(100vw - 24px)}}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -194,6 +239,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8&libraries=places,geometry&loading=async&callback=initGoogleMap"></script>
 </head>
 <body>
+<div class="rts-toast-stack" id="rtsToastStack" aria-live="polite" aria-atomic="false"></div>
 
 <div class="admin-auth-gate" id="adminAuthGate">
   <div class="admin-login-card">
@@ -416,6 +462,10 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div id="history7" class="history"><div class="small">Carregando histórico...</div></div>
       <div class="section-header"><h3>🕐 Histórico diário (05:00–04:59)</h3><button class="gray section-toggle" id="toggleHistoryDay">⬇️</button></div>
       <div id="history" class="history"><div class="small">Nenhum evento hoje.</div></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb">
+        <button class="red" id="clearDeliveryHistory" style="width:100%">🧹 LIMPAR HISTÓRICO DE ENTREGAS</button>
+        <div class="small" style="margin-top:7px">Apaga definitivamente entregas finalizadas e registros já removidos. Entregas aguardando coleta ou em rota não são apagadas.</div>
+      </div>
     </section>
 
     <section class="drawer-section" id="drawerReports">
@@ -558,6 +608,57 @@ document.getElementById("adminLogout")?.addEventListener("click",async()=>{
 
 
 let allDrivers=[],allDeliveries=[],allCustomers=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="active",selectedCustomerId=null,fixedResolved=null,secondaryResolved=null;
+const centralDeliveryNotificationKeys=new Set();
+
+function showCentralDeliveryNotification(delivery){
+  if(!delivery||!delivery.id)return;
+  const key=`${delivery.id}:${delivery.completed_at||delivery.updated_at||"done"}`;
+  if(centralDeliveryNotificationKeys.has(key))return;
+  centralDeliveryNotificationKeys.add(key);
+
+  const stack=document.getElementById("rtsToastStack");
+  if(!stack)return;
+  const driver=allDrivers.find(d=>String(d.id)===String(delivery.driver_id));
+  const driverName=delivery.collected_by_name||driver?.name||"Motoboy";
+  const clientName=delivery.client_name||"Cliente";
+  const completedAt=delivery.completed_at||delivery.updated_at||new Date().toISOString();
+  const time=new Date(completedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+
+  const toast=document.createElement("div");
+  toast.className="rts-toast";
+  toast.innerHTML=`
+    <div class="rts-toast-icon">✓</div>
+    <div>
+      <div class="rts-toast-title">Entrega concluída</div>
+      <div class="rts-toast-client">${esc(clientName)}</div>
+      <div class="rts-toast-meta">🏍️ ${esc(driverName)} marcou a entrega como entregue.</div>
+    </div>
+    <div class="rts-toast-time">${esc(time)}</div>
+    <div class="rts-toast-progress"></div>`;
+
+  const close=()=>{
+    if(!toast.isConnected)return;
+    toast.classList.add("removing");
+    setTimeout(()=>toast.remove(),220);
+  };
+  toast.addEventListener("click",()=>{
+    try{setDeliveryTab("finished");openDrawer("drawerDeliveries","Entregas");}catch(_){ }
+    close();
+  });
+  stack.appendChild(toast);
+  while(stack.children.length>4)stack.firstElementChild?.remove();
+  setTimeout(close,7000);
+}
+
+async function handleCentralDeliveryRealtime(payload){
+  const next=payload?.new||{};
+  const previous=next?.id?allDeliveries.find(d=>String(d.id)===String(next.id)):null;
+  if(payload?.eventType==="UPDATE"&&next.status==="done"&&previous?.status!=="done"){
+    showCentralDeliveryNotification(next);
+  }
+  await Promise.all([loadDeliveries(),loadHistory7()]);
+}
+
 
 const fmtTime=v=>v?new Date(v).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"--";
 const fmtDateTime=v=>v?new Date(v).toLocaleString("pt-BR"):"--";
@@ -794,28 +895,34 @@ window.deleteCustomer=async id=>{
   const c=allCustomers.find(x=>String(x.id)===String(id));
   if(!c)return;
 
-  const linked=(allDeliveries||[]).filter(d=>String(d.customer_id||"")===String(c.id) && !d.deleted_at);
-  const active=linked.filter(d=>d.status==="awaiting_collection"||d.status==="pending");
+  const linked=(allDeliveries||[]).filter(d=>String(d.customer_id||"")===String(c.id));
+  const active=linked.filter(d=>!d.deleted_at&&(d.status==="awaiting_collection"||d.status==="pending"));
+  const history=linked.filter(d=>d.deleted_at||d.status==="done"||d.status==="failed");
 
-  if(active.length){
-    return alert(`Não é possível excluir ${c.name}. Existem ${active.length} entrega(s) ativa(s) vinculada(s) a este cliente.`);
-  }
-
-  if(!confirm(`Excluir o cliente ${c.name}?`))return;
-  const confirmText=prompt('Para confirmar, digite EXCLUIR');
+  const warning=[
+    `Excluir DEFINITIVAMENTE o cliente ${c.name} do cadastro?`,
+    linked.length?`Existem ${linked.length} entrega(s) vinculada(s) (${active.length} ativa(s) e ${history.length} no histórico). As entregas serão mantidas, mas desvinculadas do cadastro do cliente.`:"Este cliente não possui entregas vinculadas.",
+    "Esta ação remove o cadastro do cliente do banco de dados."
+  ].join("\n\n");
+  if(!confirm(warning))return;
+  const confirmText=prompt('Para confirmar a exclusão definitiva, digite EXCLUIR');
   if(confirmText!=="EXCLUIR")return alert("Exclusão cancelada.");
 
-  const {error}=await sb.from("customers").delete().eq("id",c.id);
-  if(error){
-    if(String(error.message||"").toLowerCase().includes("foreign key")){
-      return alert("Esse cliente possui histórico de entregas e não pode ser excluído definitivamente.");
-    }
-    return alert("Erro ao excluir cliente: "+error.message);
+  // As entregas já guardam nome/telefone/coordenadas próprios. Desvinculamos o UUID
+  // do cadastro antes de apagar o cliente para preservar entregas ativas e histórico.
+  if(linked.length){
+    const {error:detachError}=await sb.from("deliveries")
+      .update({customer_id:null,updated_at:new Date().toISOString()})
+      .eq("customer_id",c.id);
+    if(detachError)return alert("Erro ao desvincular as entregas do cliente: "+detachError.message);
   }
 
+  const {error}=await sb.from("customers").delete().eq("id",c.id);
+  if(error)return alert("Erro ao excluir cliente: "+error.message);
+
   if(String(selectedCustomerId||"")===String(c.id))clearCustomerSelection();
-  await loadCustomers();
-  alert("Cliente excluído.");
+  await Promise.all([loadCustomers(),loadDeliveries(),loadHistory7()]);
+  alert("Cliente excluído definitivamente. As entregas anteriores foram preservadas sem vínculo com o cadastro.");
 };
 
 
@@ -1102,15 +1209,23 @@ function renderDeliveries(){
 
   Object.values(deliveryMarkers).forEach(m=>m.setMap(null));deliveryMarkers={};
   if(currentDeliveryTab==="active"){
-    rows.filter(d=>d.status==="pending").forEach((d,i)=>{
-      deliveryMarkers[d.id]=new google.maps.Marker({position:{lat:Number(d.lat),lng:Number(d.lng)},map,icon:{
-  path:google.maps.SymbolPath.CIRCLE,
-  scale:16,
-  fillColor:"#FFD400",
-  fillOpacity:1,
-  strokeColor:"#8A6D00",
-  strokeWeight:2
-},label:{text:String(d.route_order||i+1),color:"#111",fontSize:"13px",fontWeight:"700"},title:d.client_name});
+    rows.filter(d=>d.status==="awaiting_collection"||d.status==="pending").forEach((d,i)=>{
+      const waiting=d.status==="awaiting_collection";
+      const labelText=waiting?"C":String(d.route_order||i+1);
+      deliveryMarkers[d.id]=new google.maps.Marker({
+        position:{lat:Number(d.lat),lng:Number(d.lng)},
+        map,
+        icon:{
+          path:google.maps.SymbolPath.CIRCLE,
+          scale:16,
+          fillColor:waiting?"#FFD400":"#E53935",
+          fillOpacity:1,
+          strokeColor:waiting?"#8A6D00":"#7F1D1D",
+          strokeWeight:2
+        },
+        label:{text:labelText,color:waiting?"#111":"#fff",fontSize:"13px",fontWeight:"700"},
+        title:waiting?`COLETA • ${d.client_name}`:`ENTREGA • ${d.client_name}`
+      });
     });
   }
 }
@@ -1239,7 +1354,9 @@ document.getElementById("addDelivery").onclick=async()=>{
       destination=secondary;secondaryLat=secondary.lat;secondaryLng=secondary.lng;
     }
 
+    const deliveryId=(window.crypto&&typeof window.crypto.randomUUID==="function")?window.crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==="x"?r:(r&3|8);return v.toString(16)});
     const row={
+      id:deliveryId,
       customer_id:customer.id,
       driver_id:null,
       driver_cpf:null,
@@ -1256,6 +1373,12 @@ document.getElementById("addDelivery").onclick=async()=>{
 
     const {error}=await sb.from("deliveries").insert(row);
     if(error)throw new Error("Erro ao adicionar venda: "+error.message);
+
+    // RTS 0.1: push para todos os motoboys que estiverem ONLINE.
+    try{
+      const {error:pushError}=await sb.functions.invoke("notify-new-collection",{body:{delivery_id:deliveryId}});
+      if(pushError)console.warn("Entrega criada, mas o push não foi enviado:",pushError);
+    }catch(pushErr){console.warn("Entrega criada, mas o push falhou:",pushErr)}
 
     resetSaleForm();
     await loadDeliveries();
@@ -1321,6 +1444,31 @@ document.getElementById("clearDeliveries").onclick=async()=>{
 };
 
 
+document.getElementById("clearDeliveryHistory").onclick=async()=>{
+  if(!confirm("ATENÇÃO: deseja apagar DEFINITIVAMENTE o histórico de entregas finalizadas?\n\nEntregas aguardando coleta e em rota serão preservadas."))return;
+  if(prompt("Para confirmar a limpeza permanente, digite LIMPAR HISTORICO")!=="LIMPAR HISTORICO")return alert("Limpeza cancelada.");
+
+  const btn=document.getElementById("clearDeliveryHistory");
+  const old=btn.textContent;
+  btn.disabled=true;btn.textContent="LIMPANDO...";
+  try{
+    const {error:finishedError}=await sb.from("deliveries").delete().in("status",["done","failed"]);
+    if(finishedError)throw finishedError;
+
+    // Também elimina registros que já tinham sido removidos manualmente da Central.
+    const {error:removedError}=await sb.from("deliveries").delete().not("deleted_at","is",null);
+    if(removedError)throw removedError;
+
+    await Promise.all([loadDeliveries(),loadHistory7(),loadCustomers()]);
+    alert("Histórico de entregas limpo definitivamente.");
+  }catch(e){
+    alert("Erro ao limpar histórico: "+(e.message||e));
+  }finally{
+    btn.disabled=false;btn.textContent=old;
+  }
+};
+
+
 document.getElementById("resolveLocation").onclick=async()=>{
   const box=document.getElementById("locationResult");
   box.textContent="Localizando...";
@@ -1375,7 +1523,7 @@ document.getElementById("statusFilter").addEventListener("change",renderDeliveri
 document.getElementById("fitMap").onclick=()=>{
   const pts=[];
   allDrivers.forEach(d=>{if(d.lat!=null)pts.push([d.lat,d.lng])});
-  allDeliveries.filter(d=>d.status!=="awaiting_collection").forEach(d=>pts.push([d.lat,d.lng]));
+  allDeliveries.filter(d=>!d.deleted_at&&(d.status==="awaiting_collection"||d.status==="pending")).forEach(d=>pts.push([d.lat,d.lng]));
   if(!pts.length)return alert("Não há pontos no mapa.");
   const bounds=new google.maps.LatLngBounds(); pts.forEach(p=>bounds.extend({lat:Number(p[0]),lng:Number(p[1])})); map.fitBounds(bounds,35);
 };
@@ -1636,7 +1784,7 @@ if(sb){
     if(!ok)return;
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
     sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
-    sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>{loadDeliveries();loadHistory7()}).subscribe();
+    sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},handleCentralDeliveryRealtime).subscribe();
     setInterval(loadDrivers,10000);
   });
 }
