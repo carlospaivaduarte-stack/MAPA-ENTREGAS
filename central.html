@@ -232,6 +232,72 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 @keyframes rtsToastProgress{to{transform:scaleX(0)}}
 @media(max-width:760px){.rts-toast-stack{right:12px;bottom:12px;width:calc(100vw - 24px)}}
 
+
+/* ===== RTS CENTRAL PROFISSIONAL ===== */
+:root{
+  --pro-bg:#06111d;--pro-panel:#0b1725;--pro-panel2:#0d1d2d;--pro-line:#19334a;
+  --pro-text:#eef6ff;--pro-muted:#8fa7bb;--pro-blue:#2563eb;--pro-cyan:#39bdf8;
+  --pro-green:#16c784;--pro-yellow:#facc15;--pro-red:#ef4444;
+}
+html,body{background:var(--pro-bg);color:var(--pro-text)}
+.main{background:var(--pro-bg)}
+.stats{grid-template-columns:repeat(7,minmax(120px,1fr))}
+.topbar{background:#081522;border-color:var(--pro-line)}
+.welcome span,.small,.stat-sub,.recent-meta,.activity span{color:var(--pro-muted)}
+.searchbox input,input,select,textarea{
+  background:#0b1725;color:#eef6ff;border-color:var(--pro-line)
+}
+input::placeholder,textarea::placeholder{color:#7890a5}
+.stat-card,.map-card,.drivers-card,.content-card,.operations-table-card,.ops-alerts-card{
+  background:linear-gradient(180deg,#0d1c2a,#091725);border-color:var(--pro-line);box-shadow:0 4px 14px #0003
+}
+.stat-label{color:var(--accent)}.card-title{border-color:var(--pro-line)}
+.gray{background:#132a40;color:#eef6ff}.iconbtn{background:#0b1725;border-color:var(--pro-line);color:#eef6ff}
+.drawer,.modalbox{background:#081522;color:#eef6ff}.drawer-head{background:#081522;border-color:var(--pro-line)}
+.drawer-close{background:#132a40;color:#fff}.delivery,.history-item,.driver{border-color:var(--pro-line)}
+.history,.day-panel,.day-box,.summary-box,.driver-register-box,.driver-account,.customer-box,.address-choice,.client-card{
+  background:#0b1725!important;border-color:var(--pro-line)!important;color:#eef6ff
+}
+.customer-current,.driver-admin-note{background:#0d2237;border-color:#24435f;color:#b9cee0}
+.customer-results{background:#0b1725;border-color:var(--pro-line)}
+.customer-result{border-color:var(--pro-line)}.customer-result:hover{background:#10263a}
+.customer-result span,.driver-account-cpf,.client-card .client-phone,.client-card .client-address{color:#91a8bb}
+.admin-login-card{background:#081522;border:1px solid var(--pro-line)}.admin-login-card h2{color:#fff}.admin-login-card p{color:#8fa7bb}
+#adminLogout{background:#132a40;color:#fff}
+.footer{color:#6f879a}
+.ops-side{height:455px;display:grid;grid-template-rows:minmax(170px,42%) minmax(0,58%);gap:10px}
+.ops-alerts-card{border:1px solid var(--pro-line);border-radius:15px;overflow:hidden;min-height:0}
+.ops-alert-list{padding:9px;overflow:auto;height:calc(100% - 47px)}
+.ops-alert{display:block;width:100%;text-align:left;background:#0b1725;color:#eef6ff;border:1px solid var(--pro-line);border-radius:10px;padding:9px 10px;margin-bottom:7px}
+.ops-alert b{font-size:11px;display:block}.ops-alert span{font-size:9.5px;color:var(--pro-muted);display:block;margin-top:3px}
+.ops-alert.red{border-color:#6e2730}.ops-alert.yellow{border-color:#6d5b18}.ops-alert.blue{border-color:#244f78}
+.ops-empty{font-size:11px;color:#7bdcad;padding:10px}
+.ops-alert-count{color:#ff6b6b;font-weight:900}.ops-online-count{font-size:10px;color:#58dca8}
+.ops-side .drivers-card{height:auto;min-height:0}.ops-side #drivers{height:calc(100% - 47px)}
+.map-overlay{flex-wrap:wrap;align-items:center}.map-chip{background:#07131fee;color:#fff;border:1px solid #24435f;border-radius:10px;padding:8px 10px;font-size:10px;font-weight:800;box-shadow:0 2px 9px #0004}.map-chip.warn{color:#ffe066}
+.map-legend-pro{position:absolute;right:14px;bottom:14px;z-index:4;background:#07131fee;color:#fff;border:1px solid #24435f;border-radius:11px;padding:9px 11px;font-size:9.5px;display:grid;gap:5px}
+.map-legend-pro span{display:flex;align-items:center;gap:6px}.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block}.legend-dot.yellow{background:#ffd400}.legend-dot.red{background:#e53935}.legend-moto{font-style:normal;width:17px;text-align:center}
+.operations-table-card{margin-top:12px;border:1px solid var(--pro-line);border-radius:15px;overflow:hidden}
+.operations-toolbar{display:grid;grid-template-columns:1fr 220px;gap:8px;padding:10px 14px 4px}.operations-toolbar input,.operations-toolbar select{margin:0}
+.operations-table-wrap{overflow:auto;padding:5px 12px 12px}.operations-table{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:11px;min-width:760px}
+.operations-table th{text-align:left;color:#7f9bb2;padding:0 8px 3px;font-size:9px}.operations-table td{background:#0b1725;border-top:1px solid var(--pro-line);border-bottom:1px solid var(--pro-line);padding:10px 8px}
+.operations-table td:first-child{border-left:1px solid var(--pro-line);border-radius:9px 0 0 9px}.operations-table td:last-child{border-right:1px solid var(--pro-line);border-radius:0 9px 9px 0}
+.operations-table td b{display:block;font-size:11px}.operations-table td span:not(.op-status){display:block;font-size:9px;color:#8fa7bb;margin-top:2px}
+.op-status{display:inline-block;padding:5px 7px;border-radius:999px;font-size:9px;font-weight:900}.op-status.waiting{background:#403409;color:#ffe066}.op-status.route{background:#192a58;color:#91b4ff}.op-status.late{background:#4a171d;color:#ff8f97}
+.mini-action{background:#15304a;color:#fff;padding:6px 8px;font-size:9px}
+.delivery-actions-pro{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.settings-intro{font-size:11px;color:#9bb0c2;line-height:1.5;background:#0d2237;border:1px solid #24435f;border-radius:11px;padding:10px;margin-bottom:10px}
+.setting-item{display:grid;grid-template-columns:1fr 135px;gap:12px;align-items:center;border-top:1px solid var(--pro-line);padding:13px 0}.setting-item b{font-size:12px}.setting-item span{display:block;font-size:10px;color:#8fa7bb;margin-top:3px}.setting-input-wrap{display:flex;align-items:center;gap:5px}.setting-input-wrap input{margin:0}.setting-input-wrap>span{margin:0;color:#b8c9d7}
+.detail-drawer-backdrop{position:fixed;inset:0;background:#020b14aa;z-index:5000;display:none}.detail-drawer-backdrop.open{display:block}
+.detail-drawer{position:fixed;z-index:5010;top:0;right:0;width:min(470px,96vw);height:100vh;background:#081522;border-left:1px solid var(--pro-line);box-shadow:-20px 0 50px #0009;transform:translateX(105%);transition:.22s ease;overflow:auto;color:#eef6ff}.detail-drawer.open{transform:none}
+.detail-drawer-head{position:sticky;top:0;z-index:2;background:#081522;border-bottom:1px solid var(--pro-line);padding:15px;display:flex;align-items:center;justify-content:space-between;gap:10px}.detail-drawer-head b{display:block;font-size:16px}.detail-drawer-head span{display:block;font-size:9.5px;color:#8fa7bb;margin-top:3px}
+.detail-drawer-content{padding:14px}.detail-grid-pro{display:grid;grid-template-columns:1fr 1fr;gap:8px}.detail-card-pro{border:1px solid var(--pro-line);border-radius:11px;padding:10px;background:#0b1725}.detail-card-pro span{font-size:8.5px;color:#8fa7bb;display:block}.detail-card-pro b{font-size:11px;display:block;margin-top:4px}.detail-danger{color:#ff727c!important}
+.detail-info-pro{margin-top:14px;border:1px solid #705f17;background:#221d07;border-radius:12px;padding:12px;font-size:10.5px;line-height:1.7;color:#d9d0a0}.detail-info-pro strong{color:#ffe066}.detail-section-title{font-size:11px;font-weight:900;color:#eef6ff;margin-bottom:8px}
+.timeline-pro{border-left:2px solid #24435f;padding-left:14px;margin-left:4px}.timeline-event-pro{position:relative;margin-bottom:15px}.timeline-event-pro:before{content:"";position:absolute;width:9px;height:9px;border-radius:50%;left:-19px;top:3px;background:#2563eb;border:2px solid #081522}.timeline-event-pro b{font-size:11px}.timeline-event-pro span{display:block;font-size:9px;color:#8fa7bb;margin-top:3px}
+.detail-actions-pro{display:grid;grid-template-columns:1fr 1fr;gap:7px}.detail-transfer-pro{display:none;grid-template-columns:1fr auto;gap:7px;margin-top:9px}.detail-transfer-pro select{margin:0}
+@media(max-width:1180px){.ops-side{height:360px;grid-template-columns:1fr 1fr;grid-template-rows:1fr}.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.ops-side{height:auto;grid-template-columns:1fr;grid-template-rows:240px 300px}.operations-toolbar{grid-template-columns:1fr}.map-legend-pro{display:none}.map-chip{padding:6px 7px}.detail-grid-pro{grid-template-columns:1fr}.setting-item{grid-template-columns:1fr}}
+
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -268,6 +334,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <button class="nav-btn" data-open="map"><span class="nav-icon">🗺️</span>Mapa ao vivo</button>
       <button class="nav-btn" data-open="history"><span class="nav-icon">🕐</span>Histórico</button>
       <button class="nav-btn" data-open="reports"><span class="nav-icon">📊</span>Relatórios</button>
+      <button class="nav-btn" data-open="settings"><span class="nav-icon">⚙️</span>Configurações</button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -287,6 +354,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div class="searchbox"><input id="globalSearch" placeholder="Buscar entrega, cliente ou motoboy..."></div>
       <div class="top-actions">
         <button class="iconbtn" id="refreshCentral" title="Atualizar">🔄</button>
+        <button class="iconbtn" id="openSettingsTop" title="Configurações operacionais">⚙️</button>
         <button class="primary-action" id="openNewSale">＋ Nova entrega</button>
       </div>
     </header>
@@ -297,6 +365,8 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div class="stat-card c-blue"><div class="stat-top"><div class="stat-icon">📦</div><div><div class="stat-label">Total</div><div class="stat-value" id="mTotal">0</div><div class="stat-sub">Entregas hoje</div></div></div></div>
       <div class="stat-card c-yellow"><div class="stat-top"><div class="stat-icon">◷</div><div><div class="stat-label">Aguardando coleta</div><div class="stat-value" id="mAwaiting">0</div><div class="stat-sub">Entregas</div></div></div></div>
       <div class="stat-card c-purple"><div class="stat-top"><div class="stat-icon">🏍️</div><div><div class="stat-label">Em rota</div><div class="stat-value" id="mPending">0</div><div class="stat-sub">Entregas</div></div></div></div>
+      <div class="stat-card c-red"><div class="stat-top"><div class="stat-icon">⚠️</div><div><div class="stat-label">Atrasadas</div><div class="stat-value" id="mLate">0</div><div class="stat-sub" id="mLateSub">Limite 60 min</div></div></div></div>
+      <div class="stat-card c-blue"><div class="stat-top"><div class="stat-icon">⏱️</div><div><div class="stat-label">Tempo médio</div><div class="stat-value" id="mAverage">--</div><div class="stat-sub">Coleta → conclusão</div></div></div></div>
       <div class="stat-card c-green"><div class="stat-top"><div class="stat-icon">✓</div><div><div class="stat-label">Entregues</div><div class="stat-value" id="mDone">0</div><div class="stat-sub">Hoje</div></div></div></div>
       <div class="stat-card c-red"><div class="stat-top"><div class="stat-icon">✕</div><div><div class="stat-label">Não entregues</div><div class="stat-value" id="mFailed">0</div><div class="stat-sub">Hoje</div></div></div></div>
     </section>
@@ -306,12 +376,48 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         <div id="map"></div>
         <div class="map-overlay">
           <button class="gray" id="fitMap">📍 Centralizar mapa</button>
+          <span class="map-chip">🏍️ <b id="mapOnlineCount">0</b> online</span>
+          <span class="map-chip">📦 <b id="mapActiveCount">0</b> ativas</span>
+          <span class="map-chip warn">⚠️ <b id="mapAlertCount">0</b> alertas</span>
+        </div>
+        <div class="map-legend-pro">
+          <span><i class="legend-moto">🏍️</i> Motoboy</span>
+          <span><i class="legend-dot yellow"></i> Aguardando coleta</span>
+          <span><i class="legend-dot red"></i> Em rota</span>
         </div>
       </div>
 
-      <div class="drivers-card" id="driversCard">
-        <div class="card-title"><span>MOTOBOYS ONLINE</span><span style="color:#16a34a">●</span></div>
-        <div id="drivers"><div class="small" style="padding:12px">Carregando...</div></div>
+      <aside class="ops-side">
+        <div class="ops-alerts-card">
+          <div class="card-title"><span>⚠️ ALERTAS OPERACIONAIS</span><span id="opsAlertCount" class="ops-alert-count">0</span></div>
+          <div id="operationalAlerts" class="ops-alert-list"><div class="small">Calculando alertas...</div></div>
+        </div>
+        <div class="drivers-card" id="driversCard">
+          <div class="card-title"><span>🏍️ MOTOBOYS</span><span id="onlineDriverCount" class="ops-online-count">0 online</span></div>
+          <div id="drivers"><div class="small" style="padding:12px">Carregando...</div></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="operations-table-card">
+      <div class="card-title">
+        <span>OPERAÇÃO AO VIVO</span>
+        <span class="small" id="operationsTableCount">0 entrega(s)</span>
+      </div>
+      <div class="operations-toolbar">
+        <input id="operationsSearch" placeholder="🔎 Buscar cliente, telefone ou motoboy">
+        <select id="operationsStatus">
+          <option value="all">Todos os status</option>
+          <option value="awaiting_collection">Aguardando coleta</option>
+          <option value="pending">Em rota</option>
+          <option value="late">Atrasadas</option>
+        </select>
+      </div>
+      <div class="operations-table-wrap">
+        <table class="operations-table">
+          <thead><tr><th>Cliente</th><th>Motoboy</th><th>Status</th><th>Tempo</th><th>Última atualização</th><th></th></tr></thead>
+          <tbody id="operationsTableBody"><tr><td colspan="6" class="small">Carregando...</td></tr></tbody>
+        </table>
       </div>
     </section>
 
@@ -471,6 +577,28 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       </div>
     </section>
 
+    <section class="drawer-section" id="drawerSettings">
+      <h3>⚙️ Configurações operacionais</h3>
+      <div class="settings-intro">Defina os limites usados pela Central para destacar atrasos e problemas operacionais. Esses valores ficam salvos neste navegador.</div>
+      <div class="setting-item">
+        <div><b>Entrega atrasada</b><span>Tempo após a coleta para destacar uma entrega em rota como atrasada.</span></div>
+        <div class="setting-input-wrap"><input id="settingLateMinutes" type="number" min="1" max="600"><span>min</span></div>
+      </div>
+      <div class="setting-item">
+        <div><b>Aguardando coleta</b><span>Tempo sem coleta para gerar um alerta operacional.</span></div>
+        <div class="setting-input-wrap"><input id="settingPickupMinutes" type="number" min="1" max="600"><span>min</span></div>
+      </div>
+      <div class="setting-item">
+        <div><b>GPS sem atualização</b><span>Tempo sem nova posição de um motoboy ONLINE antes de gerar alerta.</span></div>
+        <div class="setting-input-wrap"><input id="settingGpsMinutes" type="number" min="1" max="120"><span>min</span></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="gray" id="resetOperationalSettings">RESTAURAR PADRÃO</button>
+        <button class="blue" id="saveOperationalSettings">💾 SALVAR</button>
+      </div>
+      <div id="settingsResult" class="small" style="margin-top:9px"></div>
+    </section>
+
     <section class="drawer-section" id="drawerReports">
       <h3>📊 Relatórios</h3>
       <div class="day-panel">
@@ -483,6 +611,46 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   </div>
 </aside>
 
+<div class="detail-drawer-backdrop" id="detailDrawerBackdrop"></div>
+<aside class="detail-drawer" id="detailDrawer">
+  <div class="detail-drawer-head">
+    <div><b id="detailTitle">Detalhes da entrega</b><span id="detailSubtitle">Rastreabilidade operacional</span></div>
+    <button class="drawer-close" id="detailDrawerClose">✕</button>
+  </div>
+  <div class="detail-drawer-content">
+    <div class="detail-grid-pro">
+      <div class="detail-card-pro"><span>CLIENTE</span><b id="detailClient">--</b></div>
+      <div class="detail-card-pro"><span>TELEFONE</span><b id="detailPhone">--</b></div>
+      <div class="detail-card-pro"><span>MOTOBOY</span><b id="detailDriver">--</b></div>
+      <div class="detail-card-pro"><span>STATUS</span><b id="detailStatus">--</b></div>
+      <div class="detail-card-pro"><span>TEMPO</span><b id="detailElapsed">--</b></div>
+      <div class="detail-card-pro"><span>ÚLTIMA ATUALIZAÇÃO</span><b id="detailUpdated">--</b></div>
+    </div>
+
+    <div class="detail-info-pro">
+      <div class="detail-section-title">📋 INFORMAÇÕES DA ENTREGA</div>
+      <div><strong>Prédio:</strong> <span id="detailBuilding">Não informado</span></div>
+      <div><strong>Nº / Bloco / Andar:</strong> <span id="detailUnit">Não informado</span></div>
+      <div><strong>Referência:</strong> <span id="detailReference">Não informado</span></div>
+      <div><strong>Observação:</strong> <span id="detailNote">Sem observação</span></div>
+    </div>
+
+    <div class="detail-section-title" style="margin-top:18px">LINHA DO TEMPO</div>
+    <div class="timeline-pro" id="detailTimeline"></div>
+
+    <div class="detail-section-title" style="margin-top:18px">AÇÕES</div>
+    <div class="detail-actions-pro">
+      <button class="blue" id="detailCenter">📍 CENTRALIZAR</button>
+      <button class="wa" id="detailTracking">💬 RASTREAMENTO</button>
+      <button class="gray" id="detailEdit">✏️ EDITAR</button>
+      <button class="red" id="detailRemove">🗑️ REMOVER</button>
+    </div>
+    <div id="detailTransferArea" class="detail-transfer-pro">
+      <select id="detailTransferDriver"></select>
+      <button class="blue" id="detailTransferButton">🔁 REATRIBUIR</button>
+    </div>
+  </div>
+</aside>
 
 
 <div class="modal" id="driverEditModal">
@@ -567,6 +735,10 @@ function initGoogleMap(){
     mapTypeControl:true,streetViewControl:false,fullscreenControl:true
   });
   window.dispatchEvent(new Event("google-map-ready"));
+  setTimeout(()=>{
+    try{if(typeof renderDeliveries==="function")renderDeliveries();}catch(_){}
+    try{if(typeof loadDrivers==="function")loadDrivers();}catch(_){}
+  },0);
 }
 
 const sb=getSupabaseClient();
@@ -740,6 +912,223 @@ function mins(a,b){return a&&b?Math.max(0,Math.round((new Date(b)-new Date(a))/6
 function fmtMins(m){if(m==null)return"--";const h=Math.floor(m/60),x=m%60;return h?`${h}h ${x}min`:`${x} min`}
 function fresh(d){return !!(d.last_seen&&Date.now()-new Date(d.last_seen).getTime()<180000)}
 
+const OP_SETTINGS_KEY="rts_operational_settings_v1";
+const OP_DEFAULTS={lateMinutes:60,pickupMinutes:20,gpsMinutes:2};
+let activeDetailDeliveryId=null;
+
+function operationalSettings(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(OP_SETTINGS_KEY)||"{}");
+    return {
+      lateMinutes:Math.max(1,Number(raw.lateMinutes)||OP_DEFAULTS.lateMinutes),
+      pickupMinutes:Math.max(1,Number(raw.pickupMinutes)||OP_DEFAULTS.pickupMinutes),
+      gpsMinutes:Math.max(1,Number(raw.gpsMinutes)||OP_DEFAULTS.gpsMinutes)
+    };
+  }catch(_){return {...OP_DEFAULTS}}
+}
+function elapsedFrom(value){
+  if(!value)return null;
+  const t=new Date(value).getTime();
+  return Number.isFinite(t)?Math.max(0,Math.floor((Date.now()-t)/60000)):null;
+}
+function deliveryOperationalMinutes(d){
+  if(!d)return null;
+  if(d.status==="awaiting_collection")return elapsedFrom(d.created_at);
+  if(d.status==="pending")return elapsedFrom(d.collected_at||d.updated_at||d.created_at);
+  if((d.status==="done"||d.status==="failed")&&d.collected_at){
+    return mins(d.collected_at,d.completed_at||d.updated_at);
+  }
+  return null;
+}
+function isDeliveryLate(d,settings=operationalSettings()){
+  return !!(d&&d.status==="pending"&&deliveryOperationalMinutes(d)!=null&&deliveryOperationalMinutes(d)>=settings.lateMinutes);
+}
+function operationalStatusText(d,settings=operationalSettings()){
+  if(isDeliveryLate(d,settings))return "ATRASADA";
+  return statusText(d);
+}
+function relativeAge(v){
+  if(!v)return "sem atualização";
+  const sec=Math.max(0,Math.floor((Date.now()-new Date(v).getTime())/1000));
+  if(sec<60)return `há ${sec}s`;
+  const m=Math.floor(sec/60);
+  if(m<60)return `há ${m} min`;
+  const h=Math.floor(m/60);
+  return `há ${h}h ${m%60}min`;
+}
+function averageDeliveryMinutesToday(){
+  const values=allDeliveries
+    .filter(d=>d.status==="done"&&d.collected_at&&sameDay(d.completed_at||d.updated_at))
+    .map(d=>mins(d.collected_at,d.completed_at||d.updated_at))
+    .filter(v=>Number.isFinite(v));
+  if(!values.length)return null;
+  return Math.round(values.reduce((a,b)=>a+b,0)/values.length);
+}
+function operationalAlertsData(){
+  const s=operationalSettings(),alerts=[];
+  allDeliveries.forEach(d=>{
+    const elapsed=deliveryOperationalMinutes(d);
+    if(d.status==="pending"&&elapsed!=null&&elapsed>=s.lateMinutes){
+      alerts.push({kind:"red",title:`Entrega atrasada • ${d.client_name||"Cliente"}`,meta:`${elapsed} min em rota${d.collected_by_name?` • ${d.collected_by_name}`:""}`,deliveryId:d.id});
+    }else if(d.status==="awaiting_collection"&&elapsed!=null&&elapsed>=s.pickupMinutes){
+      alerts.push({kind:"yellow",title:`Coleta aguardando • ${d.client_name||"Cliente"}`,meta:`${elapsed} min sem coleta`,deliveryId:d.id});
+    }
+  });
+  allDrivers.forEach(d=>{
+    if(!d.is_online)return;
+    const age=d.last_seen?Math.floor((Date.now()-new Date(d.last_seen).getTime())/60000):Infinity;
+    if(age>=s.gpsMinutes){
+      alerts.push({kind:"blue",title:`GPS sem atualização • ${d.name||"Motoboy"}`,meta:d.last_seen?`Última posição ${relativeAge(d.last_seen)}`:"Nenhuma posição recebida",driverId:d.id});
+    }
+  });
+  return alerts.sort((a,b)=>{
+    const rank={red:0,yellow:1,blue:2};
+    return (rank[a.kind]??9)-(rank[b.kind]??9);
+  });
+}
+function renderOperationalAlerts(){
+  const alerts=operationalAlertsData();
+  const box=document.getElementById("operationalAlerts");
+  const count=document.getElementById("opsAlertCount");
+  const mapCount=document.getElementById("mapAlertCount");
+  if(count)count.textContent=String(alerts.length);
+  if(mapCount)mapCount.textContent=String(alerts.length);
+  if(!box)return;
+  box.innerHTML=alerts.length?alerts.slice(0,8).map(a=>`
+    <button class="ops-alert ${a.kind}" ${a.deliveryId?`onclick="openDeliveryDetails('${a.deliveryId}')"`:a.driverId?`onclick="centerDriver('${a.driverId}')"`:""}>
+      <b>${esc(a.title)}</b><span>${esc(a.meta)}</span>
+    </button>`).join(""):'<div class="ops-empty">✓ Nenhum alerta operacional</div>';
+}
+function renderOperationalTable(){
+  const body=document.getElementById("operationsTableBody");
+  if(!body)return;
+  const s=operationalSettings();
+  const q=String(document.getElementById("operationsSearch")?.value||"").trim().toLowerCase();
+  const st=document.getElementById("operationsStatus")?.value||"all";
+  const rows=allDeliveries.filter(d=>{
+    if(!(d.status==="awaiting_collection"||d.status==="pending"))return false;
+    const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
+    const hay=[d.client_name,d.client_phone,drv?.name].map(x=>String(x||"").toLowerCase()).join(" ");
+    if(q&&!hay.includes(q))return false;
+    if(st==="late")return isDeliveryLate(d,s);
+    if(st!=="all"&&d.status!==st)return false;
+    return true;
+  }).sort((a,b)=>{
+    const al=isDeliveryLate(a,s),bl=isDeliveryLate(b,s);
+    if(al!==bl)return al?-1:1;
+    const am=deliveryOperationalMinutes(a)??0,bm=deliveryOperationalMinutes(b)??0;
+    return bm-am;
+  });
+  const count=document.getElementById("operationsTableCount");
+  if(count)count.textContent=`${rows.length} entrega(s)`;
+  body.innerHTML=rows.length?rows.map(d=>{
+    const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
+    const late=isDeliveryLate(d,s);
+    const status=late?"ATRASADA":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"EM ROTA";
+    const cls=late?"late":d.status==="awaiting_collection"?"waiting":"route";
+    return `<tr>
+      <td><b>${esc(d.client_name||"Cliente")}</b><span>${esc(d.client_phone||"")}</span></td>
+      <td>${esc(drv?.name||d.collected_by_name||"—")}</td>
+      <td><span class="op-status ${cls}">${status}</span></td>
+      <td>${fmtMins(deliveryOperationalMinutes(d))}</td>
+      <td>${relativeAge(d.updated_at||d.created_at)}</td>
+      <td><button class="mini-action" onclick="openDeliveryDetails('${d.id}')">VER DETALHES</button></td>
+    </tr>`;
+  }).join(""):'<tr><td colspan="6" class="small">Nenhuma entrega ativa com estes filtros.</td></tr>';
+}
+function renderOperationalControl(){
+  const s=operationalSettings();
+  const late=allDeliveries.filter(d=>isDeliveryLate(d,s)).length;
+  const avg=averageDeliveryMinutesToday();
+  const online=allDrivers.filter(d=>d.is_online&&fresh(d)).length;
+  const active=allDeliveries.filter(d=>d.status==="awaiting_collection"||d.status==="pending").length;
+  document.getElementById("mLate").textContent=late;
+  document.getElementById("mLateSub").textContent=`Limite ${s.lateMinutes} min`;
+  document.getElementById("mAverage").textContent=avg==null?"--":`${avg}m`;
+  document.getElementById("onlineDriverCount").textContent=`${online} online`;
+  document.getElementById("mapOnlineCount").textContent=online;
+  document.getElementById("mapActiveCount").textContent=active;
+  renderOperationalAlerts();
+  renderOperationalTable();
+  if(activeDetailDeliveryId&&document.getElementById("detailDrawer").classList.contains("open")){
+    renderDeliveryDetails(activeDetailDeliveryId);
+  }
+}
+function syncOperationalSettingsForm(){
+  const s=operationalSettings();
+  document.getElementById("settingLateMinutes").value=s.lateMinutes;
+  document.getElementById("settingPickupMinutes").value=s.pickupMinutes;
+  document.getElementById("settingGpsMinutes").value=s.gpsMinutes;
+  document.getElementById("settingsResult").textContent="";
+}
+function saveOperationalSettings(){
+  const next={
+    lateMinutes:Math.max(1,Number(document.getElementById("settingLateMinutes").value)||OP_DEFAULTS.lateMinutes),
+    pickupMinutes:Math.max(1,Number(document.getElementById("settingPickupMinutes").value)||OP_DEFAULTS.pickupMinutes),
+    gpsMinutes:Math.max(1,Number(document.getElementById("settingGpsMinutes").value)||OP_DEFAULTS.gpsMinutes)
+  };
+  localStorage.setItem(OP_SETTINGS_KEY,JSON.stringify(next));
+  document.getElementById("settingsResult").textContent="✅ Configurações salvas neste navegador.";
+  renderOperationalControl();
+}
+function deliveryTimeline(d){
+  const events=[];
+  if(d.created_at)events.push({t:d.created_at,title:"Venda registrada",meta:"Entrega criada pela Central"});
+  if(d.collected_at)events.push({t:d.collected_at,title:"Coleta realizada",meta:d.collected_by_name||"Motoboy"});
+  const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
+  if(d.status==="pending"&&drv?.last_seen)events.push({t:drv.last_seen,title:"Última localização do motoboy",meta:relativeAge(drv.last_seen)});
+  if((d.status==="done"||d.status==="failed")&&(d.completed_at||d.updated_at)){
+    events.push({t:d.completed_at||d.updated_at,title:d.status==="done"?"Entrega concluída":"Entrega não realizada",meta:d.note||statusText(d)});
+  }
+  return events.sort((a,b)=>new Date(a.t)-new Date(b.t));
+}
+function renderDeliveryDetails(id){
+  const d=allDeliveries.find(x=>String(x.id)===String(id));
+  if(!d)return closeDeliveryDetails();
+  activeDetailDeliveryId=d.id;
+  const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
+  const s=operationalSettings();
+  document.getElementById("detailTitle").textContent=d.client_name||"Detalhes da entrega";
+  document.getElementById("detailSubtitle").textContent=d.id?`Entrega ${String(d.id).slice(0,8)} • Rastreabilidade operacional`:"Rastreabilidade operacional";
+  document.getElementById("detailClient").textContent=d.client_name||"--";
+  document.getElementById("detailPhone").textContent=d.client_phone||"--";
+  document.getElementById("detailDriver").textContent=drv?.name||d.collected_by_name||(d.status==="awaiting_collection"?"Ainda sem motoboy":"--");
+  const statusEl=document.getElementById("detailStatus");
+  statusEl.textContent=operationalStatusText(d,s);
+  statusEl.className=isDeliveryLate(d,s)?"detail-danger":"";
+  document.getElementById("detailElapsed").textContent=fmtMins(deliveryOperationalMinutes(d));
+  document.getElementById("detailUpdated").textContent=relativeAge(d.updated_at||d.created_at);
+  document.getElementById("detailBuilding").textContent=d.building_name||"Não informado";
+  document.getElementById("detailUnit").textContent=d.unit_details||"Não informado";
+  document.getElementById("detailReference").textContent=d.reference_point||"Não informado";
+  document.getElementById("detailNote").textContent=d.note||"Sem observação";
+  document.getElementById("detailTimeline").innerHTML=deliveryTimeline(d).map(e=>`
+    <div class="timeline-event-pro"><b>${esc(e.title)}</b><span>${fmtDateTime(e.t)}${e.meta?` • ${esc(e.meta)}`:""}</span></div>`).join("")||'<div class="small">Sem eventos registrados.</div>';
+
+  const tracking=document.getElementById("detailTracking");
+  tracking.disabled=d.status==="awaiting_collection";
+  tracking.style.opacity=d.status==="awaiting_collection"?".45":"1";
+
+  const transferArea=document.getElementById("detailTransferArea");
+  transferArea.style.display=d.status==="pending"?"grid":"none";
+  if(d.status==="pending"){
+    document.getElementById("detailTransferDriver").innerHTML=`
+      <option value="">Selecione outro motoboy...</option>
+      ${allDrivers.map(x=>`<option value="${x.id}" ${String(x.id)===String(d.driver_id)?"selected":""}>${esc(x.name||"Motoboy")}</option>`).join("")}`;
+  }
+}
+function openDeliveryDetails(id){
+  renderDeliveryDetails(id);
+  document.getElementById("detailDrawer").classList.add("open");
+  document.getElementById("detailDrawerBackdrop").classList.add("open");
+}
+window.openDeliveryDetails=openDeliveryDetails;
+function closeDeliveryDetails(){
+  activeDetailDeliveryId=null;
+  document.getElementById("detailDrawer").classList.remove("open");
+  document.getElementById("detailDrawerBackdrop").classList.remove("open");
+}
+
 function statusBadge(d){
   if(d.status==="awaiting_collection")return '<span class="badge b-await">Aguardando coleta</span>';
   if(d.status==="pending")return '<span class="badge b-pending">Em rota</span>';
@@ -881,6 +1270,7 @@ window.useCustomerInSale=id=>{
 window.centerCustomerAddress=id=>{
   const c=allCustomers.find(x=>String(x.id)===String(id));
   if(!c||c.fixed_lat==null||c.fixed_lng==null)return alert("Cliente sem coordenadas salvas.");
+  if(!map)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   map.setCenter({lat:Number(c.fixed_lat),lng:Number(c.fixed_lng)});
   map.setZoom(17);
 };
@@ -997,7 +1387,6 @@ window.deleteCustomer=async id=>{
 
   if(String(selectedCustomerId||"")===String(c.id))clearCustomerSelection();
   await Promise.all([loadCustomers(),loadDeliveries(),loadHistory7()]);
-  alert("Cliente excluído definitivamente. As entregas anteriores foram preservadas sem vínculo com o cadastro.");
 };
 
 
@@ -1187,21 +1576,15 @@ function pinIcon(d,index){ return String(d.route_order||index+1); }
 
 function blueMotorcycleMarkerIcon(){
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-    <circle cx="18" cy="46" r="10" fill="#0b1220" opacity="0.22"/>
-    <circle cx="46" cy="46" r="10" fill="#0b1220" opacity="0.22"/>
-    <circle cx="18" cy="46" r="8" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
-    <circle cx="46" cy="46" r="8" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
-    <path d="M24 44h9l7-12h8l4 6" fill="none" stroke="#1d4ed8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M24 44l-5-10h-7" fill="none" stroke="#2563eb" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M29 30h10l5 6H31z" fill="#38bdf8" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M34 24l8 2" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
-    <circle cx="18" cy="46" r="2.2" fill="#e2e8f0"/>
-    <circle cx="46" cy="46" r="2.2" fill="#e2e8f0"/>
+    <circle cx="32" cy="33" r="25" fill="#0b4fd6" stroke="#d7efff" stroke-width="4"/>
+    <circle cx="32" cy="33" r="20" fill="#1464e8"/>
+    <text x="32" y="42" text-anchor="middle" font-size="27" font-family="Arial, sans-serif">🏍️</text>
+    <circle cx="49" cy="13" r="7" fill="#16c784" stroke="#06111d" stroke-width="2"/>
   </svg>`;
   return {
     url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),
-    scaledSize:new google.maps.Size(42,42),
-    anchor:new google.maps.Point(21,21)
+    scaledSize:new google.maps.Size(48,48),
+    anchor:new google.maps.Point(24,24)
   };
 }
 
@@ -1244,19 +1627,24 @@ async function loadDrivers(){
       </div>
     </div>`).join(""):'<div class="small">Nenhum motoqueiro cadastrado.</div>';
 
-  allDrivers.forEach(d=>{
-    if(d.lat==null||d.lng==null)return;
-    const pos={lat:Number(d.lat),lng:Number(d.lng)},label=`🏍️ ${d.name} — ${d.is_online&&fresh(d)?"Online":"Offline"} — Localização Atualizada ${fmtTime(d.last_seen)}`;
-    if(!driverMarkers[d.id])driverMarkers[d.id]=new google.maps.Marker({position:pos,map,title:label,icon:blueMotorcycleMarkerIcon()});
-    else {driverMarkers[d.id].setPosition(pos);driverMarkers[d.id].setTitle(label);driverMarkers[d.id].setIcon(blueMotorcycleMarkerIcon());}
-  });
+  if(map&&window.google?.maps){
+    allDrivers.forEach(d=>{
+      if(d.lat==null||d.lng==null)return;
+      const pos={lat:Number(d.lat),lng:Number(d.lng)},label=`🏍️ ${d.name} — ${d.is_online&&fresh(d)?"Online":"Offline"} — Localização Atualizada ${fmtTime(d.last_seen)}`;
+      if(!driverMarkers[d.id]){
+        driverMarkers[d.id]=new google.maps.Marker({position:pos,map,title:label,icon:blueMotorcycleMarkerIcon()});
+        driverMarkers[d.id].addListener("click",()=>centerDriver(d.id));
+      }
+      else {driverMarkers[d.id].setPosition(pos);driverMarkers[d.id].setTitle(label);driverMarkers[d.id].setIcon(blueMotorcycleMarkerIcon());}
+    });
 
-  // remove markers of deleted drivers
-  Object.keys(driverMarkers).forEach(id=>{
-    if(!allDrivers.some(d=>d.id===id)){driverMarkers[id].setMap(null);delete driverMarkers[id]}
-  });
+    // remove markers of deleted drivers
+    Object.keys(driverMarkers).forEach(id=>{
+      if(!allDrivers.some(d=>d.id===id)){driverMarkers[id].setMap(null);delete driverMarkers[id]}
+    });
+  }
 
-  renderDayPanel();renderHistory();renderDashboardExtras();
+  renderDayPanel();renderHistory();renderDashboardExtras();renderOperationalControl();
 }
 
 function filteredDeliveries(){
@@ -1299,7 +1687,8 @@ function renderDeliveries(){
       ${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}
       ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
       ${(d.building_name||d.unit_details||d.reference_point)?`<br><span style="color:#a16207">ℹ️ ${esc([d.building_name,d.unit_details,d.reference_point].filter(Boolean).join(" · "))}</span>`:""}${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
-      <div class="row" style="margin-top:6px">
+      <div class="delivery-actions-pro" style="margin-top:6px">
+        <button class="blue" onclick="openDeliveryDetails('${d.id}')">📋 DETALHES</button>
         ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">💬 RASTREAMENTO</button>`:"<button class='gray' disabled>⚪ Aguardando coleta</button>"}
         <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
         <button class="red" onclick="removeDelivery('${d.id}')">🗑️ REMOVER</button>
@@ -1315,7 +1704,7 @@ function renderDeliveries(){
   }).join(""):'<div class="small">Nenhuma entrega nesta aba.</div>';
 
   Object.values(deliveryMarkers).forEach(m=>m.setMap(null));deliveryMarkers={};
-  if(currentDeliveryTab==="active"){
+  if(currentDeliveryTab==="active"&&map&&window.google?.maps){
     rows.filter(d=>d.status==="awaiting_collection"||d.status==="pending").forEach((d,i)=>{
       const waiting=d.status==="awaiting_collection";
       const labelText=waiting?"C":String(d.route_order||i+1);
@@ -1333,6 +1722,7 @@ function renderDeliveries(){
         label:{text:labelText,color:waiting?"#111":"#fff",fontSize:"13px",fontWeight:"700"},
         title:waiting?`COLETA • ${d.client_name}`:`ENTREGA • ${d.client_name}`
       });
+      deliveryMarkers[d.id].addListener("click",()=>openDeliveryDetails(d.id));
     });
   }
 }
@@ -1370,7 +1760,7 @@ async function loadDeliveries(){
   document.getElementById("mDone").textContent=doneToday.length;
   document.getElementById("mFailed").textContent=failedToday.length;
   document.getElementById("awaitingCount").textContent="⚪ Aguardando coleta: "+awaiting.length;
-  renderDeliveries();renderDayPanel();renderHistory();renderDashboardExtras();
+  renderDeliveries();renderDayPanel();renderHistory();renderDashboardExtras();renderOperationalControl();
 }
 
 function renderDayPanel(){
@@ -1402,6 +1792,7 @@ function renderHistory(){
 window.centerDriver=id=>{
   const d=allDrivers.find(x=>x.id===id);
   if(!d||d.lat==null)return alert("Esse motoqueiro ainda não enviou localização.");
+  if(!map)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});
   map.setZoom(17);
 };
@@ -1424,10 +1815,12 @@ window.changeDriver=async id=>{
   const newDriver=sel?.value;
   if(!newDriver)return alert("Selecione o novo motoqueiro.");
   if(newDriver===d.driver_id)return alert("Essa entrega já está com esse motoqueiro.");
-  const newName=allDrivers.find(x=>x.id===newDriver)?.name||"novo motoqueiro";
+  const targetDriver=allDrivers.find(x=>String(x.id)===String(newDriver));
+  const newName=targetDriver?.name||"novo motoqueiro";
   if(!await rtsConfirm({title:"Mudar motoboy?",message:`Mudar a entrega de ${d.client_name} para ${newName}?`,okText:"SIM, MUDAR",danger:false}))return;
   const {error}=await sb.from("deliveries").update({
     driver_id:newDriver,
+    driver_cpf:targetDriver?.cpf||null,
     route_order:null,
     updated_at:new Date().toISOString()
   }).eq("id",id).eq("status","pending");
@@ -1441,7 +1834,7 @@ function trackingUrl(d){
 window.sendTracking=id=>{
   const d=allDeliveries.find(x=>x.id===id);if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
   const phone=normalizePhone(d.client_phone);if(phone.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
-  const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
+  const msg=`Olá, sou o motoqueiro da JR Suplementos.\nESTOU EM ROTA COM SUA ENTREGA.\nCaso não consiga receber, me informe.\n\nAcompanhe minha localização em tempo real pelo link abaixo:\n${trackingUrl(d)}`;
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
 };
 
@@ -1634,6 +2027,7 @@ document.getElementById("deliverySearch").addEventListener("input",renderDeliver
 document.getElementById("statusFilter").addEventListener("change",renderDeliveries);
 
 document.getElementById("fitMap").onclick=()=>{
+  if(!map||!window.google?.maps)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   const pts=[];
   allDrivers.forEach(d=>{if(d.lat!=null)pts.push([d.lat,d.lng])});
   allDeliveries.filter(d=>!d.deleted_at&&(d.status==="awaiting_collection"||d.status==="pending")).forEach(d=>pts.push([d.lat,d.lng]));
@@ -1668,6 +2062,7 @@ function openDrawer(section,title){
 document.getElementById("drawerClose").onclick=closeDrawer;
 drawerBackdrop.onclick=closeDrawer;
 document.getElementById("openNewSale").onclick=()=>openDrawer("drawerSale","Nova entrega");
+document.getElementById("openSettingsTop").onclick=()=>{syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");};
 document.querySelectorAll("[data-open]").forEach(btn=>{
   btn.onclick=()=>{
     const what=btn.dataset.open;
@@ -1680,6 +2075,7 @@ document.querySelectorAll("[data-open]").forEach(btn=>{
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
     if(what==="history")openDrawer("drawerHistory","Histórico");
     if(what==="reports")openDrawer("drawerReports","Relatórios");
+    if(what==="settings"){syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");}
   };
 });
 document.getElementById("exportReportMirror").onclick=()=>document.getElementById("exportReport").click();
@@ -1730,13 +2126,8 @@ async function loadDriverRegistry(){
   box.innerHTML='<div class="small">Carregando cadastros...</div>';
 
   try{
-    const {data:rows,error}=await sb.from("driver_accounts")
-      .select("cpf,name,phone,active,created_at,updated_at")
-      .order("name",{ascending:true});
-
-    if(error)throw error;
-
-    const list=rows||[];
+    const data=await driverAdminRequest("list");
+    const list=data.drivers||[];
     if(count)count.textContent=`${list.length} cadastro(s)`;
 
     box.innerHTML=list.length?list.map(d=>`
@@ -1825,18 +2216,18 @@ document.getElementById("registerDriverAccount")?.addEventListener("click",async
 let editingDriverCpf=null;
 
 window.editDriverAccount=async cpf=>{
-  const {data,error}=await sb.from("driver_accounts")
-    .select("cpf,name,phone,active")
-    .eq("cpf",cpf)
-    .maybeSingle();
-
-  if(error||!data)return alert("Não foi possível carregar o cadastro do motoboy.");
-
-  editingDriverCpf=data.cpf;
-  document.getElementById("driverEditName").value=data.name||"";
-  document.getElementById("driverEditCpf").value=formatCpf(data.cpf||"");
-  document.getElementById("driverEditPhone").value=data.phone||"";
-  document.getElementById("driverEditModal").classList.add("open");
+  try{
+    const response=await driverAdminRequest("get",{cpf});
+    const data=response.driver;
+    if(!data)throw new Error("Motoboy não encontrado.");
+    editingDriverCpf=data.cpf;
+    document.getElementById("driverEditName").value=data.name||"";
+    document.getElementById("driverEditCpf").value=formatCpf(data.cpf||"");
+    document.getElementById("driverEditPhone").value=data.phone||"";
+    document.getElementById("driverEditModal").classList.add("open");
+  }catch(e){
+    alert("Não foi possível carregar o cadastro do motoboy: "+(e.message||e));
+  }
 };
 
 document.getElementById("cancelDriverEdit")?.addEventListener("click",()=>{
@@ -1857,21 +2248,7 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
   btn.disabled=true;btn.textContent="SALVANDO...";
 
   try{
-    const {error}=await sb.from("driver_accounts")
-      .update({
-        name,
-        phone,
-        updated_at:new Date().toISOString()
-      })
-      .eq("cpf",editingDriverCpf);
-
-    if(error)throw error;
-
-    // Mantém o cadastro operacional/GPS com nome e telefone atualizados.
-    await sb.from("drivers")
-      .update({name,phone})
-      .eq("cpf",editingDriverCpf);
-
+    await driverAdminRequest("update_profile",{cpf:editingDriverCpf,name,phone});
     document.getElementById("driverEditModal").classList.remove("open");
     editingDriverCpf=null;
     await loadDriverRegistry();
@@ -1887,7 +2264,52 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
 
 document.getElementById("reloadDriverAccounts")?.addEventListener("click",loadDriverRegistry);
 
+document.getElementById("operationsSearch")?.addEventListener("input",renderOperationalTable);
+document.getElementById("operationsStatus")?.addEventListener("change",renderOperationalTable);
+document.getElementById("saveOperationalSettings")?.addEventListener("click",saveOperationalSettings);
+document.getElementById("resetOperationalSettings")?.addEventListener("click",()=>{
+  localStorage.removeItem(OP_SETTINGS_KEY);
+  syncOperationalSettingsForm();
+  document.getElementById("settingsResult").textContent="Padrão restaurado: atraso 60 min, coleta 20 min e GPS 2 min.";
+  renderOperationalControl();
+});
+document.getElementById("detailDrawerClose")?.addEventListener("click",closeDeliveryDetails);
+document.getElementById("detailDrawerBackdrop")?.addEventListener("click",closeDeliveryDetails);
+document.getElementById("detailCenter")?.addEventListener("click",()=>{
+  const d=allDeliveries.find(x=>String(x.id)===String(activeDetailDeliveryId));if(!d)return;
+  if(!map)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
+  map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});map.setZoom(17);closeDeliveryDetails();
+});
+document.getElementById("detailTracking")?.addEventListener("click",()=>{
+  if(activeDetailDeliveryId)sendTracking(activeDetailDeliveryId);
+});
+document.getElementById("detailEdit")?.addEventListener("click",()=>{
+  const id=activeDetailDeliveryId;if(!id)return;closeDeliveryDetails();editDelivery(id);
+});
+document.getElementById("detailRemove")?.addEventListener("click",async()=>{
+  const id=activeDetailDeliveryId;if(!id)return;closeDeliveryDetails();await removeDelivery(id);
+});
+document.getElementById("detailTransferButton")?.addEventListener("click",async()=>{
+  const d=allDeliveries.find(x=>String(x.id)===String(activeDetailDeliveryId));
+  if(!d||d.status!=="pending")return;
+  const newDriver=document.getElementById("detailTransferDriver").value;
+  if(!newDriver)return alert("Selecione o novo motoboy.");
+  if(String(newDriver)===String(d.driver_id))return alert("Essa entrega já está com esse motoboy.");
+  const newName=allDrivers.find(x=>String(x.id)===String(newDriver))?.name||"novo motoboy";
+  if(!await rtsConfirm({title:"Reatribuir entrega?",message:`Mudar a entrega de ${d.client_name} para ${newName}?`,okText:"SIM, REATRIBUIR",danger:false}))return;
+  const target=allDrivers.find(x=>String(x.id)===String(newDriver));
+  const {error}=await sb.from("deliveries").update({
+    driver_id:newDriver,
+    driver_cpf:target?.cpf||null,
+    route_order:null,
+    updated_at:new Date().toISOString()
+  }).eq("id",d.id).eq("status","pending");
+  if(error)return alert("Erro ao reatribuir: "+error.message);
+  await loadDeliveries();
+  renderDeliveryDetails(d.id);
+});
 
+setInterval(()=>renderOperationalControl(),15000);
 
 function applyDriverRealtime(payload){
   const row=payload?.new||payload?.old;if(!row?.id)return;
@@ -1915,19 +2337,3 @@ if(sb){
 </script>
 </body>
 </html>
-<script>
-async function googleRoute(origin,destination,intermediates=[]){
-  const body={
-    origin:{location:{latLng:{latitude:Number(origin.lat),longitude:Number(origin.lng)}}},
-    destination:{location:{latLng:{latitude:Number(destination.lat),longitude:Number(destination.lng)}}},
-    intermediates:intermediates.map(p=>({location:{latLng:{latitude:Number(p.lat),longitude:Number(p.lng)}}})),
-    travelMode:"TWO_WHEELER", routingPreference:"TRAFFIC_AWARE", computeAlternativeRoutes:false
-  };
-  const r=await fetch("https://routes.googleapis.com/directions/v2:computeRoutes",{method:"POST",headers:{
-    "Content-Type":"application/json","X-Goog-Api-Key":window.GOOGLE_MAPS_API_KEY,
-    "X-Goog-FieldMask":"routes.duration,routes.distanceMeters,routes.optimizedIntermediateWaypointIndex"
-  },body:JSON.stringify(body)});
-  if(!r.ok)throw new Error("Google Routes: "+r.status);
-  return r.json();
-}
-</script>

@@ -1423,7 +1423,7 @@ window.sendTracking=id=>{
   if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
   const n=normalizePhone(d.client_phone);
   if(n.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
-  const msg=`Acompanhe o nosso motoboy com Esse Link de rastreamento:\n${trackingUrl(d)}`;
+  const msg=`Olá, sou o motoqueiro da JR Suplementos.\nESTOU EM ROTA COM SUA ENTREGA.\nCaso não consiga receber, me informe.\n\nAcompanhe minha localização em tempo real pelo link abaixo:\n${trackingUrl(d)}`;
   window.open(`https://wa.me/${n}?text=${encodeURIComponent(msg)}`,"_blank");
 };
 
