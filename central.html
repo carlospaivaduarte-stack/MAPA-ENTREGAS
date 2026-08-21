@@ -380,6 +380,10 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         </div>
       </div>
 
+      <div style="margin:10px 0 6px;font-weight:900">ℹ️ Informações da entrega</div>
+      <input id="saleBuildingName" placeholder="Nome do edifício / prédio">
+      <input id="saleUnitDetails" placeholder="Nº - Bloco - Andar">
+      <textarea id="saleReferencePoint" placeholder="Ponto de referência"></textarea>
       <textarea id="saleNote" placeholder="Observação / informação adicional"></textarea>
       <div class="small" style="padding:9px;background:#f3f4f6;border-radius:10px;margin:7px 0">
         ⚪ A venda será cadastrada como <b>AGUARDANDO COLETA</b>.
@@ -428,7 +432,6 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         <input id="newDriverCpf" inputmode="numeric" maxlength="14" placeholder="CPF / Login">
         <input id="newDriverPhone" inputmode="tel" placeholder="Telefone / WhatsApp">
         <input id="newDriverPassword" type="password" placeholder="Senha">
-        <input id="driverAdminKey" type="password" placeholder="Chave administrativa da Central">
         <button class="green" id="registerDriverAccount" style="width:100%;margin-top:6px">➕ REGISTRAR MOTOBOY</button>
         <div id="driverRegisterResult" class="small" style="margin-top:8px"></div>
       </div>
@@ -516,10 +519,36 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     <input id="editClient" placeholder="Nome do cliente">
     <input id="editPhone" placeholder="Telefone / WhatsApp">
     <textarea id="editLocation" placeholder="Link do Google Maps (inclusive maps.app.goo.gl) ou coordenadas"></textarea>
+    <input id="editBuildingName" placeholder="Nome do edifício / prédio">
+    <input id="editUnitDetails" placeholder="Nº - Bloco - Andar">
+    <textarea id="editReferencePoint" placeholder="Ponto de referência"></textarea>
     <textarea id="editNote" placeholder="Observação"></textarea>
     <div class="row" style="margin-top:8px">
       <button class="green" id="saveEdit">💾 Salvar</button>
       <button class="gray" id="cancelEdit">❌ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="rtsConfirmModal">
+  <div class="modalbox" style="max-width:430px">
+    <h3 id="rtsConfirmTitle">Confirmar ação</h3>
+    <div id="rtsConfirmMessage" style="white-space:pre-line;color:#475467;line-height:1.55;margin-bottom:14px"></div>
+    <div class="row">
+      <button class="gray" id="rtsConfirmCancel">CANCELAR</button>
+      <button class="red" id="rtsConfirmOk">SIM, CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="rtsInputModal">
+  <div class="modalbox" style="max-width:430px">
+    <h3 id="rtsInputTitle">Informe o valor</h3>
+    <div id="rtsInputMessage" class="small" style="margin-bottom:9px"></div>
+    <input id="rtsInputValue" type="password" autocomplete="new-password">
+    <div class="row">
+      <button class="gray" id="rtsInputCancel">CANCELAR</button>
+      <button class="blue" id="rtsInputOk">CONFIRMAR</button>
     </div>
   </div>
 </div>
@@ -538,6 +567,34 @@ function initGoogleMap(){
 }
 
 const sb=getSupabaseClient();
+
+
+function rtsConfirm({title="Confirmar ação",message="Tem certeza?",okText="SIM, CONFIRMAR",danger=true}={}){
+  return new Promise(resolve=>{
+    const modal=document.getElementById("rtsConfirmModal");
+    const ok=document.getElementById("rtsConfirmOk");
+    const cancel=document.getElementById("rtsConfirmCancel");
+    document.getElementById("rtsConfirmTitle").textContent=title;
+    document.getElementById("rtsConfirmMessage").textContent=message;
+    ok.textContent=okText;
+    ok.className=danger?"red":"blue";
+    const done=v=>{modal.classList.remove("open");ok.onclick=null;cancel.onclick=null;resolve(v)};
+    ok.onclick=()=>done(true); cancel.onclick=()=>done(false);
+    modal.classList.add("open");
+  });
+}
+function rtsInput({title="Informe o valor",message="",placeholder="",type="password",okText="CONFIRMAR"}={}){
+  return new Promise(resolve=>{
+    const modal=document.getElementById("rtsInputModal"),input=document.getElementById("rtsInputValue");
+    const ok=document.getElementById("rtsInputOk"),cancel=document.getElementById("rtsInputCancel");
+    document.getElementById("rtsInputTitle").textContent=title;
+    document.getElementById("rtsInputMessage").textContent=message;
+    input.type=type;input.placeholder=placeholder;input.value="";ok.textContent=okText;
+    const done=v=>{modal.classList.remove("open");ok.onclick=null;cancel.onclick=null;resolve(v)};
+    ok.onclick=()=>done(input.value);cancel.onclick=()=>done(null);
+    modal.classList.add("open");setTimeout(()=>input.focus(),60);
+  });
+}
 
 let currentAdminUser=null;
 
@@ -745,6 +802,9 @@ function resetSaleForm(){
   document.getElementById("secondaryLocation").value="";
   document.getElementById("secondaryLocationResult").textContent="Esse endereço será usado somente nesta entrega.";
 
+  document.getElementById("saleBuildingName").value="";
+  document.getElementById("saleUnitDetails").value="";
+  document.getElementById("saleReferencePoint").value="";
   document.getElementById("saleNote").value="";
 }
 
@@ -904,9 +964,7 @@ window.deleteCustomer=async id=>{
     linked.length?`Existem ${linked.length} entrega(s) vinculada(s) (${active.length} ativa(s) e ${history.length} no histórico). As entregas serão mantidas, mas desvinculadas do cadastro do cliente.`:"Este cliente não possui entregas vinculadas.",
     "Esta ação remove o cadastro do cliente do banco de dados."
   ].join("\n\n");
-  if(!confirm(warning))return;
-  const confirmText=prompt('Para confirmar a exclusão definitiva, digite EXCLUIR');
-  if(confirmText!=="EXCLUIR")return alert("Exclusão cancelada.");
+  if(!await rtsConfirm({title:"Excluir cliente?",message:warning,okText:"SIM, EXCLUIR"}))return;
 
   // As entregas já guardam nome/telefone/coordenadas próprios. Desvinculamos o UUID
   // do cadastro antes de apagar o cliente para preservar entregas ativas e histórico.
@@ -1191,7 +1249,7 @@ function renderDeliveries(){
       ${d.collected_at?`<br><span style="font-size:11px;color:#555"><b>🏍️ Coleta: ${esc(d.collected_by_name||driverText)}</b></span>`:""}
       ${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}
       ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
-      ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
+      ${(d.building_name||d.unit_details||d.reference_point)?`<br><span style="color:#a16207">ℹ️ ${esc([d.building_name,d.unit_details,d.reference_point].filter(Boolean).join(" · "))}</span>`:""}${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
       <div class="row" style="margin-top:6px">
         ${d.status!=="awaiting_collection"?`<button class="wa" onclick="sendTracking('${d.id}')">💬 RASTREAMENTO</button>`:"<button class='gray' disabled>⚪ Aguardando coleta</button>"}
         <button class="gray" onclick="editDelivery('${d.id}')">✏️ EDITAR</button>
@@ -1303,7 +1361,7 @@ window.deleteDriver=async id=>{
   const d=allDrivers.find(x=>x.id===id);if(!d)return;
   const pending=allDeliveries.filter(x=>x.driver_id===id&&x.status==="pending").length;
   if(pending)return alert(`Não é possível excluir ${d.name}. Existem ${pending} entrega(s) pendente(s).`);
-  if(!confirm(`Excluir o motoqueiro ${d.name}?`))return;
+  if(!await rtsConfirm({title:"Excluir motoboy?",message:`Excluir o motoboy ${d.name}?`,okText:"SIM, EXCLUIR"}))return;
   const {error}=await sb.from("drivers").delete().eq("id",id);
   if(error)return alert("Erro ao excluir: "+error.message);
   await loadDrivers();await loadDeliveries();
@@ -1318,7 +1376,7 @@ window.changeDriver=async id=>{
   if(!newDriver)return alert("Selecione o novo motoqueiro.");
   if(newDriver===d.driver_id)return alert("Essa entrega já está com esse motoqueiro.");
   const newName=allDrivers.find(x=>x.id===newDriver)?.name||"novo motoqueiro";
-  if(!confirm(`Mudar a entrega de ${d.client_name} para ${newName}?`))return;
+  if(!await rtsConfirm({title:"Mudar motoboy?",message:`Mudar a entrega de ${d.client_name} para ${newName}?`,okText:"SIM, MUDAR",danger:false}))return;
   const {error}=await sb.from("deliveries").update({
     driver_id:newDriver,
     route_order:null,
@@ -1368,6 +1426,9 @@ document.getElementById("addDelivery").onclick=async()=>{
       secondary_lat:useSecondary?secondaryLat:null,
       secondary_lng:useSecondary?secondaryLng:null,
       status:"awaiting_collection",route_order:null,
+      building_name:document.getElementById("saleBuildingName").value.trim()||null,
+      unit_details:document.getElementById("saleUnitDetails").value.trim()||null,
+      reference_point:document.getElementById("saleReferencePoint").value.trim()||null,
       note:document.getElementById("saleNote").value.trim()
     };
 
@@ -1391,9 +1452,7 @@ document.getElementById("addDelivery").onclick=async()=>{
 window.removeDelivery=async id=>{
   const d=allDeliveries.find(x=>x.id===id);
   if(!d)return;
-  if(!confirm(`Remover a entrega de ${d.client_name}?`))return;
-  const confirmText=prompt('Para confirmar a remoção, digite REMOVER');
-  if(confirmText!=="REMOVER")return alert("Remoção cancelada.");
+  if(!await rtsConfirm({title:"Remover entrega?",message:`Remover a entrega de ${d.client_name}?\n\nA entrega ficará registrada no histórico como removida.`,okText:"SIM, REMOVER"}))return;
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({deleted_at:nowIso,updated_at:nowIso}).eq("id",id);
   if(error)return alert("Erro ao remover entrega: "+error.message);
@@ -1407,6 +1466,9 @@ window.editDelivery=id=>{
   document.getElementById("editClient").value=d.client_name||"";
   document.getElementById("editPhone").value=d.client_phone||"";
   document.getElementById("editLocation").value=`${d.lat},${d.lng}`;
+  document.getElementById("editBuildingName").value=d.building_name||"";
+  document.getElementById("editUnitDetails").value=d.unit_details||"";
+  document.getElementById("editReferencePoint").value=d.reference_point||"";
   document.getElementById("editNote").value=d.note||"";
   document.getElementById("editModal").classList.add("open");
 };
@@ -1421,6 +1483,9 @@ document.getElementById("saveEdit").onclick=async()=>{
       client_name:document.getElementById("editClient").value.trim()||"Cliente",
       client_phone:document.getElementById("editPhone").value.trim(),
       lat:p.lat,lng:p.lng,
+      building_name:document.getElementById("editBuildingName").value.trim()||null,
+      unit_details:document.getElementById("editUnitDetails").value.trim()||null,
+      reference_point:document.getElementById("editReferencePoint").value.trim()||null,
       note:document.getElementById("editNote").value.trim(),
       updated_at:new Date().toISOString()
     };
@@ -1434,10 +1499,12 @@ document.getElementById("saveEdit").onclick=async()=>{
 };
 
 document.getElementById("clearDeliveries").onclick=async()=>{
-  if(!confirm("Remover TODAS as entregas ativas da Central e dos celulares?"))return;
-  if(prompt("Digite LIMPAR para confirmar:")!=="LIMPAR")return;
+  if(!await rtsConfirm({title:"Limpar entregas ativas?",message:"Serão removidas somente COLETAS / ENTREGAS EM ROTA.\n\nEntregas finalizadas e histórico NÃO serão alterados.",okText:"SIM, LIMPAR"}))return;
   const nowIso=new Date().toISOString();
-  const {error}=await sb.from("deliveries").update({deleted_at:nowIso,updated_at:nowIso}).is("deleted_at",null);
+  const {error}=await sb.from("deliveries")
+    .update({deleted_at:nowIso,updated_at:nowIso})
+    .in("status",["awaiting_collection","pending"])
+    .is("deleted_at",null);
   if(error)return alert("Erro: "+error.message);
   await sb.from("drivers").update({route_started_at:null,route_finished_at:null});
   await loadDeliveries();await loadDrivers();await loadHistory7();
@@ -1445,8 +1512,7 @@ document.getElementById("clearDeliveries").onclick=async()=>{
 
 
 document.getElementById("clearDeliveryHistory").onclick=async()=>{
-  if(!confirm("ATENÇÃO: deseja apagar DEFINITIVAMENTE o histórico de entregas finalizadas?\n\nEntregas aguardando coleta e em rota serão preservadas."))return;
-  if(prompt("Para confirmar a limpeza permanente, digite LIMPAR HISTORICO")!=="LIMPAR HISTORICO")return alert("Limpeza cancelada.");
+  if(!await rtsConfirm({title:"Apagar histórico?",message:"Esta ação apaga DEFINITIVAMENTE o histórico de entregas finalizadas.\n\nEntregas aguardando coleta e em rota serão preservadas.",okText:"SIM, APAGAR HISTÓRICO"}))return;
 
   const btn=document.getElementById("clearDeliveryHistory");
   const old=btn.textContent;
@@ -1455,10 +1521,8 @@ document.getElementById("clearDeliveryHistory").onclick=async()=>{
     const {error:finishedError}=await sb.from("deliveries").delete().in("status",["done","failed"]);
     if(finishedError)throw finishedError;
 
-    // Também elimina registros que já tinham sido removidos manualmente da Central.
-    const {error:removedError}=await sb.from("deliveries").delete().not("deleted_at","is",null);
-    if(removedError)throw removedError;
-
+    // Segurança: esta limpeza NÃO apaga coletas ou entregas em rota, mesmo que
+    // algum registro ativo tenha sido marcado como removido por uma versão antiga.
     await Promise.all([loadDeliveries(),loadHistory7(),loadCustomers()]);
     alert("Histórico de entregas limpo definitivamente.");
   }catch(e){
@@ -1601,15 +1665,9 @@ function formatCpf(v){
 
 async function driverAdminRequest(action,payload={}){
   if(!sb)throw new Error("Supabase indisponível.");
-  const adminKey=document.getElementById("driverAdminKey")?.value||sessionStorage.getItem("rts_driver_admin_key")||"";
-  if(!adminKey)throw new Error("Informe a chave administrativa da Central.");
-
-  sessionStorage.setItem("rts_driver_admin_key",adminKey);
-
-  const {data,error}=await sb.functions.invoke("driver-admin",{
-    body:{action,adminKey,...payload}
-  });
-
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error("Sessão administrativa expirada. Entre novamente na Central.");
+  const {data,error}=await sb.functions.invoke("driver-admin",{body:{action,...payload}});
   if(error)throw new Error(error.message||"Falha na função administrativa.");
   if(!data?.ok)throw new Error(data?.error||"Operação não autorizada.");
   return data;
@@ -1623,13 +1681,8 @@ async function loadDriverRegistry(){
   box.innerHTML='<div class="small">Carregando cadastros...</div>';
 
   try{
-    const {data:rows,error}=await sb.from("driver_accounts")
-      .select("cpf,name,phone,active,created_at,updated_at")
-      .order("name",{ascending:true});
-
-    if(error)throw error;
-
-    const list=rows||[];
+    const result=await driverAdminRequest("list");
+    const list=result.drivers||[];
     if(count)count.textContent=`${list.length} cadastro(s)`;
 
     box.innerHTML=list.length?list.map(d=>`
@@ -1657,6 +1710,8 @@ async function loadDriverRegistry(){
 }
 
 window.toggleDriverAccount=async(cpf,active)=>{
+  const label=active?"ativar":"desativar";
+  if(!await rtsConfirm({title:`${active?"Ativar":"Desativar"} motoboy?`,message:`Deseja ${label} este motoboy?`,okText:`SIM, ${label.toUpperCase()}`,danger:!active}))return;
   try{
     await driverAdminRequest("set_active",{cpf,active});
     await loadDriverRegistry();
@@ -1664,7 +1719,7 @@ window.toggleDriverAccount=async(cpf,active)=>{
 };
 
 window.resetDriverPassword=async(cpf,name)=>{
-  const password=prompt(`Nova senha para ${name}:`);
+  const password=await rtsInput({title:"Trocar senha",message:`Defina a nova senha para ${name}.`,placeholder:"Nova senha",type:"password",okText:"SALVAR SENHA"});
   if(!password)return;
   try{
     await driverAdminRequest("reset_password",{cpf,password});
@@ -1689,6 +1744,7 @@ document.getElementById("registerDriverAccount")?.addEventListener("click",async
   if(cpf.length!==11)return alert("Informe um CPF com 11 números.");
   if(String(phone).replace(/\D/g,"").length<10)return alert("Informe o telefone/WhatsApp do motoboy com DDD.");
   if(password.length<6)return alert("A senha precisa ter pelo menos 6 caracteres.");
+  if(!await rtsConfirm({title:"Registrar motoboy?",message:`Registrar ${name} com CPF ${formatCpf(cpf)}?`,okText:"SIM, REGISTRAR",danger:false}))return;
 
   btn.disabled=true;
   const old=btn.textContent;
@@ -1715,12 +1771,15 @@ document.getElementById("registerDriverAccount")?.addEventListener("click",async
 let editingDriverCpf=null;
 
 window.editDriverAccount=async cpf=>{
-  const {data,error}=await sb.from("driver_accounts")
-    .select("cpf,name,phone,active")
-    .eq("cpf",cpf)
-    .maybeSingle();
+  let data;
+  try{
+    const result=await driverAdminRequest("get",{cpf});
+    data=result.driver;
+  }catch(e){
+    return alert(e.message||"Não foi possível carregar o cadastro do motoboy.");
+  }
 
-  if(error||!data)return alert("Não foi possível carregar o cadastro do motoboy.");
+  if(!data)return alert("Não foi possível carregar o cadastro do motoboy.");
 
   editingDriverCpf=data.cpf;
   document.getElementById("driverEditName").value=data.name||"";
@@ -1747,20 +1806,7 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
   btn.disabled=true;btn.textContent="SALVANDO...";
 
   try{
-    const {error}=await sb.from("driver_accounts")
-      .update({
-        name,
-        phone,
-        updated_at:new Date().toISOString()
-      })
-      .eq("cpf",editingDriverCpf);
-
-    if(error)throw error;
-
-    // Mantém o cadastro operacional/GPS com nome e telefone atualizados.
-    await sb.from("drivers")
-      .update({name,phone})
-      .eq("cpf",editingDriverCpf);
+    await driverAdminRequest("update_profile",{cpf:editingDriverCpf,name,phone});
 
     document.getElementById("driverEditModal").classList.remove("open");
     editingDriverCpf=null;
@@ -1778,14 +1824,28 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
 document.getElementById("reloadDriverAccounts")?.addEventListener("click",loadDriverRegistry);
 
 
+
+function applyDriverRealtime(payload){
+  const row=payload?.new||payload?.old;if(!row?.id)return;
+  const idx=allDrivers.findIndex(d=>String(d.id)===String(row.id));
+  if(payload.eventType==="DELETE"){if(idx>=0)allDrivers.splice(idx,1);return loadDrivers();}
+  if(idx>=0)allDrivers[idx]={...allDrivers[idx],...row};else allDrivers.push(row);
+  if(row.lat!=null&&row.lng!=null&&map){
+    const pos={lat:Number(row.lat),lng:Number(row.lng)};
+    const marker=driverMarkers[row.id];
+    if(marker){marker.setPosition(pos);}else{loadDrivers();return;}
+  }
+
+}
+
 if(sb){
   document.getElementById("connection").textContent="🟢 Supabase conectado";
   verifyAdminSession().then(async ok=>{
     if(!ok)return;
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
-    sb.channel("central-drivers-fix").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>loadDrivers()).subscribe();
+    sb.channel("central-drivers-live").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},payload=>{applyDriverRealtime(payload);loadDrivers();}).subscribe();
     sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},handleCentralDeliveryRealtime).subscribe();
-    setInterval(loadDrivers,10000);
+    setInterval(loadDrivers,5000);
   });
 }
 </script>

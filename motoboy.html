@@ -97,7 +97,7 @@ button{cursor:pointer}
 .panel-header{display:none!important}
 input,textarea{width:100%;padding:12px;background:#071421;color:#fff;border:1px solid #173047;border-radius:12px;margin-bottom:8px}
 .modal{position:fixed;z-index:4000;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}
-.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}
+.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}.delivery-info-row{display:flex;flex-direction:column;gap:4px;padding:13px 4px;border-bottom:1px solid #173047}.delivery-info-row b{color:#9baabd;font-size:12px}.delivery-info-row span{font-size:15px;font-weight:800}.info-delivery-btn{float:right;background:#ffd400;color:#111;border:0;border-radius:50%;width:38px;height:38px;font-weight:950;font-size:18px}
 .bottom-nav{position:fixed;z-index:2500;left:0;right:0;bottom:0;height:86px;background:#071421f5;border-top:1px solid #173047;border-radius:26px 26px 0 0;display:grid;grid-template-columns:repeat(4,1fr);padding:9px max(8px,calc((100vw - 760px)/2 + 8px))}
 .nav-btn{border:0;background:transparent;color:#9baabd;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.nav-btn .ni{font-size:27px}.nav-btn.active{color:#08d15c}
 body.ui-minimized .below-map{display:none!important}
@@ -920,7 +920,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
       <div class="tracking-note">
         <div class="signal">◉</div>
-        <div>Sua localização será enviada à central a cada 60 segundos enquanto esta página estiver aberta e o GPS ativo.</div>
+        <div>Sua localização é atualizada automaticamente em tempo real enquanto você estiver ONLINE.</div>
       </div>
     </section>
 
@@ -943,7 +943,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div class="panel">
         <div class="panel-header">
           <button id="refreshMotoboy">🔄</button>
-          <button id="updateLocationNow">📍 GPS AGORA</button>
+          <button id="updateLocationNow">📍 ATUALIZAR AGORA</button>
           <button id="panelToggle">⬇️</button>
         </div>
 
@@ -997,6 +997,18 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   <button class="nav-btn" id="navHistory" type="button"><span class="ni">◔</span><span>Histórico</span></button>
 </nav>
 
+
+<div class="modal" id="deliveryInfoModal">
+  <div class="modalbox" style="position:relative">
+    <button id="closeDeliveryInfoX" type="button" style="position:absolute;right:12px;top:10px;background:transparent;color:#ffd400;font-size:25px;padding:4px;border:0">✕</button>
+    <h3 style="color:#ffd400">ℹ️ Informações da entrega</h3>
+    <div class="delivery-info-row"><b>🏢 Nome do edifício / prédio</b><span id="infoBuildingName">—</span></div>
+    <div class="delivery-info-row"><b># Nº - Bloco - Andar</b><span id="infoUnitDetails">—</span></div>
+    <div class="delivery-info-row"><b>📍 Ponto de referência</b><span id="infoReferencePoint">—</span></div>
+    <button class="yellow" id="closeDeliveryInfo" style="width:100%;margin-top:12px">FECHAR</button>
+  </div>
+</div>
+
 <div class="modal" id="editModal">
   <div class="modalbox">
     <h3>✏️ Editar entrega</h3>
@@ -1038,7 +1050,7 @@ function initGoogleMap(){
   window.dispatchEvent(new Event("google-map-ready"));
 }
 let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId="",driverCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||""),lastSend=0;
-let assignedDeliveryChannel=null,globalDeliveryChannel=null;
+let assignedDeliveryChannel=null,globalDeliveryChannel=null,driverLocationChannel=null;
 const notifiedCollectionIds=new Set();
 
 function showCollectionInAppNotice(delivery){
@@ -1116,7 +1128,7 @@ document.getElementById("driverName").value=localStorage.getItem("v7_driver_name
 document.getElementById("driverPhone").value=localStorage.getItem("v7_driver_phone")||"";
 
 async function upsertDriver(pos){
-  const now=Date.now(); lastPosition=pos; if(now-lastSend<60000 && marker)return; lastSend=now;
+  const now=Date.now(); lastPosition=pos; if(now-lastSend<5000 && marker)return; lastSend=now;
   const name=document.getElementById("driverName").value.trim()||"Motoboy";
   const phone=document.getElementById("driverPhone").value.trim();
   localStorage.setItem("v7_driver_name",name);localStorage.setItem("v7_driver_phone",phone);
@@ -1301,6 +1313,21 @@ function renderDailyHistory(){
     </div>`;
 }
 
+function openDeliveryInfo(id){
+  const d=[...(currentDeliveries||[]),...(waitingDeliveries||[]),...(finishedDeliveries||[])].find(x=>String(x.id)===String(id));
+  if(!d)return;
+  document.getElementById("infoBuildingName").textContent=d.building_name||"Não informado";
+  document.getElementById("infoUnitDetails").textContent=d.unit_details||"Não informado";
+  document.getElementById("infoReferencePoint").textContent=d.reference_point||"Não informado";
+  document.getElementById("deliveryInfoModal").classList.add("open");
+}
+window.openDeliveryInfo=openDeliveryInfo;
+setTimeout(()=>{
+  const close=()=>document.getElementById("deliveryInfoModal")?.classList.remove("open");
+  document.getElementById("closeDeliveryInfo")?.addEventListener("click",close);
+  document.getElementById("closeDeliveryInfoX")?.addEventListener("click",close);
+},0);
+
 function renderDeliveries(data){
   currentDeliveries=(data||[]).sort((a,b)=>{
     const af=(a.status==="done"||a.status==="failed"),bf=(b.status==="done"||b.status==="failed");
@@ -1360,6 +1387,7 @@ function renderDeliveries(data){
 
   const box=document.getElementById("deliveries");
   box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
+    <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega">i</button>
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
       ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
@@ -1709,8 +1737,35 @@ async function sendImmediateLocation(){
 document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 
 
+function applyLiveDriverPosition(row){
+  if(!row||String(row.id)!==String(driverId)||row.lat==null||row.lng==null)return;
+  const lat=Number(row.lat),lng=Number(row.lng);
+  if(marker){marker.setPosition({lat,lng});}else if(map){marker=new google.maps.Marker({position:{lat,lng},map,title:"Sua localização"});}
+  if(map&&!hasCentered){map.setCenter({lat,lng});map.setZoom(17);hasCentered=true;}
+  document.getElementById("state").textContent=row.is_online?"🟢 online":"🔴 offline";
+  currentDriver={...(currentDriver||{}),...row};
+}
+function ensureDriverLocationSubscription(){
+  if(!sb||!driverId||driverLocationChannel)return;
+  driverLocationChannel=sb.channel("motoboy-location-"+driverId)
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"drivers",filter:"id=eq."+driverId},payload=>applyLiveDriverPosition(payload.new))
+    .subscribe();
+}
+function startBrowserLocationFallback(){
+  if(window.RTSAndroid||watch!==null||!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(upsertDriver,()=>{}, {enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  watch=navigator.geolocation.watchPosition(upsertDriver,()=>{}, {enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+}
+async function ensureAutomaticTracking(){
+  if(!currentDriver?.is_online)return;
+  ensureDriverLocationSubscription();
+  await syncNativeOnlineService();
+  startBrowserLocationFallback();
+}
+
 async function syncNativeOnlineService(){
   if(!driverId||!currentDriver?.is_online)return;
+  ensureDriverLocationSubscription();
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session)return;
@@ -1850,7 +1905,7 @@ async function initializeMotoboyApp(){
     ensureDeliverySubscriptions();
     if(currentDriver?.is_online){
       document.getElementById("state").textContent="🟢 online";
-      await syncNativeOnlineService();
+      await ensureAutomaticTracking();
     }else{
       document.getElementById("state").textContent="🔴 offline";
       try{if(window.RTSAndroid&&typeof window.RTSAndroid.requestPushToken==="function")window.RTSAndroid.requestPushToken()}catch(_){ }
@@ -1869,7 +1924,7 @@ document.getElementById("start").onclick=async()=>{
   navigator.geolocation.getCurrentPosition(async pos=>{
     await upsertDriver(pos);
     currentDriver={...(currentDriver||{}),is_online:true};
-    await syncNativeOnlineService();
+    await ensureAutomaticTracking();
   },()=>alert("Permita acesso à localização."),{enableHighAccuracy:true,timeout:20000});
   if(watch===null)watch=navigator.geolocation.watchPosition(upsertDriver,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
   loadDeliveries();
@@ -1884,6 +1939,7 @@ document.getElementById("stop").onclick=async()=>{
   }
   currentDriver={...(currentDriver||{}),is_online:false};
   nativeGoOffline();
+  if(driverLocationChannel&&sb){try{await sb.removeChannel(driverLocationChannel)}catch(_){ }driverLocationChannel=null;}
   document.getElementById("state").textContent="🔴 offline";
 };
 // RTS 0.1: sair da tela, minimizar ou fechar a WebView NÃO coloca o motoboy offline.
@@ -1897,7 +1953,7 @@ document.getElementById("stop").onclick=async()=>{
     const state=($("state")?.textContent||"").toLowerCase();
     const online=state.includes("online") && !state.includes("offline");
     if($("frontStatusTitle")) $("frontStatusTitle").textContent=online?"Online":"Offline";
-    if($("frontStatusSub")) $("frontStatusSub").textContent=online?"Você está disponível":"Rastreamento parado";
+    if($("frontStatusSub")) $("frontStatusSub").textContent=online?"Localização em tempo real":"Offline";
     if($("frontStatusDot")) $("frontStatusDot").style.background=online?"#05c653":"#e81f28";
 
     if($("frontPendingSummary")&&$("mPending")) $("frontPendingSummary").textContent=$("mPending").textContent||"0";
