@@ -1093,7 +1093,7 @@ function initGoogleMap(){
   window.dispatchEvent(new Event("google-map-ready"));
 }
 let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId="",driverCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||""),lastSend=0;
-let assignedDeliveryChannel=null,globalDeliveryChannel=null,driverLocationChannel=null;
+let assignedDeliveryChannel=null,globalDeliveryChannel=null,driverLocationChannel=null,driverLocationPollTimer=null;
 const notifiedCollectionIds=new Set();
 
 function showCollectionInAppNotice(delivery){
@@ -1866,9 +1866,49 @@ document.getElementById("updateLocationNow").onclick=sendImmediateLocation;
 function applyLiveDriverPosition(row){
   if(!row||String(row.id)!==String(driverId)||row.lat==null||row.lng==null)return;
   const lat=Number(row.lat),lng=Number(row.lng);
-  if(marker){marker.setPosition({lat,lng});}else if(map){marker=new google.maps.Marker({position:{lat,lng},map,title:"Sua localização"});}
-  if(map&&!hasCentered){map.setCenter({lat,lng});map.setZoom(17);hasCentered=true;}
+  if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+
+  // Mantém a mesma estrutura esperada pelas funções de rota.
+  lastPosition={
+    coords:{
+      latitude:lat,
+      longitude:lng,
+      accuracy:Number(row.accuracy||0)
+    },
+    timestamp:row.last_seen?Date.parse(row.last_seen):Date.now()
+  };
+
+  const pos={lat,lng};
+
+  if(marker){
+    marker.setPosition(pos);
+  }else if(map){
+    marker=new google.maps.Marker({
+      position:pos,
+      map,
+      icon:{
+        url:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52"><text x="26" y="38" text-anchor="middle" font-size="36">🏍️</text></svg>`),
+        scaledSize:new google.maps.Size(52,52),
+        anchor:new google.maps.Point(26,26)
+      },
+      title:"Sua localização"
+    });
+  }
+
+  // O mapa acompanha o motoboy em cada atualização recebida.
+  if(map){
+    if(!hasCentered){
+      map.setCenter(pos);
+      map.setZoom(17);
+      hasCentered=true;
+    }else{
+      map.panTo(pos);
+    }
+  }
+
   document.getElementById("state").textContent=row.is_online?"🟢 online":"🔴 offline";
+  const sub=document.getElementById("frontStatusSub");
+  if(sub&&row.is_online)sub.textContent="Localização em tempo real";
   currentDriver={...(currentDriver||{}),...row};
 }
 function ensureDriverLocationSubscription(){
@@ -1876,6 +1916,33 @@ function ensureDriverLocationSubscription(){
   driverLocationChannel=sb.channel("motoboy-location-"+driverId)
     .on("postgres_changes",{event:"UPDATE",schema:"public",table:"drivers",filter:"id=eq."+driverId},payload=>applyLiveDriverPosition(payload.new))
     .subscribe();
+}
+
+async function refreshDriverLocationFromDatabase(){
+  if(!sb||!driverId||!currentDriver?.is_online)return;
+  try{
+    const {data,error}=await sb.from("drivers")
+      .select("id,lat,lng,accuracy,is_online,last_seen")
+      .eq("id",driverId)
+      .maybeSingle();
+    if(error)throw error;
+    if(data)applyLiveDriverPosition(data);
+  }catch(e){
+    console.warn("RTS: falha ao atualizar posição do mapa:",e);
+  }
+}
+
+function startDriverLocationPoll(){
+  if(driverLocationPollTimer)return;
+  refreshDriverLocationFromDatabase();
+  driverLocationPollTimer=setInterval(refreshDriverLocationFromDatabase,5000);
+}
+
+function stopDriverLocationPoll(){
+  if(driverLocationPollTimer){
+    clearInterval(driverLocationPollTimer);
+    driverLocationPollTimer=null;
+  }
 }
 function startBrowserLocationFallback(){
   if(window.RTSAndroid||watch!==null||!navigator.geolocation)return;
@@ -1885,6 +1952,7 @@ function startBrowserLocationFallback(){
 async function ensureAutomaticTracking(){
   if(!currentDriver?.is_online)return;
   ensureDriverLocationSubscription();
+  startDriverLocationPoll();
   await syncNativeOnlineService();
   startBrowserLocationFallback();
 }
@@ -1989,6 +2057,10 @@ async function loginMotoboy(){
     await loadAuthenticatedDriver(cpf);
     await loadDeliveries();
     ensureDeliverySubscriptions();
+    if(currentDriver?.is_online){
+      if(currentDriver.lat!=null&&currentDriver.lng!=null)applyLiveDriverPosition(currentDriver);
+      await ensureAutomaticTracking();
+    }
   }catch(e){err.textContent=e.message||"Não foi possível entrar.";try{await sb.auth.signOut()}catch(_){}}
   finally{btn.disabled=false;btn.textContent="ENTRAR";}
 }
@@ -1998,6 +2070,7 @@ document.querySelector(".menu-btn").onclick=()=>document.getElementById("driverM
 document.getElementById("driverMenu").onclick=e=>{if(e.target.id==="driverMenu")e.currentTarget.classList.remove("open")};
 document.getElementById("logoutBtn").onclick=async()=>{
   if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
+  stopDriverLocationPoll();
   await clearDeliverySubscriptions();
   try{if(sb&&driverId){
     await sb.from("drivers").update({is_online:false,last_seen:new Date().toISOString()}).eq("id",driverId);
@@ -2031,6 +2104,7 @@ async function initializeMotoboyApp(){
     ensureDeliverySubscriptions();
     if(currentDriver?.is_online){
       document.getElementById("state").textContent="🟢 online";
+      if(currentDriver.lat!=null&&currentDriver.lng!=null)applyLiveDriverPosition(currentDriver);
       await ensureAutomaticTracking();
     }else{
       document.getElementById("state").textContent="🔴 offline";
@@ -2064,6 +2138,7 @@ document.getElementById("stop").onclick=async()=>{
     await sb.from("driver_push_tokens").update({active:false,updated_at:new Date().toISOString()}).eq("driver_id",driverId);
   }
   currentDriver={...(currentDriver||{}),is_online:false};
+  stopDriverLocationPoll();
   nativeGoOffline();
   if(driverLocationChannel&&sb){try{await sb.removeChannel(driverLocationChannel)}catch(_){ }driverLocationChannel=null;}
   document.getElementById("state").textContent="🔴 offline";

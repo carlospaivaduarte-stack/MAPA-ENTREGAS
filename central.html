@@ -859,6 +859,7 @@ document.getElementById("adminLogin").onclick=async()=>{
     if(!ok)return;
 
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
+    await startCentralLiveUpdates();
   }catch(e){
     result.textContent="❌ "+(e.message||"Não foi possível entrar.");
   }finally{
@@ -868,6 +869,7 @@ document.getElementById("adminLogin").onclick=async()=>{
 };
 
 document.getElementById("adminLogout")?.addEventListener("click",async()=>{
+  await stopCentralLiveUpdates();
   await sb.auth.signOut();
   currentAdminUser=null;
   document.getElementById("adminAuthGate").classList.remove("hidden");
@@ -876,6 +878,14 @@ document.getElementById("adminLogout")?.addEventListener("click",async()=>{
 
 let allDrivers=[],allDeliveries=[],allCustomers=[],driverMarkers={},deliveryMarkers={},editingDeliveryId=null,currentDeliveryTab="active",selectedCustomerId=null,fixedResolved=null,secondaryResolved=null;
 const centralDeliveryNotificationKeys=new Set();
+const centralDeliveryStatusSnapshot=new Map();
+
+let centralDriversChannel=null;
+let centralDeliveriesChannel=null;
+let centralCustomersChannel=null;
+let centralLivePollTimer=null;
+let centralSlowPollTimer=null;
+let centralRealtimeStarting=false;
 
 function showCentralDeliveryNotification(delivery){
   if(!delivery||!delivery.id)return;
@@ -917,13 +927,36 @@ function showCentralDeliveryNotification(delivery){
   setTimeout(close,7000);
 }
 
+function syncCentralDeliveryStatusSnapshot(rows,notifyChanges=false){
+  (rows||[]).forEach(d=>{
+    const id=String(d.id||"");
+    if(!id)return;
+    const previousStatus=centralDeliveryStatusSnapshot.get(id);
+    if(notifyChanges&&d.status==="done"&&previousStatus&&previousStatus!=="done"){
+      showCentralDeliveryNotification(d);
+    }
+    centralDeliveryStatusSnapshot.set(id,d.status||"");
+  });
+
+  const liveIds=new Set((rows||[]).map(d=>String(d.id||"")).filter(Boolean));
+  for(const id of centralDeliveryStatusSnapshot.keys()){
+    if(!liveIds.has(id))centralDeliveryStatusSnapshot.delete(id);
+  }
+}
+
 async function handleCentralDeliveryRealtime(payload){
   const next=payload?.new||{};
-  const previous=next?.id?allDeliveries.find(d=>String(d.id)===String(next.id)):null;
-  if(payload?.eventType==="UPDATE"&&next.status==="done"&&previous?.status!=="done"){
+  const previousStatus=next?.id?centralDeliveryStatusSnapshot.get(String(next.id)):null;
+
+  if(payload?.eventType==="UPDATE"&&next.status==="done"&&previousStatus!=="done"){
     showCentralDeliveryNotification(next);
   }
-  await Promise.all([loadDeliveries(),loadHistory7()]);
+
+  if(next?.id)centralDeliveryStatusSnapshot.set(String(next.id),next.status||"");
+  await Promise.all([
+    loadDeliveries({notifyChanges:false,silent:true}),
+    loadHistory7()
+  ]);
 }
 
 
@@ -1799,11 +1832,18 @@ async function loadHistory7(){
   }).join(""):'<div class="small">Nenhuma entrega nos últimos 30 dias.</div>';
 }
 
-async function loadDeliveries(){
+async function loadDeliveries(options={}){
   if(!sb)return;
+  const notifyChanges=!!options.notifyChanges;
+  const silent=!!options.silent;
   const {data,error}=await sb.from("deliveries").select("*").is("deleted_at",null).order("created_at",{ascending:true});
-  if(error){console.error(error);alert("Erro ao carregar entregas: "+error.message);return}
+  if(error){
+    console.error(error);
+    if(!silent)alert("Erro ao carregar entregas: "+error.message);
+    return;
+  }
   allDeliveries=data||[];
+  syncCentralDeliveryStatusSnapshot(allDeliveries,notifyChanges);
   const awaiting=allDeliveries.filter(x=>x.status==="awaiting_collection");
   const pending=allDeliveries.filter(x=>x.status==="pending");
   const doneToday=allDeliveries.filter(x=>x.status==="done"&&sameDay(x.completed_at||x.updated_at));
@@ -2504,14 +2544,104 @@ function applyDriverRealtime(payload){
 
 }
 
+function setCentralConnectionStatus(text){
+  const el=document.getElementById("connection");
+  if(el)el.textContent=text;
+}
+
+function centralChannelStatus(name,status){
+  if(status==="SUBSCRIBED"){
+    setCentralConnectionStatus("🟢 Supabase em tempo real");
+  }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){
+    console.warn(`RTS Realtime ${name}: ${status}. O fallback continuará atualizando a Central.`);
+    setCentralConnectionStatus("🟡 Supabase conectado • sincronização automática");
+  }else if(status==="CLOSED"){
+    console.warn(`RTS Realtime ${name}: canal fechado.`);
+  }
+}
+
+async function stopCentralLiveUpdates(){
+  if(centralLivePollTimer){clearInterval(centralLivePollTimer);centralLivePollTimer=null;}
+  if(centralSlowPollTimer){clearInterval(centralSlowPollTimer);centralSlowPollTimer=null;}
+
+  const channels=[centralDriversChannel,centralDeliveriesChannel,centralCustomersChannel].filter(Boolean);
+  centralDriversChannel=null;
+  centralDeliveriesChannel=null;
+  centralCustomersChannel=null;
+
+  for(const channel of channels){
+    try{await sb?.removeChannel(channel);}catch(_){}
+  }
+}
+
+async function pollCentralFast(){
+  if(!sb||!currentAdminUser)return;
+  await Promise.all([
+    loadDrivers(),
+    loadDeliveries({notifyChanges:true,silent:true})
+  ]);
+}
+
+async function pollCentralSlow(){
+  if(!sb||!currentAdminUser)return;
+  await Promise.all([
+    loadHistory7(),
+    loadCustomers()
+  ]);
+}
+
+async function startCentralLiveUpdates(){
+  if(!sb||!currentAdminUser||centralRealtimeStarting)return;
+  centralRealtimeStarting=true;
+
+  try{
+    await stopCentralLiveUpdates();
+
+    centralDriversChannel=sb.channel("central-drivers-live-v2")
+      .on("postgres_changes",{event:"*",schema:"public",table:"drivers"},payload=>{
+        applyDriverRealtime(payload);
+        loadDrivers();
+      })
+      .subscribe(status=>centralChannelStatus("drivers",status));
+
+    centralDeliveriesChannel=sb.channel("central-deliveries-live-v2")
+      .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},handleCentralDeliveryRealtime)
+      .subscribe(status=>centralChannelStatus("deliveries",status));
+
+    centralCustomersChannel=sb.channel("central-customers-live-v2")
+      .on("postgres_changes",{event:"*",schema:"public",table:"customers"},()=>loadCustomers())
+      .subscribe(status=>centralChannelStatus("customers",status));
+
+    // Segunda camada de segurança: mesmo se algum evento Realtime for perdido,
+    // a Central se atualiza sem precisar recarregar a página.
+    centralLivePollTimer=setInterval(pollCentralFast,5000);
+    centralSlowPollTimer=setInterval(pollCentralSlow,15000);
+
+    setCentralConnectionStatus("🟢 Supabase conectado • iniciando tempo real");
+  }finally{
+    centralRealtimeStarting=false;
+  }
+}
+
+
+if(sb&&sb.auth&&typeof sb.auth.onAuthStateChange==="function"){
+  sb.auth.onAuthStateChange((event,session)=>{
+    if(event==="SIGNED_OUT"){
+      stopCentralLiveUpdates();
+      return;
+    }
+    if(session?.user&&currentAdminUser){
+      setTimeout(()=>startCentralLiveUpdates(),0);
+    }
+  });
+}
+
 if(sb){
-  document.getElementById("connection").textContent="🟢 Supabase conectado";
+  setCentralConnectionStatus("🟢 Supabase conectado");
   verifyAdminSession().then(async ok=>{
     if(!ok)return;
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
-    sb.channel("central-drivers-live").on("postgres_changes",{event:"*",schema:"public",table:"drivers"},payload=>{applyDriverRealtime(payload);loadDrivers();}).subscribe();
-    sb.channel("central-deliveries-fix").on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},handleCentralDeliveryRealtime).subscribe();
-    setInterval(loadDrivers,5000);
+    await startCentralLiveUpdates();
   });
 }
 </script>
