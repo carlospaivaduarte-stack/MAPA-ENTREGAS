@@ -307,6 +307,16 @@ input::placeholder,textarea::placeholder{color:#7890a5}
 .op-status{display:inline-block;padding:5px 7px;border-radius:999px;font-size:9px;font-weight:900}.op-status.waiting{background:#403409;color:#ffe066}.op-status.route{background:#192a58;color:#91b4ff}.op-status.late{background:#4a171d;color:#ff8f97}
 .mini-action{background:#15304a;color:#fff;padding:6px 8px;font-size:9px}
 .delivery-actions-pro{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.delivery{position:relative}
+.payment-badge{
+  position:absolute;top:8px;right:0;z-index:2;
+  display:inline-flex;align-items:center;gap:5px;
+  background:#0b3a28;color:#7cf3b0;border:1px solid #176a49;
+  border-radius:999px;padding:5px 9px;font-size:10px;font-weight:900;
+  letter-spacing:.2px;white-space:nowrap
+}
+.history-payment{display:inline-block;margin-top:4px;color:#18a56b;font-weight:900}
+
 .settings-intro{font-size:11px;color:#9bb0c2;line-height:1.5;background:#0d2237;border:1px solid #24435f;border-radius:11px;padding:10px;margin-bottom:10px}
 .setting-item{display:grid;grid-template-columns:1fr 135px;gap:12px;align-items:center;border-top:1px solid var(--pro-line);padding:13px 0}.setting-item b{font-size:12px}.setting-item span{display:block;font-size:10px;color:#8fa7bb;margin-top:3px}.setting-input-wrap{display:flex;align-items:center;gap:5px}.setting-input-wrap input{margin:0}.setting-input-wrap>span{margin:0;color:#b8c9d7}
 .detail-drawer-backdrop{position:fixed;inset:0;background:#020b14aa;z-index:5000;display:none}.detail-drawer-backdrop.open{display:block}
@@ -657,6 +667,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div><strong>Nº / Bloco / Andar:</strong> <span id="detailUnit">Não informado</span></div>
       <div><strong>Referência:</strong> <span id="detailReference">Não informado</span></div>
       <div><strong>Observação:</strong> <span id="detailNote">Sem observação</span></div>
+      <div><strong>Pagamento:</strong> <span id="detailPayment">Não informado</span></div>
     </div>
 
     <div class="detail-section-title" style="margin-top:18px">LINHA DO TEMPO</div>
@@ -1033,13 +1044,18 @@ function renderOperationalTable(){
     if(!(d.status==="awaiting_collection"||d.status==="pending"))return false;
     const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
     if(q){
-      const match=
-        startsWithText(d.client_name,q) ||
-        startsWithDigits(d.client_phone,q) ||
-        startsWithText(drv?.name,q) ||
-        startsWithDigits(drv?.phone,q) ||
-        startsWithDigits(drv?.cpf,q) ||
-        startsWithText(d.id,q);
+      let match=false;
+      if(isExplicitIdSearch(q)){
+        match=startsWithText(d.id,idSearchValue(q)) || startsWithText(drv?.id,idSearchValue(q));
+      }else if(isNumericSearch(q)){
+        match=startsWithDigits(d.client_phone,q) ||
+              startsWithDigits(drv?.phone,q) ||
+              startsWithDigits(drv?.cpf,q) ||
+              startsWithDigits(d.id,q) ||
+              startsWithDigits(drv?.id,q);
+      }else{
+        match=startsWithText(d.client_name,q) || startsWithText(drv?.name,q);
+      }
       if(!match)return false;
     }
     if(st==="late")return isDeliveryLate(d,s);
@@ -1109,8 +1125,11 @@ function deliveryTimeline(d){
   if(d.collected_at)events.push({t:d.collected_at,title:"Coleta realizada",meta:d.collected_by_name||"Motoboy"});
   const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
   if(d.status==="pending"&&drv?.last_seen)events.push({t:drv.last_seen,title:"Última localização do motoboy",meta:relativeAge(drv.last_seen)});
+  if(d.status==="done"&&d.payment_method){
+    events.push({t:d.payment_confirmed_at||d.completed_at||d.updated_at,title:"Pagamento confirmado",meta:d.payment_method});
+  }
   if((d.status==="done"||d.status==="failed")&&(d.completed_at||d.updated_at)){
-    events.push({t:d.completed_at||d.updated_at,title:d.status==="done"?"Entrega concluída":"Entrega não realizada",meta:d.note||statusText(d)});
+    events.push({t:d.completed_at||d.updated_at,title:d.status==="done"?"Entrega concluída":"Entrega não realizada",meta:d.status==="done"?(d.payment_method||statusText(d)):(d.note||statusText(d))});
   }
   return events.sort((a,b)=>new Date(a.t)-new Date(b.t));
 }
@@ -1134,6 +1153,7 @@ function renderDeliveryDetails(id){
   document.getElementById("detailUnit").textContent=d.unit_details||"Não informado";
   document.getElementById("detailReference").textContent=d.reference_point||"Não informado";
   document.getElementById("detailNote").textContent=d.note||"Sem observação";
+  document.getElementById("detailPayment").textContent=d.payment_method||"Não informado";
   document.getElementById("detailTimeline").innerHTML=deliveryTimeline(d).map(e=>`
     <div class="timeline-event-pro"><b>${esc(e.title)}</b><span>${fmtDateTime(e.t)}${e.meta?` • ${esc(e.meta)}`:""}</span></div>`).join("")||'<div class="small">Sem eventos registrados.</div>';
 
@@ -1268,9 +1288,9 @@ function renderClientsRegistry(){
 
   const rows=allCustomers.filter(c=>{
     if(!q)return true;
-    return startsWithText(c.name,q) ||
-           startsWithDigits(c.phone,q) ||
-           startsWithText(c.id,q);
+    if(isExplicitIdSearch(q))return startsWithText(c.id,idSearchValue(q));
+    if(isNumericSearch(q))return startsWithDigits(c.phone,q) || startsWithDigits(c.id,q);
+    return startsWithText(c.name,q);
   });
 
   if(count)count.textContent=`${rows.length} cliente(s)`;
@@ -1425,11 +1445,11 @@ function renderCustomerResults(query){
   const box=document.getElementById("customerResults");
   const q=String(query||"").trim();
   if(!q){box.innerHTML="";box.classList.remove("open");return}
-  const rows=allCustomers.filter(c=>
-    startsWithText(c.name,q) ||
-    startsWithDigits(c.phone,q) ||
-    startsWithText(c.id,q)
-  ).slice(0,12);
+  const rows=allCustomers.filter(c=>{
+    if(isExplicitIdSearch(q))return startsWithText(c.id,idSearchValue(q));
+    if(isNumericSearch(q))return startsWithDigits(c.phone,q) || startsWithDigits(c.id,q);
+    return startsWithText(c.name,q);
+  }).slice(0,12);
   box.innerHTML=rows.length?rows.map(c=>`
     <div class="customer-result" data-customer-id="${c.id}">
       <b>${esc(c.name||"Cliente")}</b>
@@ -1682,9 +1702,9 @@ function filteredDeliveries(){
   const st=document.getElementById("statusFilter").value;
   let rows=allDeliveries.filter(d=>{
     const mq=!q ||
-      startsWithText(d.client_name,q) ||
-      startsWithDigits(d.client_phone,q) ||
-      startsWithText(d.id,q);
+      (isExplicitIdSearch(q) && startsWithText(d.id,idSearchValue(q))) ||
+      (isNumericSearch(q) && (startsWithDigits(d.client_phone,q) || startsWithDigits(d.id,q))) ||
+      (!isNumericSearch(q) && !isExplicitIdSearch(q) && startsWithText(d.client_name,q));
     const inTab=currentDeliveryTab==="active"
       ? (d.status==="awaiting_collection"||d.status==="pending")
       : (d.status==="done"||d.status==="failed");
@@ -1713,12 +1733,13 @@ function renderDeliveries(){
     const order=(d.status==="pending"&&d.route_order)?`${d.route_order}. `:"";
     const driverText=d.status==="awaiting_collection"?"Ainda sem motoqueiro":(driver?driver.name:"Motoqueiro não encontrado");
     return `<div class="delivery">
+      ${d.status==="done"&&d.payment_method?`<span class="payment-badge">💰 ${esc(d.payment_method)}</span>`:""}
       <b>${currentDeliveryTab==="finished"?(d.status==="done"?"🟢 ":"🔴 "):""}${order}${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>🏍️ ${esc(driverText)}
       ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}
       ${d.collected_at?`<br><span style="font-size:11px;color:#555"><b>🏍️ Coleta: ${esc(d.collected_by_name||driverText)}</b></span>`:""}
       ${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}
-      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
+      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span style="font-size:11px;color:#168a55"><b>💰 Pagamento: ${esc(d.payment_method)}</b></span>`:""}
       ${(d.building_name||d.unit_details||d.reference_point)?`<br><span style="color:#a16207">ℹ️ ${esc([d.building_name,d.unit_details,d.reference_point].filter(Boolean).join(" · "))}</span>`:""}${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
       <div class="delivery-actions-pro" style="margin-top:6px">
         <button class="blue" onclick="openDeliveryDetails('${d.id}')">📋 DETALHES</button>
@@ -1774,7 +1795,7 @@ async function loadHistory7(){
     const removed=d.deleted_at?` · 🗑️ Removida ${fmtDateTime(d.deleted_at)}`:"";
     const complete=d.completed_at?` · 🕐 ${fmtDateTime(d.completed_at)}`:"";
     return `<div class="history-item"><b>${statusIcon(d)} ${esc(d.client_name)}</b><br>
-      <span class="small">${statusText(d)}${d.collected_by_name?` · 🏍️ Coleta: ${esc(d.collected_by_name)}`:""}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}</span></div>`;
+      <span class="small">${statusText(d)}${d.collected_by_name?` · 🏍️ Coleta: ${esc(d.collected_by_name)}`:""}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}${d.status==="done"&&d.payment_method?`<br><span class="history-payment">💰 ${esc(d.payment_method)}</span>`:""}</span></div>`;
   }).join(""):'<div class="small">Nenhuma entrega nos últimos 30 dias.</div>';
 }
 
@@ -1816,7 +1837,7 @@ function renderHistory(){
   });
   allDeliveries.forEach(d=>{
     const t=d.completed_at||(d.status==="done"||d.status==="failed"?d.updated_at:null);
-    if(t&&sameDay(t))events.push({t,text:`${d.status==="done"?"✅":"❌"} ${d.client_name} — ${statusText(d)}${d.note?" — "+d.note:""}`});
+    if(t&&sameDay(t))events.push({t,text:`${d.status==="done"?"✅":"❌"} ${d.client_name} — ${statusText(d)}${d.status==="done"&&d.payment_method?" — 💰 "+d.payment_method:""}${d.note?" — "+d.note:""}`});
   });
   events.sort((a,b)=>new Date(b.t)-new Date(a.t));
   document.getElementById("history").innerHTML=events.length?events.map(e=>`<div class="history-item"><b>${fmtTime(e.t)}</b> · ${esc(e.text)}</div>`).join(""):'<div class="small">Nenhum evento hoje.</div>';
@@ -2071,7 +2092,7 @@ document.getElementById("fitMap").onclick=()=>{
 document.getElementById("exportReport").onclick=()=>{
   const driverMap=Object.fromEntries(allDrivers.map(d=>[d.id,d.name]));
   const rows=[["Cliente","Telefone","Motoqueiro","Status","Conclusao","Motivo","Latitude","Longitude"]];
-  filteredDeliveries().forEach(d=>rows.push([d.client_name||"",d.client_phone||"",driverMap[d.driver_id]||"",statusText(d),d.completed_at||d.updated_at||"",d.note||"",d.lat,d.lng]));
+  filteredDeliveries().forEach(d=>rows.push([d.client_name||"",d.client_phone||"",driverMap[d.driver_id]||"",statusText(d),d.payment_method||"",d.completed_at||d.updated_at||"",d.note||"",d.lat,d.lng]));
   const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RTS_RELATORIO_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
@@ -2126,16 +2147,33 @@ function startsWithDigits(value,query){
   const q=normalizeSearchDigits(query);
   return !!q && normalizeSearchDigits(value).startsWith(q);
 }
+function isNumericSearch(query){
+  const raw=String(query||"").trim();
+  return !!raw && /^[\d\s()+.\-]+$/.test(raw);
+}
+function isExplicitIdSearch(query){
+  return String(query||"").trim().startsWith("#");
+}
+function idSearchValue(query){
+  return String(query||"").trim().replace(/^#\s*/,"");
+}
 function globalSearchMatches(q){
   const raw=String(q||"").trim();
   if(!raw)return [];
+  const numeric=isNumericSearch(raw);
+  const explicitId=isExplicitIdSearch(raw);
+  const idQ=idSearchValue(raw);
   const items=[];
 
   (allDeliveries||[]).forEach(d=>{
-    const match=
-      startsWithText(d.client_name,raw) ||
-      startsWithDigits(d.client_phone,raw) ||
-      startsWithText(d.id,raw);
+    let match=false;
+    if(explicitId){
+      match=startsWithText(d.id,idQ);
+    }else if(numeric){
+      match=startsWithDigits(d.client_phone,raw) || startsWithDigits(d.id,raw);
+    }else{
+      match=startsWithText(d.client_name,raw);
+    }
     if(match)items.push({
       type:"delivery",id:d.id,icon:"📦",
       title:d.client_name||"Entrega",
@@ -2144,10 +2182,14 @@ function globalSearchMatches(q){
   });
 
   (allCustomers||[]).forEach(c=>{
-    const match=
-      startsWithText(c.name,raw) ||
-      startsWithDigits(c.phone,raw) ||
-      startsWithText(c.id,raw);
+    let match=false;
+    if(explicitId){
+      match=startsWithText(c.id,idQ);
+    }else if(numeric){
+      match=startsWithDigits(c.phone,raw) || startsWithDigits(c.id,raw);
+    }else{
+      match=startsWithText(c.name,raw);
+    }
     if(match)items.push({
       type:"customer",id:c.id,icon:"👤",
       title:c.name||"Cliente",
@@ -2156,11 +2198,14 @@ function globalSearchMatches(q){
   });
 
   (allDrivers||[]).forEach(d=>{
-    const match=
-      startsWithText(d.name,raw) ||
-      startsWithDigits(d.phone,raw) ||
-      startsWithDigits(d.cpf,raw) ||
-      startsWithText(d.id,raw);
+    let match=false;
+    if(explicitId){
+      match=startsWithText(d.id,idQ);
+    }else if(numeric){
+      match=startsWithDigits(d.phone,raw) || startsWithDigits(d.cpf,raw) || startsWithDigits(d.id,raw);
+    }else{
+      match=startsWithText(d.name,raw);
+    }
     if(match)items.push({
       type:"driver",id:d.id,icon:"🏍️",
       title:d.name||"Motoboy",

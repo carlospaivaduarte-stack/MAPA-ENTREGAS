@@ -97,7 +97,24 @@ button{cursor:pointer}
 .panel-header{display:none!important}
 input,textarea{width:100%;padding:12px;background:#071421;color:#fff;border:1px solid #173047;border-radius:12px;margin-bottom:8px}
 .modal{position:fixed;z-index:4000;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}
-.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}.delivery-info-row{display:flex;flex-direction:column;gap:4px;padding:13px 4px;border-bottom:1px solid #173047}.delivery-info-row b{color:#9baabd;font-size:12px}.delivery-info-row span{font-size:15px;font-weight:800}.info-delivery-btn{float:right;background:#ffd400;color:#111;border:0;border-radius:12px;width:42px;height:42px;display:grid;place-items:center;padding:0;box-shadow:0 5px 14px #0004;cursor:pointer}
+.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}.delivery-info-row{display:flex;flex-direction:column;gap:4px;padding:13px 4px;border-bottom:1px solid #173047}.delivery-info-row b{color:#9baabd;font-size:12px}.delivery-info-row span{font-size:15px;font-weight:800}
+.delivery{position:relative}
+.moto-payment-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  margin-top:6px;padding:5px 9px;border-radius:999px;
+  background:#0a3b28;border:1px solid #176746;color:#7cf3b0;
+  font-size:11px;font-weight:900
+}
+.info-delivery-btn{float:right;background:#ffd400;color:#111;border:0;border-radius:12px;width:42px;height:42px;display:grid;place-items:center;padding:0;box-shadow:0 5px 14px #0004;cursor:pointer}
+.payment-modal-box{width:min(450px,100%);background:#071421;border:1px solid #173047;border-radius:20px;padding:18px;color:#fff;box-shadow:0 20px 60px #0009}
+.payment-modal-title{display:flex;align-items:center;gap:10px;margin-bottom:6px}.payment-modal-title .ico{width:42px;height:42px;border-radius:13px;background:#ffd400;color:#111;display:grid;place-items:center;font-size:22px}.payment-modal-title h3{margin:0;font-size:19px}
+.payment-modal-sub{font-size:12px;color:#9baabd;margin:0 0 16px;line-height:1.45}
+.payment-options{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.payment-option{border:1px solid #25445e;background:#0b2033;color:#fff;border-radius:14px;min-height:58px;padding:10px 8px;font-weight:900;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-align:center}
+.payment-option:active{transform:scale(.98)}.payment-option.primary{background:#ffd400;color:#111;border-color:#ffd400}.payment-option.card{background:#12315a}.payment-option.cash{background:#123d2b}
+.payment-cancel{width:100%;margin-top:12px;background:#172635;color:#d7e4ef;border:1px solid #294156;border-radius:13px;padding:12px;font-weight:900;cursor:pointer}
+.payment-processing{opacity:.55;pointer-events:none}
+
 .info-delivery-btn svg{width:22px;height:22px;stroke:#111;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .info-delivery-btn:active{transform:scale(.96)}
 .bottom-nav{position:fixed;z-index:2500;left:0;right:0;bottom:0;height:86px;background:#071421f5;border-top:1px solid #173047;border-radius:26px 26px 0 0;display:grid;grid-template-columns:repeat(4,1fr);padding:9px max(8px,calc((100vw - 760px)/2 + 8px))}
@@ -1015,6 +1032,26 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
   </div>
 </div>
 
+
+<div class="modal" id="paymentModal">
+  <div class="payment-modal-box">
+    <div class="payment-modal-title">
+      <div class="ico">💰</div>
+      <div><h3>Confirmar pagamento</h3></div>
+    </div>
+    <p class="payment-modal-sub">Selecione como o cliente realizou o pagamento. A entrega só será marcada como ENTREGUE depois da escolha.</p>
+    <div class="payment-options" id="paymentOptions">
+      <button type="button" class="payment-option primary" data-payment="PIX">PIX</button>
+      <button type="button" class="payment-option card" data-payment="CARTÃO">💳 CARTÃO</button>
+      <button type="button" class="payment-option" data-payment="PIX E CC">PIX E CC</button>
+      <button type="button" class="payment-option" data-payment="PIX E DINHEIRO">PIX E DINHEIRO</button>
+      <button type="button" class="payment-option cash" data-payment="DINHEIRO E CC">DINHEIRO E CC</button>
+      <button type="button" class="payment-option cash" data-payment="DINHEIRO E PIX">DINHEIRO E PIX</button>
+    </div>
+    <button type="button" class="payment-cancel" id="cancelPayment">CANCELAR</button>
+  </div>
+</div>
+
 <div class="modal" id="editModal">
   <div class="modalbox">
     <h3>✏️ Editar entrega</h3>
@@ -1306,6 +1343,11 @@ function renderDailyHistory(){
   if(!box)return;
   const done=finishedDeliveries.filter(d=>d.status==="done").length;
   const failed=finishedDeliveries.filter(d=>d.status==="failed").length;
+  const paymentSummary={};
+  finishedDeliveries.filter(d=>d.status==="done"&&d.payment_method).forEach(d=>{
+    paymentSummary[d.payment_method]=(paymentSummary[d.payment_method]||0)+1;
+  });
+  const paymentRows=Object.entries(paymentSummary).map(([method,count])=>`<div class="small" style="margin-top:4px">💰 ${esc(method)}: <b>${count}</b></div>`).join("");
   const w=operationalDayWindow();
   const startText=w.start.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
   box.innerHTML=`
@@ -1316,7 +1358,8 @@ function renderDailyHistory(){
       <div class="metric">Entregues<b>${done}</b></div>
       <div class="metric">Não ent.<b>${failed}</b></div>
       <div class="metric">Coletadas<b>${currentDeliveries.filter(d=>d.collected_at&&isOperationalToday(d.collected_at)).length}</b></div>
-    </div>`;
+    </div>
+    ${paymentRows?`<div style="margin-top:10px;padding-top:9px;border-top:1px solid #173044"><b style="font-size:11px">FORMAS DE PAGAMENTO</b>${paymentRows}</div>`:""}`;
 }
 
 function openDeliveryInfo(id){
@@ -1397,7 +1440,7 @@ function renderDeliveries(data){
     <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega" aria-label="Informações da entrega"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M8 11h8M8 15h8M8 19h5"/></svg></button>
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}</div>
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}</span>`:""}</div>
     ${currentMotoboyTab==="history"?"":(d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
@@ -1484,7 +1527,8 @@ window.returnToPending=async id=>{
   const {error}=await sb.from("deliveries").update({
     status:"pending",
     completed_at:null,
-    note:"",
+    payment_method:null,
+    payment_confirmed_at:null,
     route_order:null,
     updated_at:nowIso
   }).eq("id",id);
@@ -1504,10 +1548,84 @@ window.returnToPending=async id=>{
   alert("Entrega voltou para PENDENTE. Organize a rota novamente.");
 };
 
+
+let pendingPaymentDeliveryId=null;
+let pendingPaymentSource="active";
+let paymentSaving=false;
+
+function openPaymentModal(id,source="active"){
+  pendingPaymentDeliveryId=id;
+  pendingPaymentSource=source;
+  paymentSaving=false;
+  document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+  document.getElementById("paymentModal")?.classList.add("open");
+}
+function closePaymentModal(){
+  if(paymentSaving)return;
+  pendingPaymentDeliveryId=null;
+  document.getElementById("paymentModal")?.classList.remove("open");
+}
+async function finalizeDeliveredWithPayment(paymentMethod){
+  if(!sb||!pendingPaymentDeliveryId||paymentSaving)return;
+  paymentSaving=true;
+  document.getElementById("paymentOptions")?.classList.add("payment-processing");
+  const id=pendingPaymentDeliveryId;
+  const nowIso=new Date().toISOString();
+
+  const {error}=await sb.from("deliveries").update({
+    status:"done",
+    payment_method:paymentMethod,
+    payment_confirmed_at:nowIso,
+    completed_at:nowIso,
+    updated_at:nowIso
+  }).eq("id",id);
+
+  if(error){
+    paymentSaving=false;
+    document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+    alert("Erro ao confirmar pagamento/entrega: "+error.message);
+    return;
+  }
+
+  const delivery=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
+  await renumberActiveRoute(delivery?.driver_id||driverId);
+
+  pendingPaymentDeliveryId=null;
+  paymentSaving=false;
+  document.getElementById("paymentModal")?.classList.remove("open");
+  document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+
+  await loadDeliveries();
+
+  const {data:remaining}=await sb.from("deliveries")
+    .select("id")
+    .eq("driver_id",driverId)
+    .eq("status","pending")
+    .limit(1);
+
+  if(!remaining||remaining.length===0){
+    await sb.from("drivers").update({route_finished_at:nowIso}).eq("id",driverId);
+    if(currentDriver)currentDriver.route_finished_at=nowIso;
+    renderRouteTimes();
+  }
+}
+
+document.getElementById("cancelPayment")?.addEventListener("click",closePaymentModal);
+document.getElementById("paymentModal")?.addEventListener("click",e=>{
+  if(e.target?.id==="paymentModal")closePaymentModal();
+});
+document.querySelectorAll("[data-payment]").forEach(btn=>{
+  btn.addEventListener("click",()=>finalizeDeliveredWithPayment(btn.dataset.payment));
+});
+
 window.switchFinalStatus=async(id,status)=>{
   const d=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
   if(!d)return;
   if(d.status===status)return alert(status==="done"?"Já está marcado como ENTREGUE.":"Já está marcado como NÃO ENTREGUE.");
+  if(status==="done"){
+    openPaymentModal(id,"finished");
+    return;
+  }
   let note=d.note||"";
   if(status==="failed"){
     const choice=prompt("Motivo da não entrega:\n1 - Cliente ausente\n2 - Endereço não localizado\n3 - Cliente recusou\n4 - Outro");
@@ -1517,8 +1635,6 @@ window.switchFinalStatus=async(id,status)=>{
     else if(choice==="3")note="Cliente recusou";
     else if(choice==="4")note=prompt("Digite o motivo:")||"Outro";
     else note=choice||"Não informado";
-  }else{
-    note="";
   }
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({
@@ -1532,6 +1648,10 @@ window.switchFinalStatus=async(id,status)=>{
 };
 
 async function setStatus(id,status){
+  if(status==="done"){
+    openPaymentModal(id,"active");
+    return;
+  }
   let note="";
   if(status==="failed"){
     const choice=prompt("Motivo da não entrega:\n1 - Cliente ausente\n2 - Endereço não localizado\n3 - Cliente recusou\n4 - Outro");
@@ -1543,7 +1663,7 @@ async function setStatus(id,status){
     else note=choice||"Não informado";
   }
   const nowIso=new Date().toISOString();
-  const {error}=await sb.from("deliveries").update({status,note,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
+  const {error}=await sb.from("deliveries").update({status,note,payment_method:null,payment_confirmed_at:null,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
   if(error)return alert("Erro ao atualizar entrega: "+error.message);
   if(status==="done"||status==="failed")await renumberActiveRoute((currentDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
   await loadDeliveries();
