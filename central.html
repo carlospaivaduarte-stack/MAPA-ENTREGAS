@@ -505,6 +505,9 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     <input id="customerEditName" placeholder="Nome do cliente">
     <input id="customerEditPhone" placeholder="Telefone / WhatsApp">
     <textarea id="customerEditAddress" placeholder="Endereço fixo: link do Google Maps ou coordenadas"></textarea>
+    <input id="customerEditBuildingName" placeholder="Nome do edifício / prédio">
+    <input id="customerEditUnitDetails" placeholder="Nº - Bloco - Andar">
+    <textarea id="customerEditReferencePoint" placeholder="Ponto de referência"></textarea>
     <div id="customerEditLocationResult" class="small" style="margin:6px 0 10px"></div>
     <div class="row">
       <button class="green" id="saveCustomerEdit">💾 SALVAR</button>
@@ -815,6 +818,10 @@ function selectCustomer(c){
   document.getElementById("client").value=c.name||"";
   document.getElementById("phone").value=c.phone||"";
   document.getElementById("location").value=c.fixed_address||"";
+  document.getElementById("saleBuildingName").value=c.building_name||"";
+  document.getElementById("saleUnitDetails").value=c.unit_details||"";
+  document.getElementById("saleReferencePoint").value=c.reference_point||"";
+  document.getElementById("saleNote").value="";
   document.getElementById("customerSearch").value=c.name||"";
   document.getElementById("selectedCustomerInfo").textContent=`Cliente selecionado: ${customerLabel(c)}`;
   document.getElementById("customerResults").classList.remove("open");
@@ -853,6 +860,7 @@ function renderClientsRegistry(){
       <b>👤 ${esc(c.name||"Cliente")}</b>
       <div class="client-phone">📱 ${esc(c.phone||"Sem telefone")}</div>
       <div class="client-address">📍 ${esc(c.fixed_address||"Sem endereço fixo")}</div>
+      ${(c.building_name||c.unit_details||c.reference_point)?`<div class="client-address" style="margin-top:4px">🏢 ${esc(c.building_name||"—")}${c.unit_details?` · ${esc(c.unit_details)}`:""}${c.reference_point?`<br>📌 ${esc(c.reference_point)}`:""}</div>`:""}
       <div class="client-card-actions">
         <button class="blue" onclick="useCustomerInSale('${c.id}')">➕ NOVA ENTREGA</button>
         <button class="gray" onclick="centerCustomerAddress('${c.id}')">📍 VER NO MAPA</button>
@@ -891,6 +899,9 @@ window.editCustomer=id=>{
   document.getElementById("customerEditName").value=c.name||"";
   document.getElementById("customerEditPhone").value=c.phone||"";
   document.getElementById("customerEditAddress").value=c.fixed_address||"";
+  document.getElementById("customerEditBuildingName").value=c.building_name||"";
+  document.getElementById("customerEditUnitDetails").value=c.unit_details||"";
+  document.getElementById("customerEditReferencePoint").value=c.reference_point||"";
   document.getElementById("customerEditLocationResult").textContent=editingCustomerResolved
     ? `Coordenadas atuais: ${editingCustomerResolved.lat.toFixed(6)}, ${editingCustomerResolved.lng.toFixed(6)}`
     : "";
@@ -916,6 +927,9 @@ document.getElementById("saveCustomerEdit").onclick=async()=>{
   const name=document.getElementById("customerEditName").value.trim();
   const phone=document.getElementById("customerEditPhone").value.trim();
   const address=document.getElementById("customerEditAddress").value.trim();
+  const buildingName=document.getElementById("customerEditBuildingName").value.trim();
+  const unitDetails=document.getElementById("customerEditUnitDetails").value.trim();
+  const referencePoint=document.getElementById("customerEditReferencePoint").value.trim();
 
   if(!name)return alert("Informe o nome do cliente.");
   if(!address)return alert("Informe o endereço fixo.");
@@ -933,6 +947,9 @@ document.getElementById("saveCustomerEdit").onclick=async()=>{
       fixed_address:address,
       fixed_lat:p.lat,
       fixed_lng:p.lng,
+      building_name:buildingName||null,
+      unit_details:unitDetails||null,
+      reference_point:referencePoint||null,
       updated_at:new Date().toISOString()
     }).eq("id",c.id);
 
@@ -1019,6 +1036,9 @@ async function ensureCustomerSaved(){
   const name=document.getElementById("client").value.trim();
   const phone=document.getElementById("phone").value.trim();
   const fixedAddress=document.getElementById("location").value.trim();
+  const buildingName=document.getElementById("saleBuildingName").value.trim();
+  const unitDetails=document.getElementById("saleUnitDetails").value.trim();
+  const referencePoint=document.getElementById("saleReferencePoint").value.trim();
   if(!name)throw new Error("Informe o nome do cliente.");
   if(!fixedAddress)throw new Error("Informe o endereço fixo do cliente.");
 
@@ -1033,8 +1053,11 @@ async function ensureCustomerSaved(){
     const sameName=String(selected.name||"").trim()===name;
     const samePhone=normalizePhone(selected.phone||"")===normalizePhone(phone);
     const sameAddress=String(selected.fixed_address||"").trim()===fixedAddress;
+    const sameBuilding=String(selected.building_name||"").trim()===buildingName;
+    const sameUnit=String(selected.unit_details||"").trim()===unitDetails;
+    const sameReference=String(selected.reference_point||"").trim()===referencePoint;
     const hasCoords=selected.fixed_lat!=null&&selected.fixed_lng!=null;
-    if(sameName&&samePhone&&sameAddress&&hasCoords){
+    if(sameName&&samePhone&&sameAddress&&sameBuilding&&sameUnit&&sameReference&&hasCoords){
       fixedResolved={lat:Number(selected.fixed_lat),lng:Number(selected.fixed_lng)};
       return selected;
     }
@@ -1050,7 +1073,13 @@ async function ensureCustomerSaved(){
     coords=await resolveGoogleLocation(fixedAddress);
   }
 
-  const row={name,phone,fixed_address:fixedAddress,fixed_lat:coords.lat,fixed_lng:coords.lng,updated_at:new Date().toISOString()};
+  const row={
+    name,phone,fixed_address:fixedAddress,fixed_lat:coords.lat,fixed_lng:coords.lng,
+    building_name:buildingName||null,
+    unit_details:unitDetails||null,
+    reference_point:referencePoint||null,
+    updated_at:new Date().toISOString()
+  };
 
   if(selectedCustomerId){
     const id=selectedCustomerId;
@@ -1681,8 +1710,13 @@ async function loadDriverRegistry(){
   box.innerHTML='<div class="small">Carregando cadastros...</div>';
 
   try{
-    const result=await driverAdminRequest("list");
-    const list=result.drivers||[];
+    const {data:rows,error}=await sb.from("driver_accounts")
+      .select("cpf,name,phone,active,created_at,updated_at")
+      .order("name",{ascending:true});
+
+    if(error)throw error;
+
+    const list=rows||[];
     if(count)count.textContent=`${list.length} cadastro(s)`;
 
     box.innerHTML=list.length?list.map(d=>`
@@ -1771,15 +1805,12 @@ document.getElementById("registerDriverAccount")?.addEventListener("click",async
 let editingDriverCpf=null;
 
 window.editDriverAccount=async cpf=>{
-  let data;
-  try{
-    const result=await driverAdminRequest("get",{cpf});
-    data=result.driver;
-  }catch(e){
-    return alert(e.message||"Não foi possível carregar o cadastro do motoboy.");
-  }
+  const {data,error}=await sb.from("driver_accounts")
+    .select("cpf,name,phone,active")
+    .eq("cpf",cpf)
+    .maybeSingle();
 
-  if(!data)return alert("Não foi possível carregar o cadastro do motoboy.");
+  if(error||!data)return alert("Não foi possível carregar o cadastro do motoboy.");
 
   editingDriverCpf=data.cpf;
   document.getElementById("driverEditName").value=data.name||"";
@@ -1806,7 +1837,20 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
   btn.disabled=true;btn.textContent="SALVANDO...";
 
   try{
-    await driverAdminRequest("update_profile",{cpf:editingDriverCpf,name,phone});
+    const {error}=await sb.from("driver_accounts")
+      .update({
+        name,
+        phone,
+        updated_at:new Date().toISOString()
+      })
+      .eq("cpf",editingDriverCpf);
+
+    if(error)throw error;
+
+    // Mantém o cadastro operacional/GPS com nome e telefone atualizados.
+    await sb.from("drivers")
+      .update({name,phone})
+      .eq("cpf",editingDriverCpf);
 
     document.getElementById("driverEditModal").classList.remove("open");
     editingDriverCpf=null;

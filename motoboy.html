@@ -97,7 +97,9 @@ button{cursor:pointer}
 .panel-header{display:none!important}
 input,textarea{width:100%;padding:12px;background:#071421;color:#fff;border:1px solid #173047;border-radius:12px;margin-bottom:8px}
 .modal{position:fixed;z-index:4000;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}
-.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}.delivery-info-row{display:flex;flex-direction:column;gap:4px;padding:13px 4px;border-bottom:1px solid #173047}.delivery-info-row b{color:#9baabd;font-size:12px}.delivery-info-row span{font-size:15px;font-weight:800}.info-delivery-btn{float:right;background:#ffd400;color:#111;border:0;border-radius:50%;width:38px;height:38px;font-weight:950;font-size:18px}
+.modalbox{width:min(440px,100%);background:#071421;border:1px solid #173047;border-radius:18px;padding:17px;color:#fff}.modalbox h3{margin-top:0}.delivery-info-row{display:flex;flex-direction:column;gap:4px;padding:13px 4px;border-bottom:1px solid #173047}.delivery-info-row b{color:#9baabd;font-size:12px}.delivery-info-row span{font-size:15px;font-weight:800}.info-delivery-btn{float:right;background:#ffd400;color:#111;border:0;border-radius:12px;width:42px;height:42px;display:grid;place-items:center;padding:0;box-shadow:0 5px 14px #0004;cursor:pointer}
+.info-delivery-btn svg{width:22px;height:22px;stroke:#111;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.info-delivery-btn:active{transform:scale(.96)}
 .bottom-nav{position:fixed;z-index:2500;left:0;right:0;bottom:0;height:86px;background:#071421f5;border-top:1px solid #173047;border-radius:26px 26px 0 0;display:grid;grid-template-columns:repeat(4,1fr);padding:9px max(8px,calc((100vw - 760px)/2 + 8px))}
 .nav-btn{border:0;background:transparent;color:#9baabd;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.nav-btn .ni{font-size:27px}.nav-btn.active{color:#08d15c}
 body.ui-minimized .below-map{display:none!important}
@@ -837,6 +839,9 @@ body.ui-minimized #map{
 .rts-collection-notice b{display:block;font-size:13px;color:#111827}.rts-collection-notice span{display:block;font-size:11px;color:#667085;margin-top:3px}
 @keyframes rtsCollectionNoticeIn{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
 
+
+/* RTS: caixa informativa verde antiga removida. */
+#readyCardsNotice,.ready-cards-notice,.map-fullscreen-notice,.legacy-ready-notice{display:none !important}
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -1001,10 +1006,11 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <div class="modal" id="deliveryInfoModal">
   <div class="modalbox" style="position:relative">
     <button id="closeDeliveryInfoX" type="button" style="position:absolute;right:12px;top:10px;background:transparent;color:#ffd400;font-size:25px;padding:4px;border:0">✕</button>
-    <h3 style="color:#ffd400">ℹ️ Informações da entrega</h3>
+    <h3 style="color:#ffd400">📋 Informações da entrega</h3>
     <div class="delivery-info-row"><b>🏢 Nome do edifício / prédio</b><span id="infoBuildingName">—</span></div>
     <div class="delivery-info-row"><b># Nº - Bloco - Andar</b><span id="infoUnitDetails">—</span></div>
     <div class="delivery-info-row"><b>📍 Ponto de referência</b><span id="infoReferencePoint">—</span></div>
+    <div class="delivery-info-row"><b>📝 Observação</b><span id="infoObservation">—</span></div>
     <button class="yellow" id="closeDeliveryInfo" style="width:100%;margin-top:12px">FECHAR</button>
   </div>
 </div>
@@ -1319,6 +1325,7 @@ function openDeliveryInfo(id){
   document.getElementById("infoBuildingName").textContent=d.building_name||"Não informado";
   document.getElementById("infoUnitDetails").textContent=d.unit_details||"Não informado";
   document.getElementById("infoReferencePoint").textContent=d.reference_point||"Não informado";
+  document.getElementById("infoObservation").textContent=d.note||"Sem observação";
   document.getElementById("deliveryInfoModal").classList.add("open");
 }
 window.openDeliveryInfo=openDeliveryInfo;
@@ -1387,11 +1394,10 @@ function renderDeliveries(data){
 
   const box=document.getElementById("deliveries");
   box.innerHTML=rows.length?rows.map(d=>`<div class="delivery">
-    <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega">i</button>
+    <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega" aria-label="Informações da entrega"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M8 11h8M8 15h8M8 19h5"/></svg></button>
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}
-      ${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}</div>
     ${currentMotoboyTab==="history"?"":(d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
