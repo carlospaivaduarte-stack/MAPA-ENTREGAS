@@ -1185,6 +1185,26 @@ function statusIcon(d){return d.status==="done"?"🟢":d.status==="failed"?"🔴
 function statusText(d){return d.status==="done"?"ENTREGUE":d.status==="failed"?"NÃO ENTREGUE":d.status==="awaiting_collection"?"AGUARDANDO COLETA":"PENDENTE"}
 function pinIcon(d,index){ return String(d.route_order||index+1); }
 
+function blueMotorcycleMarkerIcon(){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <circle cx="18" cy="46" r="10" fill="#0b1220" opacity="0.22"/>
+    <circle cx="46" cy="46" r="10" fill="#0b1220" opacity="0.22"/>
+    <circle cx="18" cy="46" r="8" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
+    <circle cx="46" cy="46" r="8" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
+    <path d="M24 44h9l7-12h8l4 6" fill="none" stroke="#1d4ed8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M24 44l-5-10h-7" fill="none" stroke="#2563eb" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M29 30h10l5 6H31z" fill="#38bdf8" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M34 24l8 2" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="18" cy="46" r="2.2" fill="#e2e8f0"/>
+    <circle cx="46" cy="46" r="2.2" fill="#e2e8f0"/>
+  </svg>`;
+  return {
+    url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),
+    scaledSize:new google.maps.Size(42,42),
+    anchor:new google.maps.Point(21,21)
+  };
+}
+
 
 async function renumberActiveRoute(driverId){
   if(!sb||!driverId)return;
@@ -1227,8 +1247,8 @@ async function loadDrivers(){
   allDrivers.forEach(d=>{
     if(d.lat==null||d.lng==null)return;
     const pos={lat:Number(d.lat),lng:Number(d.lng)},label=`🏍️ ${d.name} — ${d.is_online&&fresh(d)?"Online":"Offline"} — Localização Atualizada ${fmtTime(d.last_seen)}`;
-    if(!driverMarkers[d.id])driverMarkers[d.id]=new google.maps.Marker({position:pos,map,title:label});
-    else {driverMarkers[d.id].setPosition(pos);driverMarkers[d.id].setTitle(label);}
+    if(!driverMarkers[d.id])driverMarkers[d.id]=new google.maps.Marker({position:pos,map,title:label,icon:blueMotorcycleMarkerIcon()});
+    else {driverMarkers[d.id].setPosition(pos);driverMarkers[d.id].setTitle(label);driverMarkers[d.id].setIcon(blueMotorcycleMarkerIcon());}
   });
 
   // remove markers of deleted drivers
