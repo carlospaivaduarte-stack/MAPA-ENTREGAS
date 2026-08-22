@@ -193,6 +193,36 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 .secondary-toggle input{width:auto;margin:0}
 .secondary-area{display:none;margin-top:9px}.secondary-area.open{display:block}
 .customer-current{font-size:11px;color:#4b5563;padding:8px 10px;background:#eef4ff;border-radius:10px;margin:7px 0}
+.new-customer-label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:15px 2px 11px;
+  padding-top:11px;
+  border-top:1px solid #173047;
+  color:#f8fafc;
+  font-size:13px;
+  font-weight:900;
+  cursor:default;
+  user-select:none;
+}
+.new-customer-label .new-customer-icon{
+  width:20px;
+  height:20px;
+  color:#a855f7;
+  flex:0 0 auto;
+}
+.new-customer-label .new-customer-icon svg{
+  width:20px;
+  height:20px;
+  display:block;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.1;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
 
 
 /* ===== ABA CLIENTES ===== */
@@ -497,6 +527,16 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
           <div id="customerResults" class="customer-results"></div>
         </div>
         <div id="selectedCustomerInfo" class="customer-current">Nenhum cliente selecionado.</div>
+        <div class="new-customer-label" aria-label="Registrar novo cliente">
+          <span class="new-customer-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M15 19c0-3-2.7-5-6-5s-6 2-6 5"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M18 8v6M15 11h6"/>
+            </svg>
+          </span>
+          <span>Registrar novo cliente</span>
+        </div>
         <input id="client" placeholder="Nome do cliente">
         <input id="phone" placeholder="Telefone / WhatsApp">
         <textarea id="location" placeholder="Endereço fixo: link do Google Maps ou coordenadas"></textarea>
@@ -927,6 +967,61 @@ function showCentralDeliveryNotification(delivery){
   setTimeout(close,7000);
 }
 
+
+function showCentralMessage(message){
+  const stack=document.getElementById("rtsToastStack");
+  if(!stack)return;
+
+  const raw=String(message||"").trim();
+  if(!raw)return;
+
+  const lower=raw.toLowerCase();
+  const isError=
+    lower.includes("erro") ||
+    lower.includes("não foi possível") ||
+    lower.includes("nao foi possivel") ||
+    lower.includes("não é possível") ||
+    lower.includes("nao e possivel") ||
+    lower.includes("informe ") ||
+    lower.includes("confira ");
+
+  const isSuccess=
+    lower.includes("cadastrad") ||
+    lower.includes("atualizad") ||
+    lower.includes("limpo") ||
+    lower.includes("conclu");
+
+  const toast=document.createElement("div");
+  toast.className="rts-toast";
+  toast.style.cursor="default";
+
+  const icon=isError?"!":(isSuccess?"✓":"i");
+  const title=isError?"Atenção":(isSuccess?"Concluído":"Informação");
+
+  toast.innerHTML=`
+    <div class="rts-toast-icon">${icon}</div>
+    <div style="min-width:0;flex:1">
+      <div class="rts-toast-title">${esc(title)}</div>
+      <div class="rts-toast-client" style="font-weight:700">${esc(raw)}</div>
+    </div>
+    <div class="rts-toast-progress"></div>`;
+
+  if(isError){
+    const progress=toast.querySelector(".rts-toast-progress");
+    if(progress)progress.style.background="#ef4444";
+  }
+
+  stack.appendChild(toast);
+
+  const remove=()=>{
+    if(!toast.isConnected)return;
+    toast.classList.add("removing");
+    setTimeout(()=>toast.remove(),220);
+  };
+
+  setTimeout(remove,isError?9000:6000);
+}
+
 function syncCentralDeliveryStatusSnapshot(rows,notifyChanges=false){
   (rows||[]).forEach(d=>{
     const id=String(d.id||"");
@@ -1353,8 +1448,8 @@ window.useCustomerInSale=id=>{
 
 window.centerCustomerAddress=id=>{
   const c=allCustomers.find(x=>String(x.id)===String(id));
-  if(!c||c.fixed_lat==null||c.fixed_lng==null)return alert("Cliente sem coordenadas salvas.");
-  if(!map)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
+  if(!c||c.fixed_lat==null||c.fixed_lng==null)return showCentralMessage("Cliente sem coordenadas salvas.");
+  if(!map)return showCentralMessage("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   map.setCenter({lat:Number(c.fixed_lat),lng:Number(c.fixed_lng)});
   map.setZoom(17);
 };
@@ -1405,8 +1500,8 @@ document.getElementById("saveCustomerEdit").onclick=async()=>{
   const unitDetails=document.getElementById("customerEditUnitDetails").value.trim();
   const referencePoint=document.getElementById("customerEditReferencePoint").value.trim();
 
-  if(!name)return alert("Informe o nome do cliente.");
-  if(!address)return alert("Informe o endereço fixo.");
+  if(!name)return showCentralMessage("Informe o nome do cliente.");
+  if(!address)return showCentralMessage("Informe o endereço fixo.");
 
   const btn=document.getElementById("saveCustomerEdit");
   const old=btn.textContent;
@@ -1433,9 +1528,9 @@ document.getElementById("saveCustomerEdit").onclick=async()=>{
     editingCustomerId=null;
     editingCustomerResolved=null;
     await loadCustomers();
-    alert("Cliente atualizado.");
+    showCentralMessage("Cliente atualizado.");
   }catch(e){
-    alert("Erro ao atualizar cliente: "+(e.message||e));
+    showCentralMessage("Erro ao atualizar cliente: "+(e.message||e));
   }finally{
     btn.disabled=false;
     btn.textContent=old;
@@ -1463,11 +1558,11 @@ window.deleteCustomer=async id=>{
     const {error:detachError}=await sb.from("deliveries")
       .update({customer_id:null,updated_at:new Date().toISOString()})
       .eq("customer_id",c.id);
-    if(detachError)return alert("Erro ao desvincular as entregas do cliente: "+detachError.message);
+    if(detachError)return showCentralMessage("Erro ao desvincular as entregas do cliente: "+detachError.message);
   }
 
   const {error}=await sb.from("customers").delete().eq("id",c.id);
-  if(error)return alert("Erro ao excluir cliente: "+error.message);
+  if(error)return showCentralMessage("Erro ao excluir cliente: "+error.message);
 
   if(String(selectedCustomerId||"")===String(c.id))clearCustomerSelection();
   await Promise.all([loadCustomers(),loadDeliveries(),loadHistory7()]);
@@ -1839,7 +1934,7 @@ async function loadDeliveries(options={}){
   const {data,error}=await sb.from("deliveries").select("*").is("deleted_at",null).order("created_at",{ascending:true});
   if(error){
     console.error(error);
-    if(!silent)alert("Erro ao carregar entregas: "+error.message);
+    if(!silent)showCentralMessage("Erro ao carregar entregas: "+error.message);
     return;
   }
   allDeliveries=data||[];
@@ -1885,8 +1980,8 @@ function renderHistory(){
 
 window.centerDriver=id=>{
   const d=allDrivers.find(x=>x.id===id);
-  if(!d||d.lat==null)return alert("Esse motoqueiro ainda não enviou localização.");
-  if(!map)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
+  if(!d||d.lat==null)return showCentralMessage("Esse motoqueiro ainda não enviou localização.");
+  if(!map)return showCentralMessage("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});
   map.setZoom(17);
 };
@@ -1894,10 +1989,10 @@ window.centerDriver=id=>{
 window.deleteDriver=async id=>{
   const d=allDrivers.find(x=>x.id===id);if(!d)return;
   const pending=allDeliveries.filter(x=>x.driver_id===id&&x.status==="pending").length;
-  if(pending)return alert(`Não é possível excluir ${d.name}. Existem ${pending} entrega(s) pendente(s).`);
+  if(pending)return showCentralMessage(`Não é possível excluir ${d.name}. Existem ${pending} entrega(s) pendente(s).`);
   if(!await rtsConfirm({title:"Excluir motoboy?",message:`Excluir o motoboy ${d.name}?`,okText:"SIM, EXCLUIR"}))return;
   const {error}=await sb.from("drivers").delete().eq("id",id);
-  if(error)return alert("Erro ao excluir: "+error.message);
+  if(error)return showCentralMessage("Erro ao excluir: "+error.message);
   await loadDrivers();await loadDeliveries();
 };
 
@@ -1907,8 +2002,8 @@ window.changeDriver=async id=>{
   if(!d||d.status!=="pending")return;
   const sel=document.getElementById(`transfer_${id}`);
   const newDriver=sel?.value;
-  if(!newDriver)return alert("Selecione o novo motoqueiro.");
-  if(newDriver===d.driver_id)return alert("Essa entrega já está com esse motoqueiro.");
+  if(!newDriver)return showCentralMessage("Selecione o novo motoqueiro.");
+  if(newDriver===d.driver_id)return showCentralMessage("Essa entrega já está com esse motoqueiro.");
   const targetDriver=allDrivers.find(x=>String(x.id)===String(newDriver));
   const newName=targetDriver?.name||"novo motoqueiro";
   if(!await rtsConfirm({title:"Mudar motoboy?",message:`Mudar a entrega de ${d.client_name} para ${newName}?`,okText:"SIM, MUDAR",danger:false}))return;
@@ -1918,7 +2013,7 @@ window.changeDriver=async id=>{
     route_order:null,
     updated_at:new Date().toISOString()
   }).eq("id",id).eq("status","pending");
-  if(error)return alert("Erro ao mudar entregador: "+error.message);
+  if(error)return showCentralMessage("Erro ao mudar entregador: "+error.message);
   await loadDeliveries();
 };
 
@@ -1926,8 +2021,8 @@ function trackingUrl(d){
   return `${location.origin}${location.pathname.replace(/central\.html$/,"")}acompanhar.html?t=${encodeURIComponent(d.tracking_token||"")}`;
 }
 window.sendTracking=id=>{
-  const d=allDeliveries.find(x=>x.id===id);if(!d||!d.tracking_token)return alert("Esta entrega ainda não possui link de rastreamento.");
-  const phone=normalizePhone(d.client_phone);if(phone.length<12)return alert("Confira o telefone do cliente e inclua o DDD.");
+  const d=allDeliveries.find(x=>x.id===id);if(!d||!d.tracking_token)return showCentralMessage("Esta entrega ainda não possui link de rastreamento.");
+  const phone=normalizePhone(d.client_phone);if(phone.length<12)return showCentralMessage("Confira o telefone do cliente e inclua o DDD.");
   const msg=`Olá, sou o motoqueiro da JR Suplementos.\nESTOU EM ROTA COM SUA ENTREGA.\nCaso não consiga receber, me informe.\n\nAcompanhe minha localização em tempo real pelo link abaixo:\n${trackingUrl(d)}`;
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
 };
@@ -1979,8 +2074,8 @@ document.getElementById("addDelivery").onclick=async()=>{
 
     resetSaleForm();
     await loadDeliveries();
-    alert(useSecondary?"Entrega cadastrada usando o endereço secundário. Formulário limpo para a próxima venda.":"Entrega cadastrada usando o endereço fixo do cliente. Formulário limpo para a próxima venda.");
-  }catch(e){alert(e.message||"Não foi possível cadastrar a entrega.")}
+    showCentralMessage(useSecondary?"Entrega cadastrada usando o endereço secundário. Formulário limpo para a próxima venda.":"Entrega cadastrada usando o endereço fixo do cliente. Formulário limpo para a próxima venda.");
+  }catch(e){showCentralMessage(e.message||"Não foi possível cadastrar a entrega.")}
   finally{btn.disabled=false;btn.textContent=old}
 };
 
@@ -1991,7 +2086,7 @@ window.removeDelivery=async id=>{
   if(!await rtsConfirm({title:"Remover entrega?",message:`Remover a entrega de ${d.client_name}?\n\nA entrega ficará registrada no histórico como removida.`,okText:"SIM, REMOVER"}))return;
   const nowIso=new Date().toISOString();
   const {error}=await sb.from("deliveries").update({deleted_at:nowIso,updated_at:nowIso}).eq("id",id);
-  if(error)return alert("Erro ao remover entrega: "+error.message);
+  if(error)return showCentralMessage("Erro ao remover entrega: "+error.message);
   await loadDeliveries();
   await loadHistory7();
 };
@@ -2030,7 +2125,7 @@ document.getElementById("saveEdit").onclick=async()=>{
     document.getElementById("editModal").classList.remove("open");
     editingDeliveryId=null;
     await loadDeliveries();
-  }catch(e){alert(e.message||"Não foi possível localizar.");}
+  }catch(e){showCentralMessage(e.message||"Não foi possível localizar.");}
   finally{btn.disabled=false;btn.textContent=old;}
 };
 
@@ -2041,7 +2136,7 @@ document.getElementById("clearDeliveries").onclick=async()=>{
     .update({deleted_at:nowIso,updated_at:nowIso})
     .in("status",["awaiting_collection","pending"])
     .is("deleted_at",null);
-  if(error)return alert("Erro: "+error.message);
+  if(error)return showCentralMessage("Erro: "+error.message);
   await sb.from("drivers").update({route_started_at:null,route_finished_at:null});
   await loadDeliveries();await loadDrivers();await loadHistory7();
 };
@@ -2060,9 +2155,9 @@ document.getElementById("clearDeliveryHistory").onclick=async()=>{
     // Segurança: esta limpeza NÃO apaga coletas ou entregas em rota, mesmo que
     // algum registro ativo tenha sido marcado como removido por uma versão antiga.
     await Promise.all([loadDeliveries(),loadHistory7(),loadCustomers()]);
-    alert("Histórico de entregas limpo definitivamente.");
+    showCentralMessage("Histórico de entregas limpo definitivamente.");
   }catch(e){
-    alert("Erro ao limpar histórico: "+(e.message||e));
+    showCentralMessage("Erro ao limpar histórico: "+(e.message||e));
   }finally{
     btn.disabled=false;btn.textContent=old;
   }
@@ -2121,11 +2216,11 @@ document.getElementById("deliverySearch").addEventListener("input",renderDeliver
 document.getElementById("statusFilter").addEventListener("change",renderDeliveries);
 
 document.getElementById("fitMap").onclick=()=>{
-  if(!map||!window.google?.maps)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
+  if(!map||!window.google?.maps)return showCentralMessage("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   const pts=[];
   allDrivers.forEach(d=>{if(d.lat!=null)pts.push([d.lat,d.lng])});
   allDeliveries.filter(d=>!d.deleted_at&&(d.status==="awaiting_collection"||d.status==="pending")).forEach(d=>pts.push([d.lat,d.lng]));
-  if(!pts.length)return alert("Não há pontos no mapa.");
+  if(!pts.length)return showCentralMessage("Não há pontos no mapa.");
   const bounds=new google.maps.LatLngBounds(); pts.forEach(p=>bounds.extend({lat:Number(p[0]),lng:Number(p[1])})); map.fitBounds(bounds,35);
 };
 
@@ -2380,7 +2475,7 @@ window.toggleDriverAccount=async(cpf,active)=>{
   try{
     await driverAdminRequest("set_active",{cpf,active});
     await loadDriverRegistry();
-  }catch(e){alert(e.message||"Não foi possível alterar o cadastro.");}
+  }catch(e){showCentralMessage(e.message||"Não foi possível alterar o cadastro.");}
 };
 
 window.resetDriverPassword=async(cpf,name)=>{
@@ -2388,8 +2483,8 @@ window.resetDriverPassword=async(cpf,name)=>{
   if(!password)return;
   try{
     await driverAdminRequest("reset_password",{cpf,password});
-    alert("Senha atualizada.");
-  }catch(e){alert(e.message||"Não foi possível alterar a senha.");}
+    showCentralMessage("Senha atualizada.");
+  }catch(e){showCentralMessage(e.message||"Não foi possível alterar a senha.");}
 };
 
 document.getElementById("newDriverCpf")?.addEventListener("input",e=>{
@@ -2405,10 +2500,10 @@ document.getElementById("registerDriverAccount")?.addEventListener("click",async
   const phone=document.getElementById("newDriverPhone").value.trim();
   const password=document.getElementById("newDriverPassword").value;
 
-  if(!name)return alert("Informe o nome do motoboy.");
-  if(cpf.length!==11)return alert("Informe um CPF com 11 números.");
-  if(String(phone).replace(/\D/g,"").length<10)return alert("Informe o telefone/WhatsApp do motoboy com DDD.");
-  if(password.length<6)return alert("A senha precisa ter pelo menos 6 caracteres.");
+  if(!name)return showCentralMessage("Informe o nome do motoboy.");
+  if(cpf.length!==11)return showCentralMessage("Informe um CPF com 11 números.");
+  if(String(phone).replace(/\D/g,"").length<10)return showCentralMessage("Informe o telefone/WhatsApp do motoboy com DDD.");
+  if(password.length<6)return showCentralMessage("A senha precisa ter pelo menos 6 caracteres.");
   if(!await rtsConfirm({title:"Registrar motoboy?",message:`Registrar ${name} com CPF ${formatCpf(cpf)}?`,okText:"SIM, REGISTRAR",danger:false}))return;
 
   btn.disabled=true;
@@ -2446,7 +2541,7 @@ window.editDriverAccount=async cpf=>{
     document.getElementById("driverEditPhone").value=data.phone||"";
     document.getElementById("driverEditModal").classList.add("open");
   }catch(e){
-    alert("Não foi possível carregar o cadastro do motoboy: "+(e.message||e));
+    showCentralMessage("Não foi possível carregar o cadastro do motoboy: "+(e.message||e));
   }
 };
 
@@ -2460,8 +2555,8 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
 
   const name=document.getElementById("driverEditName").value.trim();
   const phone=document.getElementById("driverEditPhone").value.trim();
-  if(!name)return alert("Informe o nome do motoboy.");
-  if(String(phone).replace(/\D/g,"").length<10)return alert("Informe o telefone com DDD.");
+  if(!name)return showCentralMessage("Informe o nome do motoboy.");
+  if(String(phone).replace(/\D/g,"").length<10)return showCentralMessage("Informe o telefone com DDD.");
 
   const btn=document.getElementById("saveDriverEdit");
   const old=btn.textContent;
@@ -2473,9 +2568,9 @@ document.getElementById("saveDriverEdit")?.addEventListener("click",async()=>{
     editingDriverCpf=null;
     await loadDriverRegistry();
     await loadDrivers();
-    alert("Cadastro do motoboy atualizado.");
+    showCentralMessage("Cadastro do motoboy atualizado.");
   }catch(e){
-    alert("Erro ao editar motoboy: "+(e.message||e));
+    showCentralMessage("Erro ao editar motoboy: "+(e.message||e));
   }finally{
     btn.disabled=false;btn.textContent=old;
   }
@@ -2497,7 +2592,7 @@ document.getElementById("detailDrawerClose")?.addEventListener("click",closeDeli
 document.getElementById("detailDrawerBackdrop")?.addEventListener("click",closeDeliveryDetails);
 document.getElementById("detailCenter")?.addEventListener("click",()=>{
   const d=allDeliveries.find(x=>String(x.id)===String(activeDetailDeliveryId));if(!d)return;
-  if(!map)return alert("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
+  if(!map)return showCentralMessage("O Google Maps ainda está carregando. Tente novamente em alguns segundos.");
   map.setCenter({lat:Number(d.lat),lng:Number(d.lng)});map.setZoom(17);closeDeliveryDetails();
 });
 document.getElementById("detailTracking")?.addEventListener("click",()=>{
@@ -2513,8 +2608,8 @@ document.getElementById("detailTransferButton")?.addEventListener("click",async(
   const d=allDeliveries.find(x=>String(x.id)===String(activeDetailDeliveryId));
   if(!d||d.status!=="pending")return;
   const newDriver=document.getElementById("detailTransferDriver").value;
-  if(!newDriver)return alert("Selecione o novo motoboy.");
-  if(String(newDriver)===String(d.driver_id))return alert("Essa entrega já está com esse motoboy.");
+  if(!newDriver)return showCentralMessage("Selecione o novo motoboy.");
+  if(String(newDriver)===String(d.driver_id))return showCentralMessage("Essa entrega já está com esse motoboy.");
   const newName=allDrivers.find(x=>String(x.id)===String(newDriver))?.name||"novo motoboy";
   if(!await rtsConfirm({title:"Reatribuir entrega?",message:`Mudar a entrega de ${d.client_name} para ${newName}?`,okText:"SIM, REATRIBUIR",danger:false}))return;
   const target=allDrivers.find(x=>String(x.id)===String(newDriver));
@@ -2524,7 +2619,7 @@ document.getElementById("detailTransferButton")?.addEventListener("click",async(
     route_order:null,
     updated_at:new Date().toISOString()
   }).eq("id",d.id).eq("status","pending");
-  if(error)return alert("Erro ao reatribuir: "+error.message);
+  if(error)return showCentralMessage("Erro ao reatribuir: "+error.message);
   await loadDeliveries();
   renderDeliveryDetails(d.id);
 });
