@@ -360,6 +360,25 @@ input::placeholder,textarea::placeholder{color:#7890a5}
 @media(max-width:1180px){.ops-side{height:360px;grid-template-columns:1fr 1fr;grid-template-rows:1fr}.stats{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.ops-side{height:auto;grid-template-columns:1fr;grid-template-rows:240px 300px}.operations-toolbar{grid-template-columns:1fr}.map-legend-pro{display:none}.map-chip{padding:6px 7px}.detail-grid-pro{grid-template-columns:1fr}.setting-item{grid-template-columns:1fr}}
 
+
+body.platform-admin-mode .stats,
+body.platform-admin-mode .dashboard-grid,
+body.platform-admin-mode #connection,
+body.platform-admin-mode .top-actions{
+  display:none!important;
+}
+.platform-admin-welcome{
+  display:none;
+  background:#fff;
+  border:1px solid #e1e7ef;
+  border-radius:16px;
+  padding:22px;
+  margin-top:10px;
+  box-shadow:0 2px 8px #17203309;
+}
+body.platform-admin-mode .platform-admin-welcome{display:block}
+.platform-admin-welcome h2{margin:0 0 8px;color:#071a32}
+.platform-admin-welcome p{margin:0;color:#667085;line-height:1.5}
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -432,6 +451,10 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     </header>
 
     <div id="connection" class="connection-pill">Conectando...</div>
+    <div class="platform-admin-welcome">
+      <h2>🏢 Administração da Plataforma RTS</h2>
+      <p>Esta conta não pertence a nenhuma empresa. Use a aba <b>Empresas</b> para cadastrar, ativar ou desativar empresas. Para operar entregas, clientes, motoboys, mapas, histórico e relatórios, entre com a conta administrativa da empresa correspondente.</p>
+    </div>
 
     <section class="stats">
       <div class="stat-card c-blue"><div class="stat-top"><div class="stat-icon">📦</div><div class="stat-copy"><div class="stat-label">Total</div><div class="stat-value" id="mTotal">0</div><div class="stat-sub">Entregas hoje</div></div></div></div>
@@ -897,6 +920,29 @@ async function verifyAdminSession(){
     return false;
   }
 
+  currentAdminUser=session.user;
+  currentAdminAccount=null;
+  currentCompany=null;
+  isPlatformAdmin=false;
+
+  const {data:platform}=await sb.from("platform_admins")
+    .select("auth_user_id")
+    .eq("auth_user_id",session.user.id)
+    .maybeSingle();
+
+  isPlatformAdmin=!!platform;
+
+  if(isPlatformAdmin){
+    document.body.classList.add("platform-admin-mode");
+    document.getElementById("currentCompanyName").textContent="Super Administrador";
+    document.getElementById("currentCompanyCode").textContent="Plataforma RTS";
+    const companiesBtn=document.getElementById("companiesNavBtn");
+    if(companiesBtn)companiesBtn.style.display="flex";
+    currentOperationalSettings={...OP_DEFAULTS};
+    gate.classList.add("hidden");
+    return true;
+  }
+
   const {data:admin,error}=await sb.from("admin_accounts")
     .select("auth_user_id,company_id,role,name,email")
     .eq("auth_user_id",session.user.id)
@@ -906,6 +952,7 @@ async function verifyAdminSession(){
     await sb.auth.signOut();
     gate.classList.remove("hidden");
     document.getElementById("adminLoginResult").textContent="Esta conta não possui acesso administrativo válido.";
+    currentAdminUser=null;
     return false;
   }
 
@@ -918,26 +965,18 @@ async function verifyAdminSession(){
     await sb.auth.signOut();
     gate.classList.remove("hidden");
     document.getElementById("adminLoginResult").textContent="A empresa está desativada ou não foi encontrada.";
+    currentAdminUser=null;
     return false;
   }
 
-  currentAdminUser=session.user;
+  document.body.classList.remove("platform-admin-mode");
   currentAdminAccount=admin;
   currentCompany=company;
-
   document.getElementById("currentCompanyName").textContent=company.name||"Empresa";
   document.getElementById("currentCompanyCode").textContent=`Código: ${company.code||"---"}`;
 
-  try{
-    const {data:platform}=await sb.from("platform_admins")
-      .select("auth_user_id")
-      .eq("auth_user_id",session.user.id)
-      .maybeSingle();
-    isPlatformAdmin=!!platform;
-  }catch(_){isPlatformAdmin=false}
-
   const companiesBtn=document.getElementById("companiesNavBtn");
-  if(companiesBtn)companiesBtn.style.display=isPlatformAdmin?"flex":"none";
+  if(companiesBtn)companiesBtn.style.display="none";
 
   await loadCompanySettings();
   gate.classList.add("hidden");
@@ -967,9 +1006,13 @@ document.getElementById("adminLogin").onclick=async()=>{
     const ok=await verifyAdminSession();
     if(!ok)return;
 
-    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
-    if(isPlatformAdmin)loadCompaniesRegistry();
-    await startCentralLiveUpdates();
+    if(isPlatformAdmin){
+      await loadCompaniesRegistry();
+      await stopCentralLiveUpdates();
+    }else{
+      await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
+      await startCentralLiveUpdates();
+    }
   }catch(e){
     result.textContent="❌ "+(e.message||"Não foi possível entrar.");
   }finally{
@@ -981,7 +1024,7 @@ document.getElementById("adminLogin").onclick=async()=>{
 document.getElementById("adminLogout")?.addEventListener("click",async()=>{
   await stopCentralLiveUpdates();
   await sb.auth.signOut();
-  currentAdminUser=null;currentAdminAccount=null;currentCompany=null;isPlatformAdmin=false;
+  currentAdminUser=null;currentAdminAccount=null;currentCompany=null;isPlatformAdmin=false;document.body.classList.remove("platform-admin-mode");
   document.getElementById("adminAuthGate").classList.remove("hidden");
 });
 
@@ -2341,6 +2384,14 @@ function closeDrawer(){
   drawer.classList.remove("open");drawerBackdrop.classList.remove("open");
   setTimeout(()=>{if(!drawer.classList.contains("open"))drawer.classList.remove("left-sale")},230);
 }
+function requireCompanyContext(){
+  if(isPlatformAdmin&&!currentCompany){
+    showCentralMessage("O Super Administrador gerencia empresas pela aba Empresas. Entre com uma conta de empresa para operar entregas, clientes, motoboys, mapas, histórico e relatórios.");
+    return false;
+  }
+  return true;
+}
+
 function openDrawer(section,title){
   document.querySelectorAll(".drawer-section").forEach(x=>x.classList.remove("active"));
   const el=document.getElementById(section);if(el)el.classList.add("active");
@@ -2350,22 +2401,22 @@ function openDrawer(section,title){
 }
 document.getElementById("drawerClose").onclick=closeDrawer;
 drawerBackdrop.onclick=closeDrawer;
-document.getElementById("openNewSale").onclick=()=>openDrawer("drawerSale","Nova entrega");
-document.getElementById("openSettingsTop").onclick=()=>{syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");};
+document.getElementById("openNewSale").onclick=()=>{if(!requireCompanyContext())return;openDrawer("drawerSale","Nova entrega");};
+document.getElementById("openSettingsTop").onclick=()=>{if(!requireCompanyContext())return;syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");};
 document.querySelectorAll("[data-open]").forEach(btn=>{
   btn.onclick=()=>{
     const what=btn.dataset.open;
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b===btn));
     if(what==="overview"){closeDrawer();window.scrollTo({top:0,behavior:"smooth"});}
-    if(what==="sale")openDrawer("drawerSale","Nova entrega");
-    if(what==="deliveries")openDrawer("drawerDeliveries","Entregas");
-    if(what==="clients")openDrawer("drawerClients","Clientes");
-    if(what==="drivers"){openDrawer("drawerDrivers","Motoboys");loadDriverRegistry();}
+    if(what==="sale"){if(!requireCompanyContext())return;openDrawer("drawerSale","Nova entrega");}
+    if(what==="deliveries"){if(!requireCompanyContext())return;openDrawer("drawerDeliveries","Entregas");}
+    if(what==="clients"){if(!requireCompanyContext())return;openDrawer("drawerClients","Clientes");}
+    if(what==="drivers"){if(!requireCompanyContext())return;openDrawer("drawerDrivers","Motoboys");loadDriverRegistry();}
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
-    if(what==="history")openDrawer("drawerHistory","Histórico");
-    if(what==="reports")openDrawer("drawerReports","Relatórios");
+    if(what==="history"){if(!requireCompanyContext())return;openDrawer("drawerHistory","Histórico");}
+    if(what==="reports"){if(!requireCompanyContext())return;openDrawer("drawerReports","Relatórios");}
     if(what==="companies"){openDrawer("drawerCompanies","Empresas RTS");loadCompaniesRegistry();}
-    if(what==="settings"){syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");}
+    if(what==="settings"){if(!requireCompanyContext())return;syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");}
   };
 });
 document.getElementById("exportReportMirror").onclick=()=>document.getElementById("exportReport").click();
@@ -2927,9 +2978,13 @@ if(sb){
   setCentralConnectionStatus("🟢 Supabase conectado");
   verifyAdminSession().then(async ok=>{
     if(!ok)return;
-    await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
-    if(isPlatformAdmin)loadCompaniesRegistry();
-    await startCentralLiveUpdates();
+    if(isPlatformAdmin){
+      await loadCompaniesRegistry();
+      await stopCentralLiveUpdates();
+    }else{
+      await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
+      await startCentralLiveUpdates();
+    }
   });
 }
 </script>
