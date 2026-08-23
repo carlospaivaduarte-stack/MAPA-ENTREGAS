@@ -2576,13 +2576,91 @@ function formatCpf(v){
 }
 
 
+
+async function rtsEdgeFunctionError(error, fallback="Não foi possível concluir a operação."){
+  let status=Number(error?.context?.status||0);
+  let serverMessage="";
+  let body=null;
+
+  try{
+    if(error?.context){
+      const response=error.context.clone ? error.context.clone() : error.context;
+      const contentType=String(response?.headers?.get?.("content-type")||"").toLowerCase();
+      if(contentType.includes("application/json")){
+        body=await response.json();
+        serverMessage=String(body?.error||body?.message||body?.detail||"").trim();
+      }else{
+        serverMessage=String(await response.text()).trim();
+      }
+    }
+  }catch(_){}
+
+  const raw=String(serverMessage||error?.message||"").trim();
+  const msg=raw.toLowerCase();
+
+  // Mensagens específicas devolvidas pelo backend.
+  if(msg.includes("company code") || msg.includes("código") && msg.includes("empresa") && msg.includes("existe"))
+    return "Já existe uma empresa cadastrada com esse código. Escolha outro código.";
+
+  if((msg.includes("email") || msg.includes("e-mail")) &&
+     (msg.includes("already") || msg.includes("exists") || msg.includes("existe") || msg.includes("registered") || msg.includes("cadastrad")))
+    return "Este e-mail já está sendo usado por outro usuário ou administrador. Use outro e-mail.";
+
+  if(msg.includes("cpf") &&
+     (msg.includes("already") || msg.includes("exists") || msg.includes("existe") || msg.includes("registered") || msg.includes("cadastrad")))
+    return "Este CPF já está cadastrado no RTS.";
+
+  if(msg.includes("platform") && (msg.includes("admin") || msg.includes("administrator")))
+    return "Esta conta não possui permissão de Administrador Master da plataforma RTS.";
+
+  if(msg.includes("session") || msg.includes("sessão") || msg.includes("jwt") || msg.includes("token"))
+    return "Sua sessão expirou ou não é mais válida. Saia da Central e entre novamente.";
+
+  if(msg.includes("password") || msg.includes("senha")){
+    if(msg.includes("8")) return "A senha inicial precisa ter pelo menos 8 caracteres.";
+    return "A senha informada não atende aos requisitos. Escolha outra senha.";
+  }
+
+  // Tradução por código HTTP.
+  if(status===400) return serverMessage || "Existem dados inválidos no cadastro. Confira os campos preenchidos.";
+  if(status===401) return "Sua sessão expirou ou não é mais válida. Saia da Central e entre novamente.";
+  if(status===403) return "Esta conta não possui permissão para realizar esta operação.";
+  if(status===404) return "O recurso solicitado não foi encontrado no Supabase.";
+  if(status===409) return serverMessage || "Já existe um cadastro usando essas informações. Confira principalmente o código, o e-mail e o CPF.";
+  if(status===422) return serverMessage || "Alguns dados enviados não puderam ser processados. Confira os campos do formulário.";
+  if(status===429) return "Muitas tentativas foram feitas em pouco tempo. Aguarde um momento e tente novamente.";
+  if(status>=500) return "O Supabase encontrou um erro interno ao processar a solicitação. Tente novamente e, se continuar, confira os logs da Edge Function.";
+
+  // Não exibe a mensagem técnica padrão do SDK.
+  if(msg.includes("edge function returned a non-2xx status code"))
+    return fallback;
+
+  return serverMessage || raw || fallback;
+}
+
 async function companyAdminRequest(action,payload={}){
   if(!sb)throw new Error("Supabase indisponível.");
   const {data:{session}}=await sb.auth.getSession();
-  if(!session?.access_token)throw new Error("Sessão expirada.");
+  if(!session?.access_token)throw new Error("Sua sessão expirou. Saia da Central e entre novamente.");
+
   const {data,error}=await sb.functions.invoke("company-admin",{body:{action,...payload}});
-  if(error)throw new Error(error.message||"Falha na função de empresas.");
-  if(!data?.ok)throw new Error(data?.error||"Operação não autorizada.");
+
+  if(error){
+    const message=await rtsEdgeFunctionError(
+      error,
+      action==="register"
+        ?"Não foi possível cadastrar a empresa. Confira os dados informados."
+        :"Não foi possível concluir a operação de empresas."
+    );
+    throw new Error(message);
+  }
+
+  if(!data?.ok){
+    const fakeError={message:data?.error||"",context:{status:Number(data?.status||0)}};
+    const message=await rtsEdgeFunctionError(fakeError,data?.error||"Operação não autorizada.");
+    throw new Error(message);
+  }
+
   return data;
 }
 
@@ -2664,10 +2742,26 @@ document.getElementById("registerCompanyAccount")?.addEventListener("click",asyn
 async function driverAdminRequest(action,payload={}){
   if(!sb)throw new Error("Supabase indisponível.");
   const {data:{session}}=await sb.auth.getSession();
-  if(!session?.access_token)throw new Error("Sessão administrativa expirada. Entre novamente na Central.");
+  if(!session?.access_token)throw new Error("Sua sessão expirou. Saia da Central e entre novamente.");
+
   const {data,error}=await sb.functions.invoke("driver-admin",{body:{action,...payload}});
-  if(error)throw new Error(error.message||"Falha na função administrativa.");
-  if(!data?.ok)throw new Error(data?.error||"Operação não autorizada.");
+
+  if(error){
+    const message=await rtsEdgeFunctionError(
+      error,
+      action==="register"
+        ?"Não foi possível cadastrar o motoboy. Confira CPF, e-mail e demais dados."
+        :"Não foi possível concluir a operação do motoboy."
+    );
+    throw new Error(message);
+  }
+
+  if(!data?.ok){
+    const fakeError={message:data?.error||"",context:{status:Number(data?.status||0)}};
+    const message=await rtsEdgeFunctionError(fakeError,data?.error||"Operação não autorizada.");
+    throw new Error(message);
+  }
+
   return data;
 }
 
