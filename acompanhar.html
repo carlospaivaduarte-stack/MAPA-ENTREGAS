@@ -170,7 +170,7 @@ function initGoogleMap(){
 
 const sb=getSupabaseClient();
 const token=new URLSearchParams(location.search).get("t");
-let driverMarker=null,destMarker=null,lastDriverPosition=null;
+let driverMarker=null,destMarker=null,lastDriverPosition=null,currentTrackingDriver=null,currentTrackingCompany=null;
 
 function motoIcon(){
   return {
@@ -230,22 +230,11 @@ function closeTracking(d){
 }
 
 async function estimate(d,drv){
-  const {data:pending}=await sb.from("deliveries")
-    .select("id,lat,lng,route_order,status,driver_id")
-    .eq("driver_id",d.driver_id)
-    .eq("status","pending")
-    .is("deleted_at",null)
-    .order("route_order",{ascending:true});
-
-  const ordered=(pending||[])
-    .filter(x=>x.route_order!=null)
-    .sort((a,b)=>a.route_order-b.route_order);
-
-  const pos=ordered.findIndex(x=>x.id===d.id);
-  const queuePos=pos>=0?pos+1:(Number(d.route_order)||null);
+  const queuePos=Number(d.queue_position||d.route_order||0)||null;
+  const ahead=Math.max(0,Number(d.ahead||0));
 
   document.getElementById("queuePosition").textContent=ordinal(queuePos);
-  document.getElementById("ahead").textContent=pos<=0?"Você é o próximo":String(pos);
+  document.getElementById("ahead").textContent=ahead<=0?"Você é o próximo":String(ahead);
 
   if(queuePos>1){
     document.getElementById("eta").textContent="AGUARDE";
@@ -283,24 +272,33 @@ async function refresh(){
     return;
   }
 
-  const {data,error}=await sb.from("deliveries")
-    .select("*")
-    .eq("tracking_token",token)
-    .is("deleted_at",null)
-    .limit(1);
-
-  if(error||!data||!data.length){
-    document.getElementById("headline").textContent="Este link não é válido ou expirou.";
+  let payload=null;
+  try{
+    const {data,error}=await sb.functions.invoke("public-tracking",{body:{token}});
+    if(error)throw error;
+    if(!data?.ok)throw new Error(data?.error||"Este link não é válido ou expirou.");
+    payload=data;
+  }catch(e){
+    document.getElementById("headline").textContent="Este link não é válido, expirou ou está indisponível.";
     document.getElementById("mainTitle").textContent="RASTREAMENTO INDISPONÍVEL";
     document.getElementById("eta").textContent="—";
     document.getElementById("queuePosition").textContent="—";
+    currentTrackingDriver=null;
     return;
   }
 
-  const d=data[0];
+  const d=payload.delivery;
+  const drv=payload.driver||null;
+  currentTrackingDriver=drv;
+  currentTrackingCompany=payload.company||null;
+
+  if(currentTrackingCompany?.name){
+    document.title=`${currentTrackingCompany.name} — Acompanhar entrega`;
+  }
 
   if(d.status==="awaiting_collection"){
     lastDriverPosition=null;
+    currentTrackingDriver=null;
     if(driverMarker){driverMarker.setMap(null);driverMarker=null}
     if(destMarker){destMarker.setMap(null);destMarker=null}
     document.getElementById("mainTitle").textContent="AGUARDANDO COLETA";
@@ -338,18 +336,11 @@ async function refresh(){
 
   document.getElementById("mainTitle").textContent="ENTREGA EM ROTA";
   document.getElementById("centerDriverClient").style.display="block";
-  document.getElementById("talkDriver").style.display="block";
+  document.getElementById("talkDriver").style.display=drv?.phone?"block":"none";
   document.getElementById("livePill").style.display="block";
-  document.getElementById("headline").textContent=d.route_order===1
+  document.getElementById("headline").textContent=d.queue_position===1
     ?"Sua entrega é a próxima."
-    :(d.route_order?`Sua entrega está na ${d.route_order}ª posição da rota.`:"Seu pedido está na rota do motoqueiro.");
-
-  const {data:drivers}=await sb.from("drivers")
-    .select("id,name,phone,lat,lng,last_seen,is_online")
-    .eq("id",d.driver_id)
-    .limit(1);
-
-  const drv=drivers&&drivers[0];
+    :(d.queue_position?`Sua entrega está na ${d.queue_position}ª posição da rota.`:"Seu pedido está na rota do motoqueiro.");
 
   if(drv&&drv.lat!=null&&drv.lng!=null){
     const pos={lat:Number(drv.lat),lng:Number(drv.lng)};
@@ -413,15 +404,11 @@ document.getElementById("talkDriver").onclick=async()=>{
   btn.textContent="LOCALIZANDO CONTATO...";
 
   try{
-    const {data,error}=await sb.functions.invoke("tracking-driver-contact",{body:{token}});
-    if(error)throw new Error("Não foi possível localizar o contato do motoqueiro.");
-    if(!data?.ok)throw new Error(data?.error||"Contato indisponível.");
-
-    const phone=String(data.driver?.phone||"").replace(/\D/g,"");
-    if(phone.length<10)throw new Error("Telefone do motoqueiro inválido.");
+    const phone=String(currentTrackingDriver?.phone||"").replace(/\D/g,"");
+    if(phone.length<10)throw new Error("Telefone do motoqueiro indisponível.");
 
     const brPhone=phone.startsWith("55")?phone:`55${phone}`;
-    const name=data.driver?.name||"motoboy";
+    const name=currentTrackingDriver?.name||"motoboy";
     const msg=`Olá ${name}, estou acompanhando minha entrega pelo RTS.`;
 
     window.open(`https://wa.me/${brPhone}?text=${encodeURIComponent(msg)}`,"_blank");
@@ -433,14 +420,8 @@ document.getElementById("talkDriver").onclick=async()=>{
   }
 };
 
-if(sb){
-  sb.channel("cliente-"+(token||"x"))
-    .on("postgres_changes",{event:"*",schema:"public",table:"deliveries"},()=>refresh())
-    .on("postgres_changes",{event:"*",schema:"public",table:"drivers"},()=>refresh())
-    .subscribe();
-}
-
-setInterval(refresh,30000);
+refresh();
+setInterval(refresh,5000);
 </script>
 </body>
 </html>

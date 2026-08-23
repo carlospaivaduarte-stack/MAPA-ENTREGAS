@@ -66,8 +66,8 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
 .stats{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:10px;margin-bottom:12px}
 .stat-card{background:#fff;border:1px solid #e1e7ef;border-radius:14px;padding:14px 15px;min-height:105px;box-shadow:0 2px 7px #1720330a;position:relative;overflow:hidden}
 .stat-card:after{content:"";height:3px;position:absolute;left:10px;right:10px;bottom:0;border-radius:4px;background:var(--accent)}
-.stat-top{display:flex;gap:11px;align-items:center}.stat-icon{width:47px;height:47px;border-radius:13px;display:grid;place-items:center;font-size:24px;background:var(--soft)}
-.stat-copy{display:flex;flex-direction:column;justify-content:center;min-height:47px}.stat-label{font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase}.stat-value{font-size:25px;font-weight:900;margin-top:3px}.stat-sub{font-size:11px;color:#798194}.stat-card.awaiting-fix .stat-label{line-height:1.06}.stat-card.awaiting-fix .stat-icon{color:#ef4444}
+.stat-top{display:grid;grid-template-columns:47px minmax(0,1fr);gap:11px;align-items:start}.stat-icon{width:47px;height:47px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;background:var(--soft);align-self:start;justify-self:start;flex:0 0 47px}
+.stat-copy{display:flex;flex-direction:column;justify-content:flex-start;min-height:47px;padding-top:1px}.stat-label{font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;line-height:1.08}.stat-value{font-size:25px;font-weight:900;margin-top:3px;line-height:1}.stat-sub{font-size:11px;color:#798194;line-height:1.18}.stat-card.awaiting-fix .stat-label{line-height:1.05}.stat-card.awaiting-fix .stat-icon{color:#ef4444}
 .c-blue{--accent:#3182f6;--soft:#eaf3ff}.c-yellow{--accent:#f5a300;--soft:#fff6dc}.c-purple{--accent:#7c3aed;--soft:#f2ebff}.c-green{--accent:#16b86d;--soft:#e6f8ef}.c-red{--accent:#ef4444;--soft:#feecec}
 
 .dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px}
@@ -125,6 +125,7 @@ input:focus,select:focus,textarea:focus{border-color:#8db6ff;box-shadow:0 0 0 3p
   margin-bottom:14px;
 }
 .driver-register-box h4{margin:0 0 8px;font-size:13px}
+.driver-heading-main,.driver-heading-sub{margin:0;font-size:16px;line-height:1.2;font-weight:900;color:inherit;letter-spacing:0}.driver-heading-main{display:flex;align-items:center;gap:8px}.driver-heading-sub{margin-bottom:10px}.section-header.driver-section-header{align-items:center;margin-top:14px}.section-header.driver-section-header .small{display:flex;align-items:center;min-height:19px}
 .driver-registry{margin-top:12px}
 .driver-account{
   border:1px solid #e5e7eb;
@@ -395,13 +396,20 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <button class="nav-btn" data-open="map"><span class="nav-icon">🗺️</span>Mapa ao vivo</button>
       <button class="nav-btn" data-open="history"><span class="nav-icon">🕐</span>Histórico</button>
       <button class="nav-btn" data-open="reports"><span class="nav-icon">📊</span>Relatórios</button>
+      <button class="nav-btn" id="companiesNavBtn" data-open="companies" style="display:none"><span class="nav-icon">🏢</span>Empresas</button>
       <button class="nav-btn" data-open="settings"><span class="nav-icon">⚙️</span>Configurações</button>
     </nav>
 
     <div class="sidebar-bottom">
       <div class="admin-card">
         <div class="avatar">👨🏻</div>
-        <div style="flex:1"><b style="font-size:12px">Administrador</b><div style="font-size:10px;color:#a9bad0"><span class="online-dot"></span>Central Online</div><button id="adminLogout" style="margin-top:7px;padding:6px 9px;font-size:10px">Sair</button></div>
+        <div style="flex:1">
+          <b style="font-size:12px">Administrador</b>
+          <div id="currentCompanyName" style="font-size:10px;color:#d7e6f8;margin-top:3px">Empresa</div>
+          <div id="currentCompanyCode" style="font-size:10px;color:#8fb1d4;margin-top:2px">---</div>
+          <div style="font-size:10px;color:#a9bad0;margin-top:3px"><span class="online-dot"></span>Central Online</div>
+          <button id="adminLogout" style="margin-top:7px;padding:6px 9px;font-size:10px">Sair</button>
+        </div>
       </div>
     </div>
   </aside>
@@ -429,7 +437,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       <div class="stat-card c-blue"><div class="stat-top"><div class="stat-icon">📦</div><div class="stat-copy"><div class="stat-label">Total</div><div class="stat-value" id="mTotal">0</div><div class="stat-sub">Entregas hoje</div></div></div></div>
       <div class="stat-card awaiting-fix c-yellow"><div class="stat-top"><div class="stat-icon">◷</div><div class="stat-copy"><div class="stat-label">Aguardando coleta</div><div class="stat-value" id="mAwaiting">0</div><div class="stat-sub">Entregas</div></div></div></div>
       <div class="stat-card c-purple"><div class="stat-top"><div class="stat-icon">🏍️</div><div class="stat-copy"><div class="stat-label">Em rota</div><div class="stat-value" id="mPending">0</div><div class="stat-sub">Entregas</div></div></div></div>
-      <div class="stat-card c-red"><div class="stat-top"><div class="stat-icon">⚠️</div><div><div class="stat-label">Atrasadas</div><div class="stat-value" id="mLate">0</div><div class="stat-sub" id="mLateSub">Limite 60 min</div></div></div></div>
+      <div class="stat-card c-red"><div class="stat-top"><div class="stat-icon">⚠️</div><div class="stat-copy"><div class="stat-label">Atrasadas</div><div class="stat-value" id="mLate">0</div><div class="stat-sub" id="mLateSub">Limite 60 min</div></div></div></div>
       <div class="stat-card c-blue"><div class="stat-top"><div class="stat-icon">⏱️</div><div class="stat-copy"><div class="stat-label">Tempo médio</div><div class="stat-value" id="mAverage">--</div><div class="stat-sub">Coleta → conclusão</div></div></div></div>
       <div class="stat-card c-green"><div class="stat-top"><div class="stat-icon">✓</div><div class="stat-copy"><div class="stat-label">Entregues</div><div class="stat-value" id="mDone">0</div><div class="stat-sub">Hoje</div></div></div></div>
       <div class="stat-card c-red"><div class="stat-top"><div class="stat-icon">✕</div><div class="stat-copy"><div class="stat-label">Não entregues</div><div class="stat-value" id="mFailed">0</div><div class="stat-sub">Hoje</div></div></div></div>
@@ -599,12 +607,12 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 
     <section class="drawer-section" id="drawerDrivers">
       <div class="row" style="align-items:center">
-        <h3 style="margin:0">🏍️ Motoboys</h3>
+        <h3 class="driver-heading-main">🏍️ <span>Motoboys</span></h3>
         <button class="blue" id="reloadDriverAccounts">🔄 Atualizar</button>
       </div>
 
       <div class="driver-register-box">
-        <h4>Registrar motoboy</h4>
+        <h3 class="driver-heading-sub">Registrar motoboy</h3>
         <div class="driver-admin-note">
           O CPF será o login e o identificador operacional do motoboy. A senha não é salva nesta página.
         </div>
@@ -616,8 +624,8 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
         <div id="driverRegisterResult" class="small" style="margin-top:8px"></div>
       </div>
 
-      <div class="section-header">
-        <h3 style="font-size:14px">Cadastros</h3>
+      <div class="section-header driver-section-header">
+        <h3 class="driver-heading-sub" style="margin-bottom:0">Cadastros</h3>
         <span id="driverRegistryCount" class="small">0</span>
       </div>
       <div id="driverRegistry" class="driver-registry">
@@ -651,9 +659,40 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       </div>
     </section>
 
+    <section class="drawer-section" id="drawerCompanies">
+      <h3 style="margin:0 0 10px">🏢 Empresas RTS</h3>
+      <div class="driver-admin-note">
+        Área exclusiva do administrador da plataforma. Cada empresa recebe um código único no formato <b>XXX-XXX</b>.
+        Os dados, motoboys, clientes, entregas, histórico e localização ficam isolados por empresa.
+      </div>
+
+      <div class="driver-register-box">
+        <h3 class="driver-heading-sub">Registrar nova empresa</h3>
+        <input id="newCompanyCode" maxlength="7" placeholder="Código XXX-XXX" style="text-transform:uppercase">
+        <input id="newCompanyName" placeholder="Nome da empresa">
+        <input id="newCompanyCnpj" placeholder="CNPJ (opcional)">
+        <input id="newCompanyPhone" placeholder="Telefone / WhatsApp">
+        <input id="newCompanyEmail" type="email" placeholder="E-mail da empresa (opcional)">
+        <div style="height:1px;background:#24435f;margin:10px 0"></div>
+        <input id="newCompanyAdminName" placeholder="Nome do administrador">
+        <input id="newCompanyAdminEmail" type="email" placeholder="E-mail de login do administrador">
+        <input id="newCompanyAdminPassword" type="password" placeholder="Senha inicial (mínimo 8 caracteres)">
+        <button class="green" id="registerCompanyAccount" style="width:100%;margin-top:6px">➕ REGISTRAR EMPRESA</button>
+        <div id="companyRegisterResult" class="small" style="margin-top:8px"></div>
+      </div>
+
+      <div class="section-header driver-section-header">
+        <h3 class="driver-heading-sub" style="margin-bottom:0">Empresas cadastradas</h3>
+        <span id="companiesRegistryCount" class="small">0</span>
+      </div>
+      <div id="companiesRegistry" class="driver-registry">
+        <div class="small">Carregando empresas...</div>
+      </div>
+    </section>
+
     <section class="drawer-section" id="drawerSettings">
       <h3>⚙️ Configurações operacionais</h3>
-      <div class="settings-intro">Defina os limites usados pela Central para destacar atrasos e problemas operacionais. Esses valores ficam salvos neste navegador.</div>
+      <div class="settings-intro">Defina os limites usados pela Central para destacar atrasos e problemas operacionais. Esses valores ficam salvos para a empresa atual e valem para todos os administradores dela.</div>
       <div class="setting-item">
         <div><b>Entrega atrasada</b><span>Tempo após a coleta para destacar uma entrega em rota como atrasada.</span></div>
         <div class="setting-input-wrap"><input id="settingLateMinutes" type="number" min="1" max="600"><span>min</span></div>
@@ -846,7 +885,7 @@ function rtsInput({title="Informe o valor",message="",placeholder="",type="passw
   });
 }
 
-let currentAdminUser=null;
+let currentAdminUser=null,currentAdminAccount=null,currentCompany=null,isPlatformAdmin=false;
 
 async function verifyAdminSession(){
   const gate=document.getElementById("adminAuthGate");
@@ -859,18 +898,48 @@ async function verifyAdminSession(){
   }
 
   const {data:admin,error}=await sb.from("admin_accounts")
-    .select("auth_user_id")
+    .select("auth_user_id,company_id,role,name,email")
     .eq("auth_user_id",session.user.id)
     .maybeSingle();
 
-  if(error||!admin){
+  if(error||!admin?.company_id){
     await sb.auth.signOut();
     gate.classList.remove("hidden");
-    document.getElementById("adminLoginResult").textContent="Esta conta não possui acesso de administrador.";
+    document.getElementById("adminLoginResult").textContent="Esta conta não possui acesso administrativo válido.";
+    return false;
+  }
+
+  const {data:company,error:companyError}=await sb.from("companies")
+    .select("id,code,name,active,license_expires_at")
+    .eq("id",admin.company_id)
+    .maybeSingle();
+
+  if(companyError||!company||company.active===false){
+    await sb.auth.signOut();
+    gate.classList.remove("hidden");
+    document.getElementById("adminLoginResult").textContent="A empresa está desativada ou não foi encontrada.";
     return false;
   }
 
   currentAdminUser=session.user;
+  currentAdminAccount=admin;
+  currentCompany=company;
+
+  document.getElementById("currentCompanyName").textContent=company.name||"Empresa";
+  document.getElementById("currentCompanyCode").textContent=`Código: ${company.code||"---"}`;
+
+  try{
+    const {data:platform}=await sb.from("platform_admins")
+      .select("auth_user_id")
+      .eq("auth_user_id",session.user.id)
+      .maybeSingle();
+    isPlatformAdmin=!!platform;
+  }catch(_){isPlatformAdmin=false}
+
+  const companiesBtn=document.getElementById("companiesNavBtn");
+  if(companiesBtn)companiesBtn.style.display=isPlatformAdmin?"flex":"none";
+
+  await loadCompanySettings();
   gate.classList.add("hidden");
   return true;
 }
@@ -899,6 +968,7 @@ document.getElementById("adminLogin").onclick=async()=>{
     if(!ok)return;
 
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
+    if(isPlatformAdmin)loadCompaniesRegistry();
     await startCentralLiveUpdates();
   }catch(e){
     result.textContent="❌ "+(e.message||"Não foi possível entrar.");
@@ -911,7 +981,7 @@ document.getElementById("adminLogin").onclick=async()=>{
 document.getElementById("adminLogout")?.addEventListener("click",async()=>{
   await stopCentralLiveUpdates();
   await sb.auth.signOut();
-  currentAdminUser=null;
+  currentAdminUser=null;currentAdminAccount=null;currentCompany=null;isPlatformAdmin=false;
   document.getElementById("adminAuthGate").classList.remove("hidden");
 });
 
@@ -1075,19 +1145,40 @@ function mins(a,b){return a&&b?Math.max(0,Math.round((new Date(b)-new Date(a))/6
 function fmtMins(m){if(m==null)return"--";const h=Math.floor(m/60),x=m%60;return h?`${h}h ${x}min`:`${x} min`}
 function fresh(d){return !!(d.last_seen&&Date.now()-new Date(d.last_seen).getTime()<180000)}
 
-const OP_SETTINGS_KEY="rts_operational_settings_v1";
 const OP_DEFAULTS={lateMinutes:60,pickupMinutes:20,gpsMinutes:2};
+let currentOperationalSettings={...OP_DEFAULTS};
 let activeDetailDeliveryId=null;
 
 function operationalSettings(){
+  return {...currentOperationalSettings};
+}
+async function loadCompanySettings(){
+  if(!sb||!currentCompany?.id){currentOperationalSettings={...OP_DEFAULTS};return}
   try{
-    const raw=JSON.parse(localStorage.getItem(OP_SETTINGS_KEY)||"{}");
-    return {
-      lateMinutes:Math.max(1,Number(raw.lateMinutes)||OP_DEFAULTS.lateMinutes),
-      pickupMinutes:Math.max(1,Number(raw.pickupMinutes)||OP_DEFAULTS.pickupMinutes),
-      gpsMinutes:Math.max(1,Number(raw.gpsMinutes)||OP_DEFAULTS.gpsMinutes)
-    };
-  }catch(_){return {...OP_DEFAULTS}}
+    const {data,error}=await sb.from("company_settings")
+      .select("late_minutes,pickup_minutes,gps_minutes")
+      .eq("company_id",currentCompany.id)
+      .maybeSingle();
+    if(error)throw error;
+    if(data){
+      currentOperationalSettings={
+        lateMinutes:Math.max(1,Number(data.late_minutes)||OP_DEFAULTS.lateMinutes),
+        pickupMinutes:Math.max(1,Number(data.pickup_minutes)||OP_DEFAULTS.pickupMinutes),
+        gpsMinutes:Math.max(1,Number(data.gps_minutes)||OP_DEFAULTS.gpsMinutes)
+      };
+    }else{
+      currentOperationalSettings={...OP_DEFAULTS};
+      await sb.from("company_settings").insert({
+        company_id:currentCompany.id,
+        late_minutes:OP_DEFAULTS.lateMinutes,
+        pickup_minutes:OP_DEFAULTS.pickupMinutes,
+        gps_minutes:OP_DEFAULTS.gpsMinutes
+      });
+    }
+  }catch(e){
+    console.warn("Configurações da empresa:",e);
+    currentOperationalSettings={...OP_DEFAULTS};
+  }
 }
 function elapsedFrom(value){
   if(!value)return null;
@@ -1237,14 +1328,23 @@ function syncOperationalSettingsForm(){
   document.getElementById("settingGpsMinutes").value=s.gpsMinutes;
   document.getElementById("settingsResult").textContent="";
 }
-function saveOperationalSettings(){
+async function saveOperationalSettings(){
   const next={
     lateMinutes:Math.max(1,Number(document.getElementById("settingLateMinutes").value)||OP_DEFAULTS.lateMinutes),
     pickupMinutes:Math.max(1,Number(document.getElementById("settingPickupMinutes").value)||OP_DEFAULTS.pickupMinutes),
     gpsMinutes:Math.max(1,Number(document.getElementById("settingGpsMinutes").value)||OP_DEFAULTS.gpsMinutes)
   };
-  localStorage.setItem(OP_SETTINGS_KEY,JSON.stringify(next));
-  document.getElementById("settingsResult").textContent="✅ Configurações salvas neste navegador.";
+  if(!currentCompany?.id)return showCentralMessage("Empresa atual não identificada.");
+  const {error}=await sb.from("company_settings").upsert({
+    company_id:currentCompany.id,
+    late_minutes:next.lateMinutes,
+    pickup_minutes:next.pickupMinutes,
+    gps_minutes:next.gpsMinutes,
+    updated_at:new Date().toISOString()
+  },{onConflict:"company_id"});
+  if(error)return showCentralMessage("Erro ao salvar configurações: "+error.message);
+  currentOperationalSettings=next;
+  document.getElementById("settingsResult").textContent="✅ Configurações salvas para esta empresa.";
   renderOperationalControl();
 }
 function deliveryTimeline(d){
@@ -2264,6 +2364,7 @@ document.querySelectorAll("[data-open]").forEach(btn=>{
     if(what==="map"){closeDrawer();document.querySelector(".map-card").scrollIntoView({behavior:"smooth",block:"center"});}
     if(what==="history")openDrawer("drawerHistory","Histórico");
     if(what==="reports")openDrawer("drawerReports","Relatórios");
+    if(what==="companies"){openDrawer("drawerCompanies","Empresas RTS");loadCompaniesRegistry();}
     if(what==="settings"){syncOperationalSettingsForm();openDrawer("drawerSettings","Configurações operacionais");}
   };
 });
@@ -2422,6 +2523,92 @@ function formatCpf(v){
   if(x.length!==11)return x;
   return `${x.slice(0,3)}.${x.slice(3,6)}.${x.slice(6,9)}-${x.slice(9)}`;
 }
+
+
+async function companyAdminRequest(action,payload={}){
+  if(!sb)throw new Error("Supabase indisponível.");
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error("Sessão expirada.");
+  const {data,error}=await sb.functions.invoke("company-admin",{body:{action,...payload}});
+  if(error)throw new Error(error.message||"Falha na função de empresas.");
+  if(!data?.ok)throw new Error(data?.error||"Operação não autorizada.");
+  return data;
+}
+
+async function loadCompaniesRegistry(){
+  if(!isPlatformAdmin)return;
+  const box=document.getElementById("companiesRegistry");
+  const count=document.getElementById("companiesRegistryCount");
+  if(!box)return;
+  box.innerHTML='<div class="small">Carregando empresas...</div>';
+  try{
+    const data=await companyAdminRequest("list");
+    const list=data.companies||[];
+    if(count)count.textContent=`${list.length} empresa(s)`;
+    box.innerHTML=list.length?list.map(c=>`
+      <div class="driver-account">
+        <div class="driver-account-top">
+          <div>
+            <div class="driver-account-name">🏢 ${esc(c.name||"Empresa")}</div>
+            <div class="driver-account-cpf">Código: <b>${esc(c.code||"")}</b></div>
+            <div class="driver-account-cpf">${esc(c.phone||c.email||"")}</div>
+          </div>
+          <span class="driver-account-status ${c.active?"on":"off"}">${c.active?"ATIVA":"DESATIVADA"}</span>
+        </div>
+        <div class="driver-account-actions">
+          <button class="${c.active?"red":"green"}" onclick="toggleCompanyAccount('${c.id}',${c.active?"false":"true"})">
+            ${c.active?"⛔ DESATIVAR":"✅ ATIVAR"}
+          </button>
+        </div>
+      </div>`).join(""):'<div class="small">Nenhuma empresa cadastrada.</div>';
+  }catch(e){
+    box.innerHTML=`<div class="small" style="color:#ff7b7b">❌ ${esc(e.message||"Erro ao carregar empresas.")}</div>`;
+  }
+}
+
+window.toggleCompanyAccount=async(id,active)=>{
+  if(!await rtsConfirm({
+    title:active?"Ativar empresa?":"Desativar empresa?",
+    message:active?"A empresa voltará a acessar o RTS.":"A empresa e seus usuários deixarão de acessar os dados do RTS.",
+    okText:active?"SIM, ATIVAR":"SIM, DESATIVAR",
+    danger:!active
+  }))return;
+  try{
+    await companyAdminRequest("set_active",{company_id:id,active});
+    await loadCompaniesRegistry();
+  }catch(e){showCentralMessage(e.message||"Não foi possível alterar a empresa.");}
+};
+
+document.getElementById("newCompanyCode")?.addEventListener("input",e=>{
+  let v=String(e.target.value||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
+  if(v.length>3)v=v.slice(0,3)+"-"+v.slice(3);
+  e.target.value=v;
+});
+
+document.getElementById("registerCompanyAccount")?.addEventListener("click",async()=>{
+  const btn=document.getElementById("registerCompanyAccount");
+  const result=document.getElementById("companyRegisterResult");
+  btn.disabled=true;const old=btn.textContent;btn.textContent="REGISTRANDO...";
+  result.textContent="";
+  try{
+    const payload={
+      code:document.getElementById("newCompanyCode").value.trim(),
+      name:document.getElementById("newCompanyName").value.trim(),
+      cnpj:document.getElementById("newCompanyCnpj").value.trim(),
+      phone:document.getElementById("newCompanyPhone").value.trim(),
+      company_email:document.getElementById("newCompanyEmail").value.trim(),
+      admin_name:document.getElementById("newCompanyAdminName").value.trim(),
+      admin_email:document.getElementById("newCompanyAdminEmail").value.trim(),
+      password:document.getElementById("newCompanyAdminPassword").value
+    };
+    const data=await companyAdminRequest("register",payload);
+    result.textContent=`✅ ${data.company.name} (${data.company.code}) cadastrada.`;
+    ["newCompanyCode","newCompanyName","newCompanyCnpj","newCompanyPhone","newCompanyEmail","newCompanyAdminName","newCompanyAdminEmail","newCompanyAdminPassword"]
+      .forEach(id=>document.getElementById(id).value="");
+    await loadCompaniesRegistry();
+  }catch(e){result.textContent="❌ "+(e.message||"Não foi possível registrar a empresa.");}
+  finally{btn.disabled=false;btn.textContent=old;}
+});
 
 async function driverAdminRequest(action,payload={}){
   if(!sb)throw new Error("Supabase indisponível.");
@@ -2583,9 +2770,14 @@ document.getElementById("operationsSearch")?.addEventListener("input",renderOper
 document.getElementById("operationsStatus")?.addEventListener("change",renderOperationalTable);
 document.getElementById("saveOperationalSettings")?.addEventListener("click",saveOperationalSettings);
 document.getElementById("resetOperationalSettings")?.addEventListener("click",()=>{
-  localStorage.removeItem(OP_SETTINGS_KEY);
+  currentOperationalSettings={...OP_DEFAULTS};
   syncOperationalSettingsForm();
   document.getElementById("settingsResult").textContent="Padrão restaurado: atraso 60 min, coleta 20 min e GPS 2 min.";
+  if(currentCompany?.id){
+    sb.from("company_settings").upsert({
+      company_id:currentCompany.id,late_minutes:60,pickup_minutes:20,gps_minutes:2,updated_at:new Date().toISOString()
+    },{onConflict:"company_id"}).then(()=>{});
+  }
   renderOperationalControl();
 });
 document.getElementById("detailDrawerClose")?.addEventListener("click",closeDeliveryDetails);
@@ -2736,6 +2928,7 @@ if(sb){
   verifyAdminSession().then(async ok=>{
     if(!ok)return;
     await Promise.all([loadDrivers(),loadDeliveries(),loadHistory7(),loadCustomers()]);
+    if(isPlatformAdmin)loadCompaniesRegistry();
     await startCentralLiveUpdates();
   });
 }

@@ -870,13 +870,14 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <div class="auth-gate" id="authGate">
   <div class="login-card">
     <div class="login-brand"><div class="brand-pin"></div><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div></div>
-    <h2>ACESSO DO MOTOBOY</h2><p>Entre com o CPF e a senha cadastrados pela Central.</p>
+    <h2>ACESSO DO MOTOBOY</h2><p>Entre com o código da empresa, CPF e senha cadastrados pela Central.</p>
+    <label>CÓDIGO DA EMPRESA</label><input id="loginCompanyCode" maxlength="7" autocomplete="organization" placeholder="XXX-XXX" style="text-transform:uppercase">
     <label>CPF</label><input id="loginCpf" inputmode="numeric" autocomplete="username" maxlength="14" placeholder="Digite seu CPF">
     <label>SENHA</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha">
     <button class="login-submit" id="loginSubmit" type="button">ENTRAR</button><div class="login-error" id="loginError"></div>
   </div>
 </div>
-<div class="driver-menu" id="driverMenu"><div class="driver-menu-card"><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div><div class="driver-menu-name" id="driverMenuName">Motoboy</div><div class="driver-menu-sub">Conta do motoboy</div><button class="logout-btn" id="logoutBtn" type="button">SAIR</button></div></div>
+<div class="driver-menu" id="driverMenu"><div class="driver-menu-card"><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div><div class="driver-menu-name" id="driverMenuName">Motoboy</div><div class="driver-menu-sub" id="driverCompanyMenu">Empresa ---</div><div class="driver-menu-sub">Conta do motoboy</div><button class="logout-btn" id="logoutBtn" type="button">SAIR</button></div></div>
 
 <div class="app">
   <header class="header">
@@ -1092,7 +1093,7 @@ function initGoogleMap(){
   });
   window.dispatchEvent(new Event("google-map-ready"));
 }
-let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId="",driverCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||""),lastSend=0;
+let currentDriver=null,currentDeliveries=[],finishedDeliveries=[],waitingDeliveries=[],deliveryMarkers={},currentMotoboyTab="active",sb=null,watch=null,marker=null,lastPosition=null,hasCentered=false,driverId="",driverCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||""),driverCompanyCode=String(localStorage.getItem("rts_company_code")||"").toUpperCase(),currentCompany=null,lastSend=0;
 let assignedDeliveryChannel=null,globalDeliveryChannel=null,driverLocationChannel=null,driverLocationPollTimer=null;
 const notifiedCollectionIds=new Set();
 
@@ -1995,7 +1996,17 @@ function nativeGoOffline(){
   try{if(window.RTSAndroid&&typeof window.RTSAndroid.setDriverOffline==="function")window.RTSAndroid.setDriverOffline()}catch(_){ }
 }
 
-async function loadAuthenticatedDriver(cpf){
+function normalizeCompanyCode(value){
+  const raw=String(value||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
+  return raw.length>3?raw.slice(0,3)+"-"+raw.slice(3):raw;
+}
+
+document.getElementById("loginCompanyCode")?.addEventListener("input",e=>{
+  e.target.value=normalizeCompanyCode(e.target.value);
+});
+
+async function loadAuthenticatedDriver(cpf,companyCode=""){
+
   driverCpf=normalizeDigits(cpf);
   if(driverCpf.length!==11)throw new Error("CPF inválido.");
 
@@ -2006,7 +2017,7 @@ async function loadAuthenticatedDriver(cpf){
   driverId=user.id;
 
   const {data:account,error:accountError}=await sb.from("driver_accounts")
-    .select("cpf,name,phone,active,auth_user_id")
+    .select("cpf,name,phone,active,auth_user_id,company_id")
     .eq("auth_user_id",user.id)
     .eq("cpf",driverCpf)
     .maybeSingle();
@@ -2014,6 +2025,19 @@ async function loadAuthenticatedDriver(cpf){
   if(accountError)throw accountError;
   if(!account)throw new Error("Cadastro do motoboy não encontrado.");
   if(account.active===false)throw new Error("Seu acesso está desativado pela Central.");
+
+  const wantedCode=normalizeCompanyCode(companyCode||driverCompanyCode);
+  const {data:company,error:companyError}=await sb.from("companies")
+    .select("id,code,name,active")
+    .eq("id",account.company_id)
+    .maybeSingle();
+
+  if(companyError||!company)throw new Error("Empresa do motoboy não encontrada.");
+  if(company.active===false)throw new Error("A empresa está desativada no RTS.");
+  if(wantedCode&&company.code!==wantedCode)throw new Error("Código da empresa não confere com este cadastro.");
+
+  currentCompany=company;
+  driverCompanyCode=company.code;
 
   // Cria/atualiza o registro operacional do GPS sem transformar CPF em UUID.
   const {data:driverRows,error:driverError}=await sb.from("drivers")
@@ -2032,6 +2056,7 @@ async function loadAuthenticatedDriver(cpf){
   };
 
   localStorage.setItem("rts_driver_cpf",driverCpf);
+  localStorage.setItem("rts_company_code",driverCompanyCode);
   localStorage.setItem("v7_driver_id",driverId);
   localStorage.setItem("v7_driver_name",account.name||"");
   localStorage.setItem("v7_driver_phone",account.phone||"");
@@ -2039,14 +2064,17 @@ async function loadAuthenticatedDriver(cpf){
   document.getElementById("driverName").value=account.name||"";
   document.getElementById("driverPhone").value=account.phone||"";
   document.getElementById("driverMenuName").textContent=account.name||"Motoboy";
+  document.getElementById("driverCompanyMenu").textContent=`${company.name} • ${company.code}`;
   document.getElementById("authGate").classList.add("hidden");
 }
 async function loginMotoboy(){
   if(!sb)sb=getSupabaseClient();
+  const companyCode=normalizeCompanyCode(document.getElementById("loginCompanyCode").value);
   const cpf=normalizeDigits(document.getElementById("loginCpf").value);
   const password=document.getElementById("loginPassword").value;
   const err=document.getElementById("loginError"),btn=document.getElementById("loginSubmit");
   err.textContent="";
+  if(!/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(companyCode))return err.textContent="Digite o código da empresa no formato XXX-XXX.";
   if(cpf.length!==11)return err.textContent="Digite um CPF com 11 números.";
   if(!password)return err.textContent="Digite sua senha.";
   btn.disabled=true;btn.textContent="ENTRANDO...";
@@ -2054,7 +2082,7 @@ async function loginMotoboy(){
     const email=`${cpf}@motoboy.rts.app`;
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error||!data?.user)throw new Error("CPF ou senha incorretos.");
-    await loadAuthenticatedDriver(cpf);
+    await loadAuthenticatedDriver(cpf,companyCode);
     await loadDeliveries();
     ensureDeliverySubscriptions();
     if(currentDriver?.is_online){
@@ -2066,6 +2094,7 @@ async function loginMotoboy(){
 }
 document.getElementById("loginSubmit").onclick=loginMotoboy;
 document.getElementById("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")loginMotoboy()});
+document.getElementById("loginCompanyCode")?.addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("loginCpf").focus()});
 document.querySelector(".menu-btn").onclick=()=>document.getElementById("driverMenu").classList.add("open");
 document.getElementById("driverMenu").onclick=e=>{if(e.target.id==="driverMenu")e.currentTarget.classList.remove("open")};
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -2078,8 +2107,8 @@ document.getElementById("logoutBtn").onclick=async()=>{
   }}catch(e){}
   nativeGoOffline();
   try{if(sb)await sb.auth.signOut()}catch(e){}
-  localStorage.removeItem("rts_driver_cpf");localStorage.removeItem("v7_driver_id");
-  driverId="";driverCpf="";currentDriver=null;document.getElementById("driverMenu").classList.remove("open");document.getElementById("authGate").classList.remove("hidden");
+  localStorage.removeItem("rts_driver_cpf");localStorage.removeItem("rts_company_code");localStorage.removeItem("v7_driver_id");
+  driverId="";driverCpf="";driverCompanyCode="";currentCompany=null;currentDriver=null;document.getElementById("driverMenu").classList.remove("open");document.getElementById("authGate").classList.remove("hidden");
 };
 
 async function initializeMotoboyApp(){
@@ -2090,16 +2119,21 @@ async function initializeMotoboyApp(){
     if(!session?.user){document.getElementById("authGate").classList.remove("hidden");return;}
 
     let savedCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf"));
-    if(!savedCpf){
+    let savedCompanyCode=normalizeCompanyCode(localStorage.getItem("rts_company_code")||"");
+    if(!savedCpf||!savedCompanyCode){
       const {data:account}=await sb.from("driver_accounts")
-        .select("cpf")
+        .select("cpf,company_id")
         .eq("auth_user_id",session.user.id)
         .maybeSingle();
       savedCpf=normalizeDigits(account?.cpf||"");
+      if(account?.company_id){
+        const {data:company}=await sb.from("companies").select("code").eq("id",account.company_id).maybeSingle();
+        savedCompanyCode=normalizeCompanyCode(company?.code||"");
+      }
     }
 
-    if(!savedCpf){document.getElementById("authGate").classList.remove("hidden");return;}
-    await loadAuthenticatedDriver(savedCpf);
+    if(!savedCpf||!savedCompanyCode){document.getElementById("authGate").classList.remove("hidden");return;}
+    await loadAuthenticatedDriver(savedCpf,savedCompanyCode);
     await loadDeliveries();
     ensureDeliverySubscriptions();
     if(currentDriver?.is_online){
@@ -2115,7 +2149,11 @@ async function initializeMotoboyApp(){
     document.getElementById("authGate").classList.remove("hidden");
   }
 }
-window.addEventListener("load",initializeMotoboyApp);
+window.addEventListener("load",()=>{
+  const savedCode=normalizeCompanyCode(localStorage.getItem("rts_company_code")||"");
+  if(savedCode&&document.getElementById("loginCompanyCode"))document.getElementById("loginCompanyCode").value=savedCode;
+  initializeMotoboyApp();
+});
 
 document.getElementById("start").onclick=async()=>{
   sb=getSupabaseClient(); if(!sb)return;
