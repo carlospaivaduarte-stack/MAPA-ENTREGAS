@@ -870,8 +870,7 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
 <div class="auth-gate" id="authGate">
   <div class="login-card">
     <div class="login-brand"><div class="brand-pin"></div><div class="brand-copy"><b>RTS</b><span>MOTOBOY</span></div></div>
-    <h2>ACESSO DO MOTOBOY</h2><p>Entre com o código da empresa, CPF e senha cadastrados pela Central.</p>
-    <label>CÓDIGO DA EMPRESA</label><input id="loginCompanyCode" maxlength="7" autocomplete="organization" placeholder="XXX-XXX" style="text-transform:uppercase">
+    <h2>ACESSO DO MOTOBOY</h2><p>Entre com seu CPF e senha cadastrados pela Central.</p>
     <label>CPF</label><input id="loginCpf" inputmode="numeric" autocomplete="username" maxlength="14" placeholder="Digite seu CPF">
     <label>SENHA</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha">
     <button class="login-submit" id="loginSubmit" type="button">ENTRAR</button><div class="login-error" id="loginError"></div>
@@ -2001,11 +2000,7 @@ function normalizeCompanyCode(value){
   return raw.length>3?raw.slice(0,3)+"-"+raw.slice(3):raw;
 }
 
-document.getElementById("loginCompanyCode")?.addEventListener("input",e=>{
-  e.target.value=normalizeCompanyCode(e.target.value);
-});
-
-async function loadAuthenticatedDriver(cpf,companyCode=""){
+async function loadAuthenticatedDriver(cpf){
 
   driverCpf=normalizeDigits(cpf);
   if(driverCpf.length!==11)throw new Error("CPF inválido.");
@@ -2026,7 +2021,6 @@ async function loadAuthenticatedDriver(cpf,companyCode=""){
   if(!account)throw new Error("Cadastro do motoboy não encontrado.");
   if(account.active===false)throw new Error("Seu acesso está desativado pela Central.");
 
-  const wantedCode=normalizeCompanyCode(companyCode||driverCompanyCode);
   const {data:company,error:companyError}=await sb.from("companies")
     .select("id,code,name,active")
     .eq("id",account.company_id)
@@ -2034,7 +2028,6 @@ async function loadAuthenticatedDriver(cpf,companyCode=""){
 
   if(companyError||!company)throw new Error("Empresa do motoboy não encontrada.");
   if(company.active===false)throw new Error("A empresa está desativada no RTS.");
-  if(wantedCode&&company.code!==wantedCode)throw new Error("Código da empresa não confere com este cadastro.");
 
   currentCompany=company;
   driverCompanyCode=company.code;
@@ -2069,12 +2062,10 @@ async function loadAuthenticatedDriver(cpf,companyCode=""){
 }
 async function loginMotoboy(){
   if(!sb)sb=getSupabaseClient();
-  const companyCode=normalizeCompanyCode(document.getElementById("loginCompanyCode").value);
   const cpf=normalizeDigits(document.getElementById("loginCpf").value);
   const password=document.getElementById("loginPassword").value;
   const err=document.getElementById("loginError"),btn=document.getElementById("loginSubmit");
   err.textContent="";
-  if(!/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(companyCode))return err.textContent="Digite o código da empresa no formato XXX-XXX.";
   if(cpf.length!==11)return err.textContent="Digite um CPF com 11 números.";
   if(!password)return err.textContent="Digite sua senha.";
   btn.disabled=true;btn.textContent="ENTRANDO...";
@@ -2082,7 +2073,7 @@ async function loginMotoboy(){
     const email=`${cpf}@motoboy.rts.app`;
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error||!data?.user)throw new Error("CPF ou senha incorretos.");
-    await loadAuthenticatedDriver(cpf,companyCode);
+    await loadAuthenticatedDriver(cpf);
     await loadDeliveries();
     ensureDeliverySubscriptions();
     if(currentDriver?.is_online){
@@ -2094,7 +2085,6 @@ async function loginMotoboy(){
 }
 document.getElementById("loginSubmit").onclick=loginMotoboy;
 document.getElementById("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")loginMotoboy()});
-document.getElementById("loginCompanyCode")?.addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("loginCpf").focus()});
 document.querySelector(".menu-btn").onclick=()=>document.getElementById("driverMenu").classList.add("open");
 document.getElementById("driverMenu").onclick=e=>{if(e.target.id==="driverMenu")e.currentTarget.classList.remove("open")};
 document.getElementById("logoutBtn").onclick=async()=>{
@@ -2150,8 +2140,6 @@ async function initializeMotoboyApp(){
   }
 }
 window.addEventListener("load",()=>{
-  const savedCode=normalizeCompanyCode(localStorage.getItem("rts_company_code")||"");
-  if(savedCode&&document.getElementById("loginCompanyCode"))document.getElementById("loginCompanyCode").value=savedCode;
   initializeMotoboyApp();
 });
 
