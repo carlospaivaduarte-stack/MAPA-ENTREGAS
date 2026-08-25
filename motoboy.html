@@ -2122,8 +2122,8 @@ async function initializeMotoboyApp(){
       }
     }
 
-    if(!savedCpf||!savedCompanyCode){document.getElementById("authGate").classList.remove("hidden");return;}
-    await loadAuthenticatedDriver(savedCpf,savedCompanyCode);
+    if(!savedCpf){document.getElementById("authGate").classList.remove("hidden");return;}
+    await loadAuthenticatedDriver(savedCpf);
     await loadDeliveries();
     ensureDeliverySubscriptions();
     if(currentDriver?.is_online){
@@ -2133,12 +2133,110 @@ async function initializeMotoboyApp(){
     }else{
       document.getElementById("state").textContent="🔴 offline";
       try{if(window.RTSAndroid&&typeof window.RTSAndroid.requestPushToken==="function")window.RTSAndroid.requestPushToken()}catch(_){ }
+      const savedPageAfterLogin=localStorage.getItem("rts_motoboy_current_page")||"pageHome";
+      if(typeof window.rtsShowAppPage==="function")window.rtsShowAppPage(savedPageAfterLogin);
     }
   }catch(e){
     console.error("Erro ao iniciar aplicativo:",e);
-    document.getElementById("authGate").classList.remove("hidden");
+
+    // Falha temporária de rede/consulta não significa logout.
+    try{
+      const {data:{session}}=await sb.auth.getSession();
+      if(!session?.user){
+        document.getElementById("authGate").classList.remove("hidden");
+      }else{
+        document.getElementById("authGate").classList.add("hidden");
+      }
+    }catch(_){
+      // Mantém a tela atual quando já havia sessão e a rede oscilou.
+      if(driverId || localStorage.getItem("rts_driver_cpf")){
+        document.getElementById("authGate").classList.add("hidden");
+      }else{
+        document.getElementById("authGate").classList.remove("hidden");
+      }
+    }
   }
 }
+
+let rtsResumeRunning=false;
+let rtsLastResumeAt=0;
+
+async function resumeMotoboyApp(){
+  const now=Date.now();
+  if(rtsResumeRunning || now-rtsLastResumeAt<1000)return;
+  rtsResumeRunning=true;
+  rtsLastResumeAt=now;
+
+  try{
+    if(!sb)sb=getSupabaseClient();
+    if(!sb)return;
+
+    let {data:{session}}=await sb.auth.getSession();
+
+    // Renova silenciosamente se o token estiver perto de vencer.
+    if(session?.expires_at && session.expires_at*1000-Date.now()<120000){
+      try{
+        const refreshed=await sb.auth.refreshSession();
+        session=refreshed?.data?.session||session;
+      }catch(e){
+        console.warn("RTS: não foi possível renovar agora; mantendo sessão atual.",e);
+      }
+    }
+
+    if(!session?.user){
+      document.getElementById("authGate").classList.remove("hidden");
+      return;
+    }
+
+    document.getElementById("authGate").classList.add("hidden");
+
+    const savedCpf=normalizeDigits(localStorage.getItem("rts_driver_cpf")||"");
+    if(savedCpf && (!driverId || !currentDriver)){
+      try{
+        await loadAuthenticatedDriver(savedCpf);
+      }catch(e){
+        console.warn("RTS: sessão válida, dados do motoboy aguardando rede.",e);
+        return;
+      }
+    }
+
+    if(driverId){
+      try{ await loadDeliveries(); }catch(e){ console.warn("RTS: entregas serão atualizadas na próxima tentativa.",e); }
+      try{ ensureDeliverySubscriptions(); }catch(_){}
+      if(currentDriver?.is_online){
+        try{ await ensureAutomaticTracking(); }catch(e){ console.warn("RTS: rastreamento será retomado automaticamente.",e); }
+      }
+    }
+
+    const page=localStorage.getItem("rts_motoboy_current_page")||"pageHome";
+    if(typeof window.rtsShowAppPage==="function")window.rtsShowAppPage(page);
+
+    if(map){
+      setTimeout(()=>{
+        try{
+          google.maps.event.trigger(map,"resize");
+          if(lastPosition?.coords){
+            const pos={
+              lat:Number(lastPosition.coords.latitude),
+              lng:Number(lastPosition.coords.longitude)
+            };
+            map.setCenter(pos);
+            if(marker)marker.setPosition(pos);
+          }
+        }catch(_){}
+      },120);
+    }
+  }finally{
+    rtsResumeRunning=false;
+  }
+}
+
+window.addEventListener("rts-native-resume",resumeMotoboyApp);
+window.addEventListener("pageshow",resumeMotoboyApp);
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible")resumeMotoboyApp();
+});
+
 window.addEventListener("load",()=>{
   initializeMotoboyApp();
 });
@@ -2221,6 +2319,8 @@ document.getElementById("stop").onclick=async()=>{
   $("frontHistorySummary")?.addEventListener("click",()=>{showAppPage("pageHistory");});
 
   function showAppPage(page){
+    if(!["pageHome","pageCollect","pageDeliveries","pageHistory"].includes(page))page="pageHome";
+    localStorage.setItem("rts_motoboy_current_page",page);
     ["pageHome","pageCollect","pageDeliveries","pageHistory"].forEach(id=>{
       $(id)?.classList.toggle("active",id===page);
     });
@@ -2249,6 +2349,10 @@ document.getElementById("stop").onclick=async()=>{
 
     window.scrollTo({top:0,behavior:"smooth"});
   }
+
+  window.rtsShowAppPage=showAppPage;
+  const savedPage=localStorage.getItem("rts_motoboy_current_page")||"pageHome";
+  showAppPage(savedPage);
 
   $("navHome")?.addEventListener("click",()=>showAppPage("pageHome"));
   $("navCollect")?.addEventListener("click",()=>showAppPage("pageCollect"));
