@@ -859,6 +859,80 @@ body.ui-minimized #map{
 
 /* RTS: caixa informativa verde antiga removida. */
 #readyCardsNotice,.ready-cards-notice,.map-fullscreen-notice,.legacy-ready-notice{display:none !important}
+
+.payment-confirm-box{
+  display:none;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #25445e;
+  border-radius:15px;
+  background:#081a29;
+}
+.payment-confirm-box.open{display:block}
+.payment-selected{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:#0d263b;
+  border:1px solid #28506f;
+}
+.payment-selected span{font-size:11px;color:#9baabd}
+.payment-selected b{font-size:14px;color:#fff}
+.payment-field-label{
+  display:block;
+  margin:9px 2px 6px;
+  color:#c8d3df;
+  font-size:11px;
+  font-weight:900;
+}
+.payment-value-wrap{
+  position:relative;
+}
+.payment-value-wrap .currency{
+  position:absolute;
+  left:13px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#8fd9ae;
+  font-weight:900;
+  pointer-events:none;
+}
+#paymentAmount{
+  padding-left:42px;
+  margin-bottom:0;
+  font-size:18px;
+  font-weight:900;
+}
+#paymentNote{
+  min-height:76px;
+  resize:vertical;
+  margin-bottom:0;
+}
+.payment-confirm-btn{
+  width:100%;
+  margin-top:12px;
+  min-height:48px;
+  border:0;
+  border-radius:13px;
+  background:linear-gradient(135deg,#04b94f,#027c38);
+  color:#fff;
+  font-weight:900;
+}
+.payment-confirm-error{
+  min-height:18px;
+  margin-top:8px;
+  color:#ff7379;
+  font-size:11px;
+  text-align:center;
+}
+.payment-option.selected{
+  box-shadow:0 0 0 2px #08c95a inset;
+  border-color:#08c95a;
+}
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -1043,11 +1117,32 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
     <div class="payment-options" id="paymentOptions">
       <button type="button" class="payment-option primary" data-payment="PIX">PIX</button>
       <button type="button" class="payment-option card" data-payment="CARTÃO">💳 CARTÃO</button>
+      <button type="button" class="payment-option cash" data-payment="DINHEIRO">💵 DINHEIRO</button>
       <button type="button" class="payment-option" data-payment="PIX E CC">PIX E CC</button>
       <button type="button" class="payment-option" data-payment="PIX E DINHEIRO">PIX E DINHEIRO</button>
       <button type="button" class="payment-option cash" data-payment="DINHEIRO E CC">DINHEIRO E CC</button>
       <button type="button" class="payment-option cash" data-payment="DINHEIRO E PIX">DINHEIRO E PIX</button>
     </div>
+
+    <div class="payment-confirm-box" id="paymentConfirmBox">
+      <div class="payment-selected">
+        <span>FORMA SELECIONADA</span>
+        <b id="paymentSelectedMethod">—</b>
+      </div>
+
+      <label class="payment-field-label" for="paymentAmount">VALOR RECEBIDO</label>
+      <div class="payment-value-wrap">
+        <span class="currency">R$</span>
+        <input id="paymentAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
+      </div>
+
+      <label class="payment-field-label" for="paymentNote">ANOTAÇÃO DO PAGAMENTO</label>
+      <textarea id="paymentNote" placeholder="Ex.: PIX confirmado, troco entregue, observação do recebimento..."></textarea>
+
+      <button type="button" class="payment-confirm-btn" id="confirmPayment">✅ CONFIRMAR PAGAMENTO E ENTREGA</button>
+      <div class="payment-confirm-error" id="paymentConfirmError"></div>
+    </div>
+
     <button type="button" class="payment-cancel" id="cancelPayment">CANCELAR</button>
   </div>
 </div>
@@ -1440,7 +1535,7 @@ function renderDeliveries(data){
     <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega" aria-label="Informações da entrega"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M8 11h8M8 15h8M8 19h5"/></svg></button>
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}</span>`:""}</div>
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}${Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</span>${d.payment_note?`<br><span style="font-size:11px;color:#9baabd">📝 Pagamento: ${esc(d.payment_note)}</span>`:""}`:""}</div>
     ${currentMotoboyTab==="history"?"":(d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
@@ -1528,6 +1623,8 @@ window.returnToPending=async id=>{
     status:"pending",
     completed_at:null,
     payment_method:null,
+    payment_amount:null,
+    payment_note:null,
     payment_confirmed_at:null,
     route_order:null,
     updated_at:nowIso
@@ -1551,30 +1648,110 @@ window.returnToPending=async id=>{
 
 let pendingPaymentDeliveryId=null;
 let pendingPaymentSource="active";
+let pendingPaymentMethod="";
 let paymentSaving=false;
+
+function resetPaymentForm(){
+  pendingPaymentMethod="";
+  document.querySelectorAll("[data-payment]").forEach(btn=>btn.classList.remove("selected"));
+  document.getElementById("paymentConfirmBox")?.classList.remove("open");
+  const selected=document.getElementById("paymentSelectedMethod");
+  if(selected)selected.textContent="—";
+  const amount=document.getElementById("paymentAmount");
+  if(amount)amount.value="";
+  const note=document.getElementById("paymentNote");
+  if(note)note.value="";
+  const error=document.getElementById("paymentConfirmError");
+  if(error)error.textContent="";
+}
 
 function openPaymentModal(id,source="active"){
   pendingPaymentDeliveryId=id;
   pendingPaymentSource=source;
   paymentSaving=false;
+  resetPaymentForm();
   document.getElementById("paymentOptions")?.classList.remove("payment-processing");
   document.getElementById("paymentModal")?.classList.add("open");
 }
+
 function closePaymentModal(){
   if(paymentSaving)return;
   pendingPaymentDeliveryId=null;
+  resetPaymentForm();
   document.getElementById("paymentModal")?.classList.remove("open");
 }
-async function finalizeDeliveredWithPayment(paymentMethod){
+
+function parseBrlAmount(value){
+  let raw=String(value||"").trim().replace(/\s/g,"").replace(/^R\$/i,"");
+  if(!raw)return NaN;
+
+  if(raw.includes(",")&&raw.includes(".")){
+    raw=raw.replace(/\./g,"").replace(",",".");
+  }else if(raw.includes(",")){
+    raw=raw.replace(",",".");
+  }
+
+  raw=raw.replace(/[^0-9.]/g,"");
+  const number=Number(raw);
+  return Number.isFinite(number)?Math.round(number*100)/100:NaN;
+}
+
+function formatBrlInput(value){
+  const amount=parseBrlAmount(value);
+  if(!Number.isFinite(amount))return value;
+  return amount.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function selectPaymentMethod(button){
+  pendingPaymentMethod=String(button?.dataset?.payment||"").trim();
+  if(!pendingPaymentMethod)return;
+
+  document.querySelectorAll("[data-payment]").forEach(btn=>btn.classList.toggle("selected",btn===button));
+  const selected=document.getElementById("paymentSelectedMethod");
+  if(selected)selected.textContent=pendingPaymentMethod;
+  document.getElementById("paymentConfirmBox")?.classList.add("open");
+  const error=document.getElementById("paymentConfirmError");
+  if(error)error.textContent="";
+  setTimeout(()=>document.getElementById("paymentAmount")?.focus(),80);
+}
+
+async function finalizeDeliveredWithPayment(){
   if(!sb||!pendingPaymentDeliveryId||paymentSaving)return;
+
+  const errorBox=document.getElementById("paymentConfirmError");
+  const paymentMethod=String(pendingPaymentMethod||"").trim();
+  const paymentAmount=parseBrlAmount(document.getElementById("paymentAmount")?.value);
+  const paymentNote=String(document.getElementById("paymentNote")?.value||"").trim();
+
+  if(!paymentMethod){
+    if(errorBox)errorBox.textContent="Selecione a forma de pagamento.";
+    return;
+  }
+
+  if(!Number.isFinite(paymentAmount)||paymentAmount<=0){
+    if(errorBox)errorBox.textContent="Informe o valor recebido. Ex.: 49,90";
+    document.getElementById("paymentAmount")?.focus();
+    return;
+  }
+
   paymentSaving=true;
   document.getElementById("paymentOptions")?.classList.add("payment-processing");
+  document.getElementById("paymentConfirmBox")?.classList.add("payment-processing");
+  const confirmBtn=document.getElementById("confirmPayment");
+  const oldConfirmText=confirmBtn?.textContent||"";
+  if(confirmBtn){
+    confirmBtn.disabled=true;
+    confirmBtn.textContent="CONFIRMANDO...";
+  }
+
   const id=pendingPaymentDeliveryId;
   const nowIso=new Date().toISOString();
 
   const {error}=await sb.from("deliveries").update({
     status:"done",
     payment_method:paymentMethod,
+    payment_amount:paymentAmount,
+    payment_note:paymentNote||null,
     payment_confirmed_at:nowIso,
     completed_at:nowIso,
     updated_at:nowIso
@@ -1583,7 +1760,14 @@ async function finalizeDeliveredWithPayment(paymentMethod){
   if(error){
     paymentSaving=false;
     document.getElementById("paymentOptions")?.classList.remove("payment-processing");
-    alert("Erro ao confirmar pagamento/entrega: "+error.message);
+    document.getElementById("paymentConfirmBox")?.classList.remove("payment-processing");
+    if(confirmBtn){
+      confirmBtn.disabled=false;
+      confirmBtn.textContent=oldConfirmText;
+    }
+    if(errorBox){
+      errorBox.textContent=String(error.message||"Erro ao confirmar pagamento.");
+    }
     return;
   }
 
@@ -1594,6 +1778,12 @@ async function finalizeDeliveredWithPayment(paymentMethod){
   paymentSaving=false;
   document.getElementById("paymentModal")?.classList.remove("open");
   document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+  document.getElementById("paymentConfirmBox")?.classList.remove("payment-processing");
+  if(confirmBtn){
+    confirmBtn.disabled=false;
+    confirmBtn.textContent=oldConfirmText;
+  }
+  resetPaymentForm();
 
   await loadDeliveries();
 
@@ -1610,13 +1800,19 @@ async function finalizeDeliveredWithPayment(paymentMethod){
   }
 }
 
+document.getElementById("paymentAmount")?.addEventListener("blur",e=>{
+  const value=String(e.target.value||"").trim();
+  if(value)e.target.value=formatBrlInput(value);
+});
+
 document.getElementById("cancelPayment")?.addEventListener("click",closePaymentModal);
 document.getElementById("paymentModal")?.addEventListener("click",e=>{
   if(e.target?.id==="paymentModal")closePaymentModal();
 });
 document.querySelectorAll("[data-payment]").forEach(btn=>{
-  btn.addEventListener("click",()=>finalizeDeliveredWithPayment(btn.dataset.payment));
+  btn.addEventListener("click",()=>selectPaymentMethod(btn));
 });
+document.getElementById("confirmPayment")?.addEventListener("click",finalizeDeliveredWithPayment);
 
 window.switchFinalStatus=async(id,status)=>{
   const d=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
@@ -1663,7 +1859,7 @@ async function setStatus(id,status){
     else note=choice||"Não informado";
   }
   const nowIso=new Date().toISOString();
-  const {error}=await sb.from("deliveries").update({status,note,payment_method:null,payment_confirmed_at:null,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
+  const {error}=await sb.from("deliveries").update({status,note,payment_method:null,payment_amount:null,payment_note:null,payment_confirmed_at:null,completed_at:nowIso,updated_at:nowIso}).eq("id",id);
   if(error)return alert("Erro ao atualizar entrega: "+error.message);
   if(status==="done"||status==="failed")await renumberActiveRoute((currentDeliveries.find(x=>x.id===id)||{}).driver_id||driverId);
   await loadDeliveries();

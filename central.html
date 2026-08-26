@@ -1447,7 +1447,15 @@ function deliveryTimeline(d){
   const drv=allDrivers.find(x=>String(x.id)===String(d.driver_id));
   if(d.status==="pending"&&drv?.last_seen)events.push({t:drv.last_seen,title:"Última localização do motoboy",meta:relativeAge(drv.last_seen)});
   if(d.status==="done"&&d.payment_method){
-    events.push({t:d.payment_confirmed_at||d.completed_at||d.updated_at,title:"Pagamento confirmado",meta:d.payment_method});
+    events.push({
+      t:d.payment_confirmed_at||d.completed_at||d.updated_at,
+      title:"Pagamento confirmado",
+      meta:[
+        d.payment_method||"",
+        Number.isFinite(Number(d.payment_amount))?Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"",
+        d.payment_note?("Obs.: "+d.payment_note):""
+      ].filter(Boolean).join(" · ")
+    });
   }
   if((d.status==="done"||d.status==="failed")&&(d.completed_at||d.updated_at)){
     events.push({t:d.completed_at||d.updated_at,title:d.status==="done"?"Entrega concluída":"Entrega não realizada",meta:d.status==="done"?(d.payment_method||statusText(d)):(d.note||statusText(d))});
@@ -1474,7 +1482,11 @@ function renderDeliveryDetails(id){
   document.getElementById("detailUnit").textContent=d.unit_details||"Não informado";
   document.getElementById("detailReference").textContent=d.reference_point||"Não informado";
   document.getElementById("detailNote").textContent=d.note||"Sem observação";
-  document.getElementById("detailPayment").textContent=d.payment_method||"Não informado";
+  const paymentParts=[];
+  if(d.payment_method)paymentParts.push(d.payment_method);
+  if(Number.isFinite(Number(d.payment_amount)))paymentParts.push(Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}));
+  if(d.payment_note)paymentParts.push("Obs.: "+d.payment_note);
+  document.getElementById("detailPayment").textContent=paymentParts.length?paymentParts.join(" · "):"Não informado";
   document.getElementById("detailTimeline").innerHTML=deliveryTimeline(d).map(e=>`
     <div class="timeline-event-pro"><b>${esc(e.title)}</b><span>${fmtDateTime(e.t)}${e.meta?` • ${esc(e.meta)}`:""}</span></div>`).join("")||'<div class="small">Sem eventos registrados.</div>';
 
@@ -2054,13 +2066,13 @@ function renderDeliveries(){
     const order=(d.status==="pending"&&d.route_order)?`${d.route_order}. `:"";
     const driverText=d.status==="awaiting_collection"?"Ainda sem motoqueiro":(driver?driver.name:"Motoqueiro não encontrado");
     return `<div class="delivery">
-      ${d.status==="done"&&d.payment_method?`<span class="payment-badge">💰 ${esc(d.payment_method)}</span>`:""}
+      ${d.status==="done"&&d.payment_method?`<span class="payment-badge">💰 ${esc(d.payment_method)}${Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</span>`:""}
       <b>${currentDeliveryTab==="finished"?(d.status==="done"?"🟢 ":"🔴 "):""}${order}${esc(d.client_name)}</b>
       <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}<br>🏍️ ${esc(driverText)}
       ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}
       ${d.collected_at?`<br><span style="font-size:11px;color:#555"><b>🏍️ Coleta: ${esc(d.collected_by_name||driverText)}</b></span>`:""}
       ${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}
-      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span style="font-size:11px;color:#168a55"><b>💰 Pagamento: ${esc(d.payment_method)}</b></span>`:""}
+      ${d.status!=="pending"&&d.status!=="awaiting_collection"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span style="font-size:11px;color:#168a55"><b>💰 Pagamento: ${esc(d.payment_method)}${Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</b>${d.payment_note?`<br>📝 ${esc(d.payment_note)}`:""}</span>`:""}
       ${(d.building_name||d.unit_details||d.reference_point)?`<br><span style="color:#a16207">ℹ️ ${esc([d.building_name,d.unit_details,d.reference_point].filter(Boolean).join(" · "))}</span>`:""}${d.note?`<br>📝 ${esc(d.note)}`:""}</div>
       <div class="delivery-actions-pro" style="margin-top:6px">
         <button class="blue" onclick="openDeliveryDetails('${d.id}')">📋 DETALHES</button>
@@ -2116,7 +2128,7 @@ async function loadHistory7(){
     const removed=d.deleted_at?` · 🗑️ Removida ${fmtDateTime(d.deleted_at)}`:"";
     const complete=d.completed_at?` · 🕐 ${fmtDateTime(d.completed_at)}`:"";
     return `<div class="history-item"><b>${statusIcon(d)} ${esc(d.client_name)}</b><br>
-      <span class="small">${statusText(d)}${d.collected_by_name?` · 🏍️ Coleta: ${esc(d.collected_by_name)}`:""}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}${d.status==="done"&&d.payment_method?`<br><span class="history-payment">💰 ${esc(d.payment_method)}</span>`:""}</span></div>`;
+      <span class="small">${statusText(d)}${d.collected_by_name?` · 🏍️ Coleta: ${esc(d.collected_by_name)}`:""}${complete}${removed}${d.note?` · 📝 ${esc(d.note)}`:""}${d.status==="done"&&d.payment_method?`<br><span class="history-payment">💰 ${esc(d.payment_method)}${Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}${d.payment_note?` · 📝 ${esc(d.payment_note)}`:""}</span>`:""}</span></div>`;
   }).join(""):'<div class="small">Nenhuma entrega nos últimos 30 dias.</div>';
 }
 
@@ -2420,7 +2432,19 @@ document.getElementById("fitMap").onclick=()=>{
 document.getElementById("exportReport").onclick=()=>{
   const driverMap=Object.fromEntries(allDrivers.map(d=>[d.id,d.name]));
   const rows=[["Cliente","Telefone","Motoqueiro","Status","Conclusao","Motivo","Latitude","Longitude"]];
-  filteredDeliveries().forEach(d=>rows.push([d.client_name||"",d.client_phone||"",driverMap[d.driver_id]||"",statusText(d),d.payment_method||"",d.completed_at||d.updated_at||"",d.note||"",d.lat,d.lng]));
+  filteredDeliveries().forEach(d=>rows.push([
+    d.client_name||"",
+    d.client_phone||"",
+    driverMap[d.driver_id]||"",
+    statusText(d),
+    d.payment_method||"",
+    d.payment_amount??"",
+    d.payment_note||"",
+    d.completed_at||d.updated_at||"",
+    d.note||"",
+    d.lat,
+    d.lng
+  ]));
   const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`RTS_RELATORIO_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
