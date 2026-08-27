@@ -1578,7 +1578,7 @@ function renderDeliveries(data){
     <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega" aria-label="Informações da entrega"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M8 11h8M8 15h8M8 19h5"/></svg></button>
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}${Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</span>${d.payment_note?`<br><span style="font-size:11px;color:#9baabd">📝 Pagamento: ${esc(d.payment_note)}</span>`:""}`:""}</div>
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}${d.payment_amount!==null&&d.payment_amount!==undefined&&String(d.payment_amount)!==""?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</span>${d.payment_note?`<br><span style="font-size:11px;color:#9baabd">📝 Pagamento: ${esc(d.payment_note)}</span>`:""}`:""}</div>
     ${currentMotoboyTab==="history"?"":(d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
@@ -1800,7 +1800,7 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
   const id=pendingPaymentDeliveryId;
   const nowIso=new Date().toISOString();
 
-  const {error}=await sb.from("deliveries").update({
+  const {data:savedPayment,error}=await sb.from("deliveries").update({
     status:"done",
     payment_method:paymentMethod,
     payment_amount:autoPaid?null:paymentAmount,
@@ -1808,7 +1808,10 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
     payment_confirmed_at:nowIso,
     completed_at:nowIso,
     updated_at:nowIso
-  }).eq("id",id);
+  })
+  .eq("id",id)
+  .select("id,status,payment_method,payment_amount,payment_note,payment_confirmed_at")
+  .single();
 
   if(error){
     paymentSaving=false;
@@ -1822,6 +1825,27 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
       errorBox.textContent=String(error.message||"Erro ao confirmar pagamento.");
     }
     return;
+  }
+
+  if(!autoPaid){
+    const storedAmount=savedPayment?.payment_amount;
+    const storedNumber=storedAmount===null||storedAmount===undefined||String(storedAmount)===""
+      ?NaN
+      :Number(storedAmount);
+
+    if(!Number.isFinite(storedNumber)){
+      paymentSaving=false;
+      document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+      document.getElementById("paymentConfirmBox")?.classList.remove("payment-processing");
+      if(confirmBtn){
+        confirmBtn.disabled=false;
+        confirmBtn.textContent=oldConfirmText;
+      }
+      if(errorBox){
+        errorBox.textContent="O pagamento foi enviado, mas o valor não voltou salvo do Supabase. Não finalize novamente; confira a coluna payment_amount no banco.";
+      }
+      return;
+    }
   }
 
   const delivery=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
