@@ -933,6 +933,41 @@ body.ui-minimized #map{
   box-shadow:0 0 0 2px #08c95a inset;
   border-color:#08c95a;
 }
+
+#paymentAmount{
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  caret-color:#08d15c !important;
+  background:#061421 !important;
+  border:1px solid #2f5876 !important;
+  opacity:1 !important;
+}
+#paymentAmount::placeholder{
+  color:#6f8295 !important;
+  -webkit-text-fill-color:#6f8295 !important;
+}
+.payment-live-value{
+  margin:0 0 8px;
+  padding:12px 14px;
+  border-radius:13px;
+  background:#0a2c21;
+  border:1px solid #176746;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.payment-live-value span{
+  font-size:11px;
+  color:#9baabd;
+  font-weight:800;
+}
+.payment-live-value b{
+  color:#7cf3b0;
+  font-size:24px;
+  line-height:1;
+  font-weight:900;
+}
 </style>
 <script>
 window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
@@ -1135,6 +1170,10 @@ window.GOOGLE_MAPS_API_KEY="AIzaSyAi9djViYnxldRRyNlRXlUaPe1fW_uEPN8";
       </div>
 
       <label class="payment-field-label" for="paymentAmount">VALOR RECEBIDO</label>
+      <div class="payment-live-value">
+        <span>VALOR DIGITADO</span>
+        <b id="paymentLiveValue">R$ 0,00</b>
+      </div>
       <div class="payment-value-wrap">
         <span class="currency">R$</span>
         <input id="paymentAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
@@ -1663,6 +1702,8 @@ function resetPaymentForm(){
   if(selected)selected.textContent="—";
   const amount=document.getElementById("paymentAmount");
   if(amount)amount.value="";
+  const liveValue=document.getElementById("paymentLiveValue");
+  if(liveValue)liveValue.textContent="R$ 0,00";
   const note=document.getElementById("paymentNote");
   if(note)note.value="";
   const error=document.getElementById("paymentConfirmError");
@@ -1811,6 +1852,20 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
     renderRouteTimes();
   }
 }
+
+document.getElementById("paymentAmount")?.addEventListener("input",e=>{
+  // Mantém apenas números e vírgula/ponto para evitar caracteres invisíveis.
+  let value=String(e.target.value||"").replace(/[^0-9,.]/g,"");
+  e.target.value=value;
+
+  const live=document.getElementById("paymentLiveValue");
+  if(!live)return;
+
+  const amount=parseBrlAmount(value);
+  live.textContent=Number.isFinite(amount)
+    ?amount.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})
+    :"R$ 0,00";
+});
 
 document.getElementById("paymentAmount")?.addEventListener("blur",e=>{
   const value=String(e.target.value||"").trim();
