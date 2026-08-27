@@ -1578,7 +1578,7 @@ function renderDeliveries(data){
     <button class="info-delivery-btn" onclick="openDeliveryInfo('${d.id}')" title="Informações da entrega" aria-label="Informações da entrega"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M8 11h8M8 15h8M8 19h5"/></svg></button>
     <b>${d.status==="done"?"🟢":d.status==="failed"?"🔴":"🟡"} ${d.route_order?d.route_order+". ":""}👤 ${esc(d.client_name)}</b>
     <div class="small">${esc(d.client_phone||"")}<br>${d.lat}, ${d.lng}
-      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}${Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</span>${d.payment_note?`<br><span style="font-size:11px;color:#9baabd">📝 Pagamento: ${esc(d.payment_note)}</span>`:""}`:""}</div>
+      ${d.created_at?`<br><span style="font-size:11px;color:#777">📝 Venda registrada: ${fmtDateTime(d.created_at)}</span>`:""}${d.status==="pending"&&d.collected_at?`<br><span style="font-size:11px;color:#777">📦 Coletada: ${fmtDateTime(d.collected_at)}</span>`:""}${d.status!=="pending"?`<br><span style="font-size:11px;color:#777">🕐 Entregue/Finalizada: ${fmtDateTime(d.completed_at||d.updated_at)}</span>`:""}${d.status==="done"&&d.payment_method?`<br><span class="moto-payment-badge">💰 ${esc(d.payment_method)}${String(d.payment_method).toUpperCase()!=="JÁ FOI PAGO"&&d.payment_amount!==null&&d.payment_amount!==undefined&&String(d.payment_amount)!==""&&Number.isFinite(Number(d.payment_amount))?` · ${Number(d.payment_amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`:""}</span>${d.payment_note?`<br><span style="font-size:11px;color:#9baabd">📝 Pagamento: ${esc(d.payment_note)}</span>`:""}`:""}</div>
     ${currentMotoboyTab==="history"?"":(d.status==="pending"?`<div class="row" style="margin-top:6px">
       <button class="wa" onclick="openWhatsApp('${esc(d.client_phone)}')">💬 WhatsApp</button>
       <button class="wa" onclick="sendTracking('${d.id}')">📍 Enviar rastreamento</button>
@@ -1773,23 +1773,37 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
 
   const errorBox=document.getElementById("paymentConfirmError");
   const paymentMethod=String(pendingPaymentMethod||"").trim();
-  const paymentAmount=autoPaid?null:parseBrlAmount(document.getElementById("paymentAmount")?.value);
-  const paymentNote=autoPaid?null:String(document.getElementById("paymentNote")?.value||"").trim();
 
   if(!paymentMethod){
     if(errorBox)errorBox.textContent="Selecione a forma de pagamento.";
     return;
   }
 
-  if(!autoPaid && (!Number.isFinite(paymentAmount)||paymentAmount<=0)){
-    if(errorBox)errorBox.textContent="Informe o valor recebido. Ex.: 49,90";
-    document.getElementById("paymentAmount")?.focus();
-    return;
+  let paymentAmount=null;
+  let paymentNote=null;
+
+  if(!autoPaid){
+    const rawValue=String(document.getElementById("paymentAmount")?.value||"").trim();
+    paymentAmount=parseBrlAmount(rawValue);
+    paymentNote=String(document.getElementById("paymentNote")?.value||"").trim()||null;
+
+    if(!rawValue){
+      if(errorBox)errorBox.textContent="Informe o valor recebido.";
+      document.getElementById("paymentAmount")?.focus();
+      return;
+    }
+
+    if(!Number.isFinite(paymentAmount)||paymentAmount<=0){
+      if(errorBox)errorBox.textContent="Informe um valor válido. Ex.: 100,00";
+      document.getElementById("paymentAmount")?.focus();
+      return;
+    }
   }
 
   paymentSaving=true;
   document.getElementById("paymentOptions")?.classList.add("payment-processing");
   document.getElementById("paymentConfirmBox")?.classList.add("payment-processing");
+
   const confirmBtn=document.getElementById("confirmPayment");
   const oldConfirmText=confirmBtn?.textContent||"";
   if(confirmBtn){
@@ -1800,15 +1814,21 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
   const id=pendingPaymentDeliveryId;
   const nowIso=new Date().toISOString();
 
-  const {error}=await sb.from("deliveries").update({
+  const updatePayload={
     status:"done",
     payment_method:paymentMethod,
     payment_amount:autoPaid?null:paymentAmount,
-    payment_note:autoPaid?null:(paymentNote||null),
+    payment_note:autoPaid?null:paymentNote,
     payment_confirmed_at:nowIso,
     completed_at:nowIso,
     updated_at:nowIso
-  }).eq("id",id);
+  };
+
+  const {data:savedPayment,error}=await sb.from("deliveries")
+    .update(updatePayload)
+    .eq("id",id)
+    .select("id,status,payment_method,payment_amount,payment_note,payment_confirmed_at")
+    .single();
 
   if(error){
     paymentSaving=false;
@@ -1818,13 +1838,51 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
       confirmBtn.disabled=false;
       confirmBtn.textContent=oldConfirmText;
     }
-    if(errorBox){
-      errorBox.textContent=String(error.message||"Erro ao confirmar pagamento.");
-    }
+    if(errorBox)errorBox.textContent="Erro ao salvar pagamento: "+String(error.message||"Falha no Supabase.");
     return;
   }
 
+  if(!savedPayment || savedPayment.status!=="done" || savedPayment.payment_method!==paymentMethod){
+    paymentSaving=false;
+    document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+    document.getElementById("paymentConfirmBox")?.classList.remove("payment-processing");
+    if(confirmBtn){
+      confirmBtn.disabled=false;
+      confirmBtn.textContent=oldConfirmText;
+    }
+    if(errorBox)errorBox.textContent="O pagamento não voltou confirmado pelo Supabase. Tente novamente.";
+    return;
+  }
+
+  if(!autoPaid){
+    const storedAmount=savedPayment.payment_amount===null||savedPayment.payment_amount===undefined
+      ?NaN
+      :Number(savedPayment.payment_amount);
+
+    if(!Number.isFinite(storedAmount) || Math.abs(storedAmount-paymentAmount)>0.009){
+      paymentSaving=false;
+      document.getElementById("paymentOptions")?.classList.remove("payment-processing");
+      document.getElementById("paymentConfirmBox")?.classList.remove("payment-processing");
+      if(confirmBtn){
+        confirmBtn.disabled=false;
+        confirmBtn.textContent=oldConfirmText;
+      }
+      if(errorBox){
+        errorBox.textContent="O valor digitado não foi salvo corretamente. A entrega não será concluída até o Supabase devolver o mesmo valor.";
+      }
+      return;
+    }
+  }
+
   const delivery=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
+  if(delivery){
+    delivery.status="done";
+    delivery.payment_method=savedPayment.payment_method;
+    delivery.payment_amount=savedPayment.payment_amount;
+    delivery.payment_note=savedPayment.payment_note;
+    delivery.payment_confirmed_at=savedPayment.payment_confirmed_at||nowIso;
+  }
+
   await renumberActiveRoute(delivery?.driver_id||driverId);
 
   pendingPaymentDeliveryId=null;
@@ -1832,10 +1890,12 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
   document.getElementById("paymentModal")?.classList.remove("open");
   document.getElementById("paymentOptions")?.classList.remove("payment-processing");
   document.getElementById("paymentConfirmBox")?.classList.remove("payment-processing");
+
   if(confirmBtn){
     confirmBtn.disabled=false;
     confirmBtn.textContent=oldConfirmText;
   }
+
   resetPaymentForm();
 
   await loadDeliveries();
@@ -1854,7 +1914,6 @@ async function finalizeDeliveredWithPayment(autoPaid=false){
 }
 
 document.getElementById("paymentAmount")?.addEventListener("input",e=>{
-  // Mantém apenas números e vírgula/ponto para evitar caracteres invisíveis.
   let value=String(e.target.value||"").replace(/[^0-9,.]/g,"");
   e.target.value=value;
 
