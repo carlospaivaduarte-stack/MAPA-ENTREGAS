@@ -1938,7 +1938,9 @@ document.getElementById("paymentModal")?.addEventListener("click",e=>{
 document.querySelectorAll("[data-payment]").forEach(btn=>{
   btn.addEventListener("click",()=>selectPaymentMethod(btn));
 });
-document.getElementById("confirmPayment")?.addEventListener("click",finalizeDeliveredWithPayment);
+document.getElementById("confirmPayment")?.addEventListener("click",()=>{
+  finalizeDeliveredWithPayment(false);
+});
 
 window.switchFinalStatus=async(id,status)=>{
   const d=currentDeliveries.find(x=>x.id===id)||finishedDeliveries.find(x=>x.id===id);
