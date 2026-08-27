@@ -1713,26 +1713,34 @@ function selectPaymentMethod(button){
   document.querySelectorAll("[data-payment]").forEach(btn=>btn.classList.toggle("selected",btn===button));
   const selected=document.getElementById("paymentSelectedMethod");
   if(selected)selected.textContent=pendingPaymentMethod;
-  document.getElementById("paymentConfirmBox")?.classList.add("open");
   const error=document.getElementById("paymentConfirmError");
   if(error)error.textContent="";
+
+  // JÁ FOI PAGO: confirma automaticamente, sem pedir valor nem anotação.
+  if(pendingPaymentMethod==="JÁ FOI PAGO"){
+    document.getElementById("paymentConfirmBox")?.classList.remove("open");
+    finalizeDeliveredWithPayment(true);
+    return;
+  }
+
+  document.getElementById("paymentConfirmBox")?.classList.add("open");
   setTimeout(()=>document.getElementById("paymentAmount")?.focus(),80);
 }
 
-async function finalizeDeliveredWithPayment(){
+async function finalizeDeliveredWithPayment(autoPaid=false){
   if(!sb||!pendingPaymentDeliveryId||paymentSaving)return;
 
   const errorBox=document.getElementById("paymentConfirmError");
   const paymentMethod=String(pendingPaymentMethod||"").trim();
-  const paymentAmount=parseBrlAmount(document.getElementById("paymentAmount")?.value);
-  const paymentNote=String(document.getElementById("paymentNote")?.value||"").trim();
+  const paymentAmount=autoPaid?null:parseBrlAmount(document.getElementById("paymentAmount")?.value);
+  const paymentNote=autoPaid?null:String(document.getElementById("paymentNote")?.value||"").trim();
 
   if(!paymentMethod){
     if(errorBox)errorBox.textContent="Selecione a forma de pagamento.";
     return;
   }
 
-  if(!Number.isFinite(paymentAmount)||paymentAmount<=0){
+  if(!autoPaid && (!Number.isFinite(paymentAmount)||paymentAmount<=0)){
     if(errorBox)errorBox.textContent="Informe o valor recebido. Ex.: 49,90";
     document.getElementById("paymentAmount")?.focus();
     return;
@@ -1754,8 +1762,8 @@ async function finalizeDeliveredWithPayment(){
   const {error}=await sb.from("deliveries").update({
     status:"done",
     payment_method:paymentMethod,
-    payment_amount:paymentAmount,
-    payment_note:paymentNote||null,
+    payment_amount:autoPaid?null:paymentAmount,
+    payment_note:autoPaid?null:(paymentNote||null),
     payment_confirmed_at:nowIso,
     completed_at:nowIso,
     updated_at:nowIso
